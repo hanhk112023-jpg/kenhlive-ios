@@ -3,8 +3,8 @@ import SwiftUI
 struct LiveSportsView: View {
     @State private var socoliveMatches: [LiveMatchGroup] = []
     @State private var colaMatches: [LiveMatchGroup] = []
-    @State private var gavangMatches: [LiveMatchGroup] = []
-    @State private var khandaiMatches: [LiveMatchGroup] = []
+    @State private var gavang33Matches: [LiveMatchGroup] = []
+    @State private var giovangMatches: [LiveMatchGroup] = []
 
     @State private var selectedProvider: String = "all"
     @State private var heroIndex: Int = 0
@@ -15,18 +15,18 @@ struct LiveSportsView: View {
     private let providerPills: [KLFilterItem<String>] = [
         KLFilterItem(id: "all", title: "Tất Cả"),
         KLFilterItem(id: "socolive", title: "Socolive"),
-        KLFilterItem(id: "gavang", title: "Gà Vàng TV"),
+        KLFilterItem(id: "gavang33", title: "Gà Vàng 33"),
         KLFilterItem(id: "colatv", title: "ColaTV"),
-        KLFilterItem(id: "khandai", title: "Khán Đài TV")
+        KLFilterItem(id: "giovang", title: "Giờ Vàng TV")
     ]
 
     private var activeMatchesForCurrentProvider: [LiveMatchGroup] {
         switch selectedProvider {
         case "socolive": return socoliveMatches
-        case "gavang": return gavangMatches
+        case "gavang33", "gavang": return gavang33Matches
         case "colatv": return colaMatches
-        case "khandai": return khandaiMatches
-        default: return socoliveMatches + gavangMatches + colaMatches + khandaiMatches
+        case "giovang", "khandai": return giovangMatches
+        default: return socoliveMatches + gavang33Matches + colaMatches + giovangMatches
         }
     }
 
@@ -120,14 +120,14 @@ struct LiveSportsView: View {
                             )
                         }
 
-                        // Section: Gà Vàng TV
-                        if !gavangMatches.isEmpty {
+                        // Section: Gà Vàng 33
+                        if !gavang33Matches.isEmpty {
                             SportsProviderRail(
-                                title: "Trực Tiếp Gà Vàng TV",
-                                subtitle: "Luồng phát độc quyền từ Gà Vàng",
-                                badgeText: "GÀ VÀNG",
+                                title: "Trực Tiếp Gà Vàng 33",
+                                subtitle: "Luồng phát độc quyền từ Gà Vàng 33",
+                                badgeText: "GÀ VÀNG 33",
                                 badgeColor: Color(red: 0.96, green: 0.62, blue: 0.04),
-                                matches: gavangMatches,
+                                matches: gavang33Matches,
                                 onTapMatch: { group in
                                     handleMatchSelection(group)
                                 }
@@ -148,14 +148,14 @@ struct LiveSportsView: View {
                             )
                         }
 
-                        // Section: Khán Đài TV
-                        if !khandaiMatches.isEmpty {
+                        // Section: Giờ Vàng TV
+                        if !giovangMatches.isEmpty {
                             SportsProviderRail(
-                                title: "Trực Tiếp Khán Đài TV",
-                                subtitle: "Bình luận chuyên sâu Khán Đài / Chuối Chiên",
-                                badgeText: "KHÁN ĐÀI",
+                                title: "Trực Tiếp Giờ Vàng TV",
+                                subtitle: "Luồng trực tiếp chất lượng cao Giờ Vàng",
+                                badgeText: "GIỜ VÀNG",
                                 badgeColor: Color(red: 0.23, green: 0.51, blue: 0.96),
-                                matches: khandaiMatches,
+                                matches: giovangMatches,
                                 onTapMatch: { group in
                                     handleMatchSelection(group)
                                 }
@@ -191,13 +191,13 @@ struct LiveSportsView: View {
                 await loadMatches()
             }
 
-            if isLoading && socoliveMatches.isEmpty && gavangMatches.isEmpty {
+            if isLoading && socoliveMatches.isEmpty && gavang33Matches.isEmpty {
                 ProgressView()
                     .tint(KLTheme.brandOrange)
             }
         }
         .task {
-            if socoliveMatches.isEmpty && gavangMatches.isEmpty {
+            if socoliveMatches.isEmpty && gavang33Matches.isEmpty {
                 await loadMatches()
             }
         }
@@ -228,8 +228,8 @@ struct LiveSportsView: View {
         let res = await SportsService.shared.fetchLiveMatches()
         socoliveMatches = res.socolive
         colaMatches = res.cola
-        gavangMatches = res.gavang
-        khandaiMatches = res.khandai
+        gavang33Matches = res.gavang33
+        giovangMatches = res.giovang
         isLoading = false
     }
 }
@@ -350,9 +350,9 @@ private struct SportsHeroBanner: View {
 
     private func providerColor(_ p: String) -> Color {
         switch p.lowercased() {
-        case "gavang": return Color(red: 0.96, green: 0.62, blue: 0.04)
-        case "colatv": return KLTheme.brandOrange
-        case "khandai": return Color(red: 0.23, green: 0.51, blue: 0.96)
+        case "gavang", "gavang33": return Color(red: 0.96, green: 0.62, blue: 0.04)
+        case "colatv", "cola": return KLTheme.brandOrange
+        case "giovang", "khandai": return Color(red: 0.23, green: 0.51, blue: 0.96)
         default: return Color(red: 0.06, green: 0.72, blue: 0.50)
         }
     }

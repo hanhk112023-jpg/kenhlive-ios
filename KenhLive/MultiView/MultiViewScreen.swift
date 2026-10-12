@@ -125,10 +125,10 @@ struct MultiViewScreen: View {
     }
 
     private func loadAvailableStreams() async {
-        let (soco, cola, gavang, khandai) = await SportsService.shared.fetchLiveMatches()
+        let (soco, cola, gavang33, giovang) = await SportsService.shared.fetchLiveMatches()
         var items: [MultiViewSlotItem] = []
 
-        for g in (soco + gavang + cola + khandai).prefix(10) {
+        for g in (soco + gavang33 + cola + giovang).prefix(10) {
             let top = g.topRoom
             let url = !top.directStreamUrl.isEmpty ? top.directStreamUrl : "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
             items.append(MultiViewSlotItem(title: g.matchTitle, subtitle: "\(top.providerDisplayName) · \(top.blvName)", streamUrl: url))

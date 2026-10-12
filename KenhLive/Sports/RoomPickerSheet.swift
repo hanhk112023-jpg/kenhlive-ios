@@ -112,9 +112,9 @@ struct RoomPickerSheet: View {
 
     private func providerColor(_ p: String) -> Color {
         switch p.lowercased() {
-        case "gavang": return Color(red: 0.96, green: 0.62, blue: 0.04)
-        case "colatv": return KLTheme.brandOrange
-        case "khandai": return Color(red: 0.23, green: 0.51, blue: 0.96)
+        case "gavang", "gavang33": return Color(red: 0.96, green: 0.62, blue: 0.04)
+        case "colatv", "cola": return KLTheme.brandOrange
+        case "giovang", "khandai": return Color(red: 0.23, green: 0.51, blue: 0.96)
         default: return Color(red: 0.06, green: 0.72, blue: 0.50)
         }
     }

@@ -27,9 +27,10 @@ struct LiveRoom: Identifiable, Codable, Hashable {
 
     var providerDisplayName: String {
         switch provider.lowercased() {
-        case "gavang": return "GÀ VÀNG TV"
-        case "colatv": return "COLATV"
-        case "khandai": return "KHÁN ĐÀI TV"
+        case "gavang", "gavang33": return "GÀ VÀNG 33"
+        case "colatv", "cola": return "COLATV"
+        case "giovang": return "GIỜ VÀNG TV"
+        case "khandai": return "GIỜ VÀNG TV"
         default: return "SOCOLIVE"
         }
     }
