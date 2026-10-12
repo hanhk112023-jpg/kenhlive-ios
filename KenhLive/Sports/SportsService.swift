@@ -336,7 +336,7 @@ final class SportsService {
                         directStreamUrl: streamUrl,
                         streamReferer: "",
                         homeTeam: homeName,
-                        awayTeam: awayTeam,
+                        awayTeam: awayName,
                         homeLogo: homeLogo,
                         awayLogo: awayLogo
                     ))
@@ -380,8 +380,8 @@ final class SportsService {
             guard let text = String(data: data, encoding: .utf8) else { return ([], [], []) }
 
             var colaRooms: [LiveRoom] = []
-            var gavangRooms: [LiveRoom] = []
-            var khandaiRooms: [LiveRoom] = []
+            let gavangRooms: [LiveRoom] = []
+            let khandaiRooms: [LiveRoom] = []
 
             let lines = text.components(separatedBy: .newlines)
             var i = 0
