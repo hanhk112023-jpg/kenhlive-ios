@@ -27,7 +27,8 @@ struct PhimView: View {
         KLFilterItem(id: "hoat-hinh", title: "Hoạt Hình & Anime"),
         KLFilterItem(id: "hanh-dong", title: "Hành Động"),
         KLFilterItem(id: "tinh-cam", title: "Tình Cảm"),
-        KLFilterItem(id: "co-trang", title: "Cổ Trang")
+        KLFilterItem(id: "co-trang", title: "Cổ Trang"),
+        KLFilterItem(id: "kinh-di", title: "Kinh Dị")
     ]
 
     private var currentHero: FilmItem? {
@@ -40,10 +41,10 @@ struct PhimView: View {
             KLTheme.bgDeep.ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 22) {
-                    // 1. Minimalist Cinema Header
-                    HStack(alignment: .lastTextBaseline) {
-                        VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 20) {
+                    // 1. Editorial Header
+                    HStack(alignment: .firstTextBaseline) {
+                        VStack(alignment: .leading, spacing: 3) {
                             Text("RẠP PHIM TẠI GIA")
                                 .font(.system(size: 11, weight: .black, design: .rounded))
                                 .tracking(1.8)
@@ -56,24 +57,18 @@ struct PhimView: View {
 
                         Spacer()
 
-                        Text("4K · VIETSUB")
-                            .font(.system(size: 10.5, weight: .bold, design: .monospaced))
-                            .foregroundColor(KLTheme.imdbGold)
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 4)
-                            .background(KLTheme.imdbGold.opacity(0.12))
-                            .cornerRadius(6)
+                        KLPillBadge(text: "4K · VIETSUB", fg: KLTheme.imdbGold, bg: KLTheme.imdbGold.opacity(0.12), border: KLTheme.imdbGold.opacity(0.35))
                     }
                     .padding(.horizontal, 16)
-                    .padding(.top, 12)
+                    .padding(.top, 10)
 
-                    // 2. Category Filter Strip
+                    // 2. Filter Strip
                     KLFilterStrip(items: filterPills, selection: $selectedFilter)
                         .onChange(of: selectedFilter) { newCat in
                             Task { await loadCategory(newCat) }
                         }
 
-                    // 3. Cinema Hero Spotlight Banner
+                    // 3. Cinema Hero Spotlight Card
                     if let hero = currentHero {
                         CinemaHeroCard(
                             film: hero,
@@ -106,7 +101,7 @@ struct PhimView: View {
                         )
                     }
 
-                    // 4. Continue Watching Rail ("Tiếp Tục Xem")
+                    // 4. Continue Watching Rail
                     if !storage.watchHistory.isEmpty && (selectedFilter == "tat-ca" || selectedFilter == "lich-su") {
                         ContinueWatchingRail(items: storage.watchHistory) { item in
                             let film = FilmItem(
@@ -127,12 +122,24 @@ struct PhimView: View {
                             films: section.films,
                             onSelectFilm: { film in
                                 selectedFilmForEpisodes = film
+                            },
+                            onSeeMore: {
+                                // Match filter pill
+                                if section.title.contains("Mới") { selectedFilter = "phim-moi" }
+                                else if section.title.contains("Bộ") { selectedFilter = "phim-bo" }
+                                else if section.title.contains("Lẻ") { selectedFilter = "phim-le" }
+                                else if section.title.contains("Hoạt Hình") { selectedFilter = "hoat-hinh" }
+                                else if section.title.contains("Hành Động") { selectedFilter = "hanh-dong" }
+                                else if section.title.contains("Tình Cảm") { selectedFilter = "tinh-cam" }
+                                else if section.title.contains("Cổ Trang") { selectedFilter = "co-trang" }
+                                else if section.title.contains("Kinh Dị") { selectedFilter = "kinh-di" }
                             }
                         )
                     }
 
                     Spacer(minLength: 90)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .refreshable {
                 await loadCategory(selectedFilter)
@@ -194,7 +201,7 @@ struct PhimView: View {
     }
 }
 
-// MARK: - 16:9 Cinema Hero Spotlight Card (Minimalist Typography)
+// MARK: - 16:9 Cinema Hero Spotlight Card (Strictly Screen Bounded)
 private struct CinemaHeroCard: View {
     let film: FilmItem
     let synopsis: String
@@ -207,122 +214,131 @@ private struct CinemaHeroCard: View {
     let onCycleNext: () -> Void
 
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            AsyncImage(url: URL(string: film.posterUrl.isEmpty ? film.thumbUrl : film.posterUrl)) { phase in
-                if let image = phase.image {
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } else {
-                    LinearGradient(
-                        colors: [Color(red: 0.16, green: 0.10, blue: 0.22), KLTheme.bgDeep],
-                        startPoint: .topTrailing,
-                        endPoint: .bottomLeading
-                    )
+        VStack(alignment: .leading, spacing: 8) {
+            // Row 1: Badges
+            HStack(spacing: 6) {
+                KLPillBadge(text: "SPOTLIGHT", fg: .white, bg: KLTheme.liveRed, border: .clear)
+                KLPillBadge(text: "IMDb \(film.imdbScore)", fg: KLTheme.imdbGold, bg: Color.black.opacity(0.65), border: KLTheme.imdbGold.opacity(0.35))
+                KLPillBadge(text: film.quality, fg: KLTheme.accentCyan, bg: Color.black.opacity(0.55), border: KLTheme.accentCyan.opacity(0.3))
+                KLPillBadge(text: film.year, fg: .white, bg: Color.black.opacity(0.55), border: KLTheme.borderSubtle)
+
+                Spacer()
+
+                if totalCount > 1 {
+                    Text("\(currentIndex + 1)/\(totalCount)")
+                        .font(.system(size: 10.5, weight: .bold, design: .monospaced))
+                        .foregroundColor(KLTheme.textSecondary)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
+                        .background(Color.black.opacity(0.65))
+                        .cornerRadius(5)
                 }
             }
-            .frame(height: 270)
-            .clipped()
 
-            LinearGradient(
-                colors: [
-                    KLTheme.bgDeep.opacity(0.10),
-                    KLTheme.bgDeep.opacity(0.75),
-                    KLTheme.bgDeep
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
+            // Row 2: Title
+            Text(film.name)
+                .font(.system(size: 20, weight: .heavy))
+                .foregroundColor(.white)
+                .lineLimit(1)
 
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 6) {
-                    KLPillBadge(text: "TOP THỊNH HÀNH", fg: .white, bg: KLTheme.liveRed, border: .clear)
-                    KLPillBadge(text: "IMDb \(film.imdbScore)", fg: KLTheme.imdbGold, bg: Color.black.opacity(0.65), border: KLTheme.imdbGold.opacity(0.35))
-                    KLPillBadge(text: film.year, fg: .white, bg: Color.black.opacity(0.55), border: KLTheme.borderSubtle)
-                    KLPillBadge(text: "\(film.quality) · \(film.language)", fg: KLTheme.accentCyan, bg: Color.black.opacity(0.55), border: KLTheme.accentCyan.opacity(0.3))
+            // Row 3: Description
+            Text(synopsis.isEmpty ? "\(film.originalName.isEmpty ? film.name : film.originalName) — Tuyển chọn rạp phim FHD Vietsub trên KenhLive." : synopsis)
+                .font(.system(size: 12, weight: .regular))
+                .foregroundColor(KLTheme.textSecondary)
+                .lineLimit(2)
 
-                    Spacer()
+            // Row 4: Primary Action Buttons
+            HStack(spacing: 8) {
+                Button(action: onPlayNow) {
+                    Text("XEM NGAY")
+                        .font(.system(size: 12.5, weight: .bold))
+                        .tracking(0.5)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .foregroundColor(.white)
+                        .background(KLTheme.brandOrange)
+                        .cornerRadius(8)
+                }
 
-                    if totalCount > 1 {
-                        Text("\(currentIndex + 1)/\(totalCount)")
-                            .font(.system(size: 10.5, weight: .bold, design: .monospaced))
+                Button(action: onOpenEpisodes) {
+                    Text("CHỌN TẬP")
+                        .font(.system(size: 12, weight: .semibold))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .foregroundColor(.white)
+                        .background(Color.white.opacity(0.12))
+                        .cornerRadius(8)
+                }
+            }
+            .padding(.top, 2)
+
+            // Row 5: Secondary Utility Buttons
+            HStack {
+                Button(action: onToggleFavorite) {
+                    Text(isFavorite ? "★ ĐÃ LƯU VÀO KHO" : "+ LƯU YÊU THÍCH")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(KLTheme.imdbGold)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(KLTheme.imdbGold.opacity(0.12))
+                        .cornerRadius(6)
+                }
+
+                Spacer()
+
+                if totalCount > 1 {
+                    Button(action: onCycleNext) {
+                        Text("ĐỔI PHIM ↻")
+                            .font(.system(size: 11, weight: .semibold))
                             .foregroundColor(KLTheme.textSecondary)
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
-                            .background(Color.black.opacity(0.55))
-                            .cornerRadius(5)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Color.white.opacity(0.08))
+                            .cornerRadius(6)
                     }
                 }
-
-                Text(film.name)
-                    .font(.system(size: 22, weight: .heavy))
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-
-                Text(synopsis.isEmpty ? "\(film.originalName.isEmpty ? film.name : film.originalName) — Siêu phẩm điện ảnh chất lượng cao trọn bộ trên KenhLive." : synopsis)
-                    .font(.system(size: 12, weight: .regular))
-                    .foregroundColor(KLTheme.textSecondary)
-                    .lineLimit(2)
-
-                HStack(spacing: 8) {
-                    Button(action: onPlayNow) {
-                        Text("XEM NGAY")
-                            .font(.system(size: 12, weight: .bold))
-                            .tracking(0.5)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                            .background(KLTheme.brandOrange)
-                            .cornerRadius(8)
-                    }
-
-                    Button(action: onOpenEpisodes) {
-                        Text("DANH SÁCH TẬP")
-                            .font(.system(size: 11.5, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 13)
-                            .padding(.vertical, 10)
-                            .background(Color.white.opacity(0.10))
-                            .cornerRadius(8)
-                    }
-
-                    Button(action: onToggleFavorite) {
-                        Text(isFavorite ? "ĐÃ LƯU" : "LƯU")
-                            .font(.system(size: 11.5, weight: .bold))
-                            .foregroundColor(KLTheme.imdbGold)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 10)
-                            .background(KLTheme.imdbGold.opacity(0.12))
-                            .cornerRadius(8)
-                    }
-
-                    if totalCount > 1 {
-                        Button(action: onCycleNext) {
-                            Text("ĐỔI PHIM")
-                                .font(.system(size: 11.5, weight: .semibold))
-                                .foregroundColor(KLTheme.textSecondary)
-                                .padding(.horizontal, 11)
-                                .padding(.vertical, 10)
-                                .background(Color.white.opacity(0.06))
-                                .cornerRadius(8)
-                        }
-                    }
-                }
-                .padding(.top, 4)
             }
-            .padding(16)
         }
-        .background(KLTheme.surfaceCard)
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            ZStack {
+                AsyncImage(url: URL(string: film.posterUrl.isEmpty ? film.thumbUrl : film.posterUrl)) { phase in
+                    if let image = phase.image {
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } else {
+                        LinearGradient(
+                            colors: [Color(red: 0.16, green: 0.10, blue: 0.22), KLTheme.bgDeep],
+                            startPoint: .topTrailing,
+                            endPoint: .bottomLeading
+                        )
+                    }
+                }
+
+                LinearGradient(
+                    colors: [
+                        KLTheme.bgDeep.opacity(0.15),
+                        KLTheme.bgDeep.opacity(0.75),
+                        KLTheme.bgDeep
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+        )
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
                 .stroke(KLTheme.borderSubtle, lineWidth: 1)
         )
+        .clipped()
         .padding(.horizontal, 16)
     }
 }
 
-// MARK: - Continue Watching Row
+// MARK: - Continue Watching Rail
 private struct ContinueWatchingRail: View {
     let items: [WatchProgress]
     let onTap: (WatchProgress) -> Void
@@ -331,7 +347,7 @@ private struct ContinueWatchingRail: View {
         VStack(alignment: .leading, spacing: 12) {
             KLSectionHeader(
                 title: "Tiếp Tục Xem",
-                subtitle: "Khôi phục ngay vị trí đang xem",
+                subtitle: "Khôi phục ngay vị trí đang xem dở",
                 trailingText: "\(items.count) PHIM"
             )
 
@@ -343,7 +359,7 @@ private struct ContinueWatchingRail: View {
                         } label: {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text(item.filmName)
-                                    .font(.system(size: 14, weight: .bold))
+                                    .font(.system(size: 13.5, weight: .bold))
                                     .foregroundColor(.white)
                                     .lineLimit(1)
 
@@ -386,13 +402,34 @@ private struct FilmSectionRow: View {
     let title: String
     let films: [FilmItem]
     let onSelectFilm: (FilmItem) -> Void
+    var onSeeMore: (() -> Void)? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            KLSectionHeader(
-                title: title,
-                trailingText: "\(films.count) PHIM"
-            )
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title.uppercased())
+                        .font(.system(size: 13.5, weight: .heavy, design: .default))
+                        .tracking(0.6)
+                        .foregroundColor(KLTheme.textPrimary)
+
+                    Text("\(films.count) phim chọn lọc")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(KLTheme.textMuted)
+                }
+
+                Spacer()
+
+                if let onSeeMore = onSeeMore {
+                    Button(action: onSeeMore) {
+                        Text("XEM TẤT CẢ")
+                            .font(.system(size: 11, weight: .bold))
+                            .tracking(0.4)
+                            .foregroundColor(KLTheme.brandOrange)
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
@@ -400,7 +437,7 @@ private struct FilmSectionRow: View {
                         Button {
                             onSelectFilm(film)
                         } label: {
-                            VStack(alignment: .leading, spacing: 7) {
+                            VStack(alignment: .leading, spacing: 6) {
                                 ZStack {
                                     AsyncImage(url: URL(string: film.thumbUrl.isEmpty ? film.posterUrl : film.thumbUrl)) { phase in
                                         if let img = phase.image {
@@ -411,67 +448,67 @@ private struct FilmSectionRow: View {
                                             KLTheme.surfaceCard
                                         }
                                     }
-                                    .frame(width: 132, height: 186)
+                                    .frame(width: 126, height: 180)
                                     .clipped()
-                                    .cornerRadius(12)
+                                    .cornerRadius(10)
 
                                     // Badges Overlay
                                     VStack {
                                         HStack {
                                             Text(film.imdbScore)
-                                                .font(.system(size: 10, weight: .heavy, design: .rounded))
+                                                .font(.system(size: 9.5, weight: .heavy, design: .rounded))
                                                 .foregroundColor(KLTheme.imdbGold)
-                                                .padding(.horizontal, 6)
-                                                .padding(.vertical, 3)
-                                                .background(Color.black.opacity(0.72))
-                                                .cornerRadius(5)
+                                                .padding(.horizontal, 5)
+                                                .padding(.vertical, 2.5)
+                                                .background(Color.black.opacity(0.75))
+                                                .cornerRadius(4)
 
                                             Spacer()
 
                                             Text(film.quality)
-                                                .font(.system(size: 9.5, weight: .bold))
+                                                .font(.system(size: 9, weight: .bold))
                                                 .foregroundColor(.white)
-                                                .padding(.horizontal, 6)
-                                                .padding(.vertical, 3)
-                                                .background(Color.black.opacity(0.72))
-                                                .cornerRadius(5)
+                                                .padding(.horizontal, 5)
+                                                .padding(.vertical, 2.5)
+                                                .background(Color.black.opacity(0.75))
+                                                .cornerRadius(4)
                                         }
-                                        .padding(6)
+                                        .padding(5)
 
                                         Spacer()
 
                                         HStack {
                                             Text(film.currentEpisode.isEmpty ? "Full" : film.currentEpisode)
-                                                .font(.system(size: 9.5, weight: .bold))
+                                                .font(.system(size: 9, weight: .bold))
                                                 .foregroundColor(KLTheme.brandOrange)
-                                                .padding(.horizontal, 6)
-                                                .padding(.vertical, 3)
-                                                .background(Color.black.opacity(0.78))
-                                                .cornerRadius(5)
+                                                .padding(.horizontal, 5)
+                                                .padding(.vertical, 2.5)
+                                                .background(Color.black.opacity(0.80))
+                                                .cornerRadius(4)
                                             Spacer()
                                         }
-                                        .padding(6)
+                                        .padding(5)
                                     }
                                 }
-                                .frame(width: 132, height: 186)
+                                .frame(width: 126, height: 180)
                                 .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
+                                    RoundedRectangle(cornerRadius: 10)
                                         .stroke(KLTheme.borderSubtle, lineWidth: 0.8)
                                 )
 
                                 Text(film.name)
-                                    .font(.system(size: 12.5, weight: .bold))
+                                    .font(.system(size: 12, weight: .bold))
                                     .foregroundColor(.white)
                                     .lineLimit(2)
                                     .multilineTextAlignment(.leading)
-                                    .frame(width: 132, height: 32, alignment: .topLeading)
+                                    .frame(width: 126, height: 32, alignment: .topLeading)
 
                                 Text("\(film.year) · \(film.language)")
-                                    .font(.system(size: 10.5, weight: .regular))
+                                    .font(.system(size: 10, weight: .regular))
                                     .foregroundColor(KLTheme.textMuted)
                                     .lineLimit(1)
                             }
-                            .frame(width: 132)
+                            .frame(width: 126)
                         }
                         .buttonStyle(.plain)
                     }

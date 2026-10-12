@@ -166,7 +166,7 @@ struct LiveSportsView: View {
     }
 }
 
-// MARK: - Hero Spotlight Banner (Typography-First)
+// MARK: - Hero Spotlight Banner (Typography-First, Screen Bounded)
 private struct SportsHeroBanner: View {
     let group: LiveMatchGroup
     let currentIndex: Int
@@ -177,112 +177,110 @@ private struct SportsHeroBanner: View {
 
     var body: some View {
         let top = group.topRoom
-        ZStack(alignment: .bottomLeading) {
-            // Backdrop Artwork
-            AsyncImage(url: URL(string: top.cover.isEmpty ? top.avatar : top.cover)) { phase in
-                if let image = phase.image {
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } else {
-                    LinearGradient(
-                        colors: [Color(red: 0.14, green: 0.08, blue: 0.18), KLTheme.bgDeep],
-                        startPoint: .topTrailing,
-                        endPoint: .bottomLeading
-                    )
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                KLPillBadge(text: "TRỰC TIẾP", fg: .white, bg: KLTheme.liveRed, border: .clear)
+                KLPillBadge(text: group.league, fg: KLTheme.accentCyan, bg: KLTheme.accentCyan.opacity(0.12), border: KLTheme.accentCyan.opacity(0.28))
+                KLPillBadge(text: "\(DataNormalizer.formatViewers(group.totalViewers)) XEM", fg: KLTheme.textSecondary, bg: Color.black.opacity(0.45), border: KLTheme.borderSubtle)
+
+                Spacer()
+
+                if totalCount > 1 {
+                    Text("\(currentIndex + 1)/\(totalCount)")
+                        .font(.system(size: 10.5, weight: .bold, design: .monospaced))
+                        .foregroundColor(KLTheme.textSecondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Color.black.opacity(0.5))
+                        .cornerRadius(5)
                 }
             }
-            .frame(height: 236)
-            .clipped()
 
-            // Multi-Directional Gradient Scrim
-            LinearGradient(
-                colors: [
-                    KLTheme.bgDeep.opacity(0.15),
-                    KLTheme.bgDeep.opacity(0.75),
-                    KLTheme.bgDeep
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
+            Text(group.matchTitle)
+                .font(.system(size: 21, weight: .heavy))
+                .foregroundColor(.white)
+                .lineLimit(2)
 
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 6) {
-                    KLPillBadge(text: "TRỰC TIẾP", fg: .white, bg: KLTheme.liveRed, border: .clear)
-                    KLPillBadge(text: group.league, fg: KLTheme.accentCyan, bg: KLTheme.accentCyan.opacity(0.12), border: KLTheme.accentCyan.opacity(0.28))
-                    KLPillBadge(text: "\(DataNormalizer.formatViewers(group.totalViewers)) XEM", fg: KLTheme.textSecondary, bg: Color.black.opacity(0.45), border: KLTheme.borderSubtle)
+            Text("\(top.blvName) · \(group.rooms.count) phòng bình luận · \(top.notice)")
+                .font(.system(size: 12, weight: .regular))
+                .foregroundColor(KLTheme.textSecondary)
+                .lineLimit(1)
 
-                    Spacer()
+            HStack(spacing: 10) {
+                Button(action: onWatchNow) {
+                    Text("XEM NGAY")
+                        .font(.system(size: 12.5, weight: .bold))
+                        .tracking(0.5)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(KLTheme.brandOrange)
+                        .cornerRadius(8)
+                }
 
-                    if totalCount > 1 {
-                        Text("\(currentIndex + 1)/\(totalCount)")
-                            .font(.system(size: 10.5, weight: .bold, design: .monospaced))
+                Button(action: onPickRoom) {
+                    Text("PHÒNG BLV (\(group.rooms.count))")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(KLTheme.textPrimary)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(Color.white.opacity(0.10))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(KLTheme.borderSubtle, lineWidth: 1)
+                        )
+                        .cornerRadius(8)
+                }
+
+                if totalCount > 1 {
+                    Button(action: onNextMatch) {
+                        Text("ĐỔI TRẬN")
+                            .font(.system(size: 11.5, weight: .semibold))
                             .foregroundColor(KLTheme.textSecondary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Color.black.opacity(0.5))
-                            .cornerRadius(5)
-                    }
-                }
-
-                Text(group.matchTitle)
-                    .font(.system(size: 21, weight: .heavy))
-                    .foregroundColor(.white)
-                    .lineLimit(2)
-
-                Text("\(top.blvName) · \(group.rooms.count) phòng bình luận · \(top.notice)")
-                    .font(.system(size: 12, weight: .regular))
-                    .foregroundColor(KLTheme.textSecondary)
-                    .lineLimit(1)
-
-                HStack(spacing: 10) {
-                    Button(action: onWatchNow) {
-                        Text("XEM NGAY")
-                            .font(.system(size: 12.5, weight: .bold))
-                            .tracking(0.5)
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 18)
+                            .padding(.horizontal, 12)
                             .padding(.vertical, 10)
-                            .background(KLTheme.brandOrange)
+                            .background(Color.white.opacity(0.06))
                             .cornerRadius(8)
                     }
-
-                    Button(action: onPickRoom) {
-                        Text("PHÒNG BLV (\(group.rooms.count))")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(KLTheme.textPrimary)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
-                            .background(Color.white.opacity(0.10))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(KLTheme.borderSubtle, lineWidth: 1)
-                            )
-                            .cornerRadius(8)
-                    }
-
-                    if totalCount > 1 {
-                        Button(action: onNextMatch) {
-                            Text("ĐỔI TRẬN")
-                                .font(.system(size: 11.5, weight: .semibold))
-                                .foregroundColor(KLTheme.textSecondary)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 10)
-                                .background(Color.white.opacity(0.06))
-                                .cornerRadius(8)
-                        }
-                    }
                 }
-                .padding(.top, 4)
             }
-            .padding(16)
+            .padding(.top, 4)
         }
-        .background(KLTheme.surfaceCard)
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            ZStack {
+                AsyncImage(url: URL(string: top.cover.isEmpty ? top.avatar : top.cover)) { phase in
+                    if let image = phase.image {
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } else {
+                        LinearGradient(
+                            colors: [Color(red: 0.14, green: 0.08, blue: 0.18), KLTheme.bgDeep],
+                            startPoint: .topTrailing,
+                            endPoint: .bottomLeading
+                        )
+                    }
+                }
+
+                LinearGradient(
+                    colors: [
+                        KLTheme.bgDeep.opacity(0.15),
+                        KLTheme.bgDeep.opacity(0.75),
+                        KLTheme.bgDeep
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+        )
         .cornerRadius(16)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
                 .stroke(KLTheme.borderSubtle, lineWidth: 1)
         )
+        .clipped()
         .padding(.horizontal, 16)
     }
 }

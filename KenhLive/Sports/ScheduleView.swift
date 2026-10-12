@@ -48,18 +48,19 @@ struct ScheduleView: View {
                     LazyVStack(spacing: 12) {
                         ForEach(filteredFixtures.isEmpty ? fixtures : filteredFixtures) { item in
                             Button {
+                                let rNum = item.roomNum.isEmpty ? "235232" : item.roomNum
                                 activeRoomForPlayer = LiveRoom(
-                                    roomNum: "sched_1",
-                                    blvName: "BLV Socolive",
-                                    avatar: "",
+                                    roomNum: rNum,
+                                    blvName: item.blvName,
+                                    avatar: item.homeLogo,
                                     viewers: 52000,
                                     matchTitle: "\(item.homeName) vs \(item.awayName)",
                                     league: item.league,
-                                    cover: "",
+                                    cover: item.homeLogo,
                                     category: "Bóng đá",
-                                    blvLevel: "Lv.5",
+                                    blvLevel: "VIP",
                                     score: 0,
-                                    notice: "Trực tiếp bóng đá tốc độ cao"
+                                    notice: "Trực tiếp bóng đá chất lượng cao"
                                 )
                             } label: {
                                 VStack(spacing: 12) {

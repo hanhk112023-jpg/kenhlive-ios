@@ -55,4 +55,6 @@ struct ScheduleItem: Identifiable, Codable, Hashable {
     let homeScore: String
     let awayScore: String
     let hasLive: Bool
+    var roomNum: String = ""
+    var blvName: String = "BLV Socolive"
 }

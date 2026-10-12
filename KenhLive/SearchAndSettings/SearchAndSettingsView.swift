@@ -208,7 +208,7 @@ struct SearchAndSettingsView: View {
                     HStack {
                         Spacer()
                         VStack(spacing: 3) {
-                            Text("KENHLIVE IOS · PHIÊN BẢN 1.0.0 (BẢN DỰNG 1)")
+                            Text("KENHLIVE IOS · PHIÊN BẢN 1.1.0 (BẢN DỰNG 2)")
                                 .font(.system(size: 10.5, weight: .bold, design: .monospaced))
                                 .foregroundColor(KLTheme.textMuted)
 

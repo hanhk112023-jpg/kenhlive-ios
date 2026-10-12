@@ -54,6 +54,8 @@
         <string>UIInterfaceOrientationLandscapeLeft</string>
         <string>UIInterfaceOrientationLandscapeRight</string>
     </array>
+    <key>CFBundleIconName</key>
+    <string>AppIcon</string>
     <key>UIUserInterfaceStyle</key>
     <string>Dark</string>
 </dict>

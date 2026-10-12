@@ -77,7 +77,11 @@ struct IptvView: View {
                             let isCurrentPreview = previewChannel?.channelId == channel.channelId
 
                             Button {
-                                previewChannel = channel
+                                if isCurrentPreview {
+                                    activeChannelForPlayer = channel
+                                } else {
+                                    previewChannel = channel
+                                }
                             } label: {
                                 VStack(alignment: .leading, spacing: 8) {
                                     HStack {
@@ -228,7 +232,7 @@ private struct InlinePreviewPlayerView: View {
             if let url = URL(string: resolved) {
                 await MainActor.run {
                     self.player = AVPlayer(url: url)
-                    self.player?.isMuted = true
+                    self.player?.isMuted = false
                     self.player?.play()
                 }
             }

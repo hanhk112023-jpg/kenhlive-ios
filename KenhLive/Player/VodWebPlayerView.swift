@@ -12,42 +12,51 @@ struct VodWebPlayerView: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            NguoncWebView(embedUrl: episode.embed)
-                .ignoresSafeArea()
+            if episode.embed.contains(".m3u8") {
+                HLSPlayerView(
+                    title: film.name,
+                    subtitle: "\(film.quality) · \(episode.name)",
+                    roomNum: nil,
+                    directUrl: episode.embed
+                )
+            } else {
+                NguoncWebView(embedUrl: episode.embed)
+                    .ignoresSafeArea()
 
-            // Dismiss Header Bar
-            VStack {
-                HStack(alignment: .top) {
-                    Button {
-                        saveProgress()
-                        dismiss()
-                    } label: {
-                        Text("ĐÓNG")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background(Color.black.opacity(0.70))
-                            .cornerRadius(8)
+                // Dismiss Header Bar
+                VStack {
+                    HStack(alignment: .top) {
+                        Button {
+                            saveProgress()
+                            dismiss()
+                        } label: {
+                            Text("ĐÓNG")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(Color.black.opacity(0.70))
+                                .cornerRadius(8)
+                        }
+
+                        Spacer()
+
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text(film.name)
+                                .font(.system(size: 13.5, weight: .bold))
+                                .foregroundColor(.white)
+                                .lineLimit(1)
+
+                            Text(episode.name)
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(KLTheme.brandOrange)
+                        }
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 10)
 
                     Spacer()
-
-                    VStack(alignment: .trailing, spacing: 2) {
-                        Text(film.name)
-                            .font(.system(size: 13.5, weight: .bold))
-                            .foregroundColor(.white)
-                            .lineLimit(1)
-
-                        Text(episode.name)
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(KLTheme.brandOrange)
-                    }
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 10)
-
-                Spacer()
             }
         }
         .onAppear {
