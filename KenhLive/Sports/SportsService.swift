@@ -49,7 +49,8 @@ final class SportsService {
 
         // B. If provider is Giờ Vàng and roomNum is fixture ID
         if room.provider == "giovang" {
-            let fixtureId = room.roomNum.replacingOccurrences(of: "giovang_", with: "")
+            let rawId = room.roomNum.replacingOccurrences(of: "giovang_", with: "")
+            let fixtureId = rawId.components(separatedBy: "_").first ?? rawId
             if let streamUrl = await resolveGiovangStream(fixtureId: fixtureId) {
                 return [
                     StreamServer(
@@ -315,9 +316,6 @@ final class SportsService {
                 let blvArr = m["blv"] as? [String] ?? []
                 let blvList = blvArr.isEmpty ? ["BLV GIỜ VÀNG"] : blvArr
 
-                // Lấy stream trực tiếp từ fixture API nếu có
-                let streamUrl = await resolveGiovangStream(fixtureId: mid) ?? ""
-
                 for (idx, blvSlug) in blvList.enumerated() {
                     let rawBlv = blvSlug.replacingOccurrences(of: "blv-", with: "BLV ").uppercased()
                     rooms.append(LiveRoom(
@@ -333,7 +331,7 @@ final class SportsService {
                         score: 0,
                         notice: "Kênh trực tiếp Giờ Vàng TV · Hạ tầng VCDN Cloud",
                         provider: "giovang",
-                        directStreamUrl: streamUrl,
+                        directStreamUrl: "",
                         streamReferer: "",
                         homeTeam: homeName,
                         awayTeam: awayName,
@@ -453,22 +451,25 @@ final class SportsService {
                       .trimmingCharacters(in: .whitespaces)
 
         if let timeRegex = try? NSRegularExpression(pattern: "^\\d{2}:\\d{2}(\\s+\\d{2}/\\d{2})?\\s*") {
-            text = timeRegex.stringByReplacingMatches(in: text, options: [], range: NSRange(location: 0, length: text.count), withTemplate: "")
+            let ns = text as NSString
+            text = timeRegex.stringByReplacingMatches(in: text, options: [], range: NSRange(location: 0, length: ns.length), withTemplate: "")
         }
 
         var blv = "BLV Trực Tiếp"
         if let openParen = text.range(of: "("),
            let closeParen = text.range(of: ")", range: openParen.upperBound..<text.endIndex) {
             blv = String(text[openParen.upperBound..<closeParen.lowerBound]).trimmingCharacters(in: .whitespaces)
-            text.removeSubrange(openParen.lowerBound...closeParen.upperBound)
+            // Sửa triệt để lỗi String index out of bounds: dùng nửa khoảng ..< thay vì ...
+            text.removeSubrange(openParen.lowerBound..<closeParen.upperBound)
         }
 
         if let bracketRegex = try? NSRegularExpression(pattern: "\\[[^\\]]+\\]") {
-            text = bracketRegex.stringByReplacingMatches(in: text, options: [], range: NSRange(location: 0, length: text.count), withTemplate: "")
+            let ns = text as NSString
+            text = bracketRegex.stringByReplacingMatches(in: text, options: [], range: NSRange(location: 0, length: ns.length), withTemplate: "")
         }
 
         let cleanTitle = text.replacingOccurrences(of: "_", with: " ").trimmingCharacters(in: .whitespaces)
-        return (cleanTitle.isEmpty ? "Trực tiếp bóng đá" : cleanTitle, blv)
+        return (cleanTitle.isEmpty ? "Trực tiếp bóng đá" : cleanTitle, blv.isEmpty ? "BLV Trực Tiếp" : blv)
     }
 
     private func groupRooms(_ rooms: [LiveRoom]) -> [LiveMatchGroup] {
@@ -477,9 +478,10 @@ final class SportsService {
             let key = "\(r.league) — \(r.matchTitle)"
             map[key, default: []].append(r)
         }
-        return map.map { key, list in
+        return map.compactMap { key, list in
+            guard !list.isEmpty else { return nil }
             let sorted = list.sorted { $0.viewers > $1.viewers }
-            let first = sorted.first!
+            guard let first = sorted.first else { return nil }
             return LiveMatchGroup(matchKey: key, matchTitle: first.matchTitle, league: first.league, rooms: sorted)
         }.sorted { $0.totalViewers > $1.totalViewers }
     }

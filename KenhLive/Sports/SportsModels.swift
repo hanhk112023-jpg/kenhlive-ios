@@ -75,7 +75,7 @@ struct StreamServer: Identifiable, Hashable {
 }
 
 struct ScheduleItem: Identifiable, Codable, Hashable {
-    var id: String { "\(homeName)_\(awayName)_\(matchTime)" }
+    var id: String { "\(homeName)_\(awayName)_\(matchTime)_\(roomNum)_\(blvName)" }
     let homeName: String
     let awayName: String
     let homeLogo: String

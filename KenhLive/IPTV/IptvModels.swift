@@ -1,7 +1,7 @@
 import Foundation
 
 struct IptvChannel: Identifiable, Codable, Hashable {
-    var id: String { channelId }
+    var id: String { channelId + "_" + streamUrl }
     let channelId: String
     let name: String
     let group: String

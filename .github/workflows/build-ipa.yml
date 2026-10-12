@@ -30,6 +30,19 @@ jobs:
           xcodegen generate
           sed -i '' 's/objectVersion = 77;/objectVersion = 56;/g' KenhLive.xcodeproj/project.pbxproj
 
+      - name: Smoke Test Swift Parser & Models
+        run: |
+          swift -e '
+          import Foundation
+          var text = "🟢 19:00 12/10 ⚽ Real Valladolid vs Albacete (Nguyễn Đảm) "
+          text = text.replacingOccurrences(of: "🟢", with: "").replacingOccurrences(of: "⚽", with: "").trimmingCharacters(in: .whitespaces)
+          if let openParen = text.range(of: "("), let closeParen = text.range(of: ")", range: openParen.upperBound..<text.endIndex) {
+              let blv = String(text[openParen.upperBound..<closeParen.lowerBound]).trimmingCharacters(in: .whitespaces)
+              text.removeSubrange(openParen.lowerBound..<closeParen.upperBound)
+              print("SUCCESS: BLV=\(blv), Title=\(text.trimmingCharacters(in: .whitespaces))")
+          }
+          '
+
       - name: Build Xcode Archive
         run: |
           xcodebuild archive \

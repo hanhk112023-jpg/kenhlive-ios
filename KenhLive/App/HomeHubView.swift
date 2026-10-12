@@ -3,175 +3,290 @@ import SwiftUI
 struct HomeHubView: View {
     @Binding var currentTab: KLTab
     let onOpenTelegram: () -> Void
+    let onOpenMultiView: () -> Void
+    let onOpenSchedule: () -> Void
 
-    @State private var currentTimeStr: String = DataNormalizer.formatGMT7Time(Date())
+    @State private var liveMatches: [LiveMatchGroup] = []
+    @State private var trendingFilms: [FilmItem] = []
+    @State private var selectedMatchForPlayer: LiveRoom? = nil
+    @State private var selectedFilmForEpisodes: FilmItem? = nil
+    @State private var activeVodPlayback: PhimView.ActiveVodPlayback? = nil
 
     var body: some View {
         ZStack {
             KLTheme.bgDeep.ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 18) {
-                    // 1. Editorial Welcome Header
-                    HStack(alignment: .firstTextBaseline) {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("TRUNG TÂM GIẢI TRÍ ĐA NĂNG")
-                                .font(.system(size: 10.5, weight: .black, design: .rounded))
-                                .tracking(1.8)
+                VStack(alignment: .leading, spacing: 20) {
+                    // 1. Mobile Editorial Greeting Bar
+                    HStack(alignment: .center) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("TRUNG TÂM GIẢI TRÍ")
+                                .font(.system(size: 10, weight: .black, design: .rounded))
+                                .tracking(1.4)
                                 .foregroundColor(KLTheme.brandOrange)
 
                             Text("Cổng Chọn KenhLive")
-                                .font(.system(size: 25, weight: .heavy))
+                                .font(.system(size: 22, weight: .heavy))
                                 .foregroundColor(.white)
                         }
 
                         Spacer()
 
-                        VStack(alignment: .trailing, spacing: 3) {
-                            HStack(spacing: 5) {
-                                Circle()
-                                    .fill(KLTheme.socoEmerald)
-                                    .frame(width: 6, height: 6)
-                                Text(currentTimeStr + " · GMT+7")
-                                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        HStack(spacing: 5) {
+                            Circle()
+                                .fill(KLTheme.liveRed)
+                                .frame(width: 6, height: 6)
+                            Text(DataNormalizer.formatGMT7Time(Date()) + " GMT+7")
+                                .font(.system(size: 10.5, weight: .bold, design: .monospaced))
+                                .foregroundColor(.white)
+                        }
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 5)
+                        .background(KLTheme.surfaceCard)
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(KLTheme.borderSubtle, lineWidth: 0.8)
+                        )
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+
+                    // 2. Three Primary Entertainment Portals (Compact Mobile Cards)
+                    VStack(spacing: 10) {
+                        // Portal 1: THỂ THAO TRỰC TIẾP
+                        MobilePortalRow(
+                            badgeText: "ĐANG PHÁT SÓNG",
+                            badgeColor: KLTheme.liveRed,
+                            title: "Thể Thao Trực Tiếp",
+                            subtitle: "4 Đài Độc Lập: Socolive · Gà Vàng 33 · ColaTV · Giờ Vàng TV",
+                            iconSystemName: "sportscourt.fill",
+                            accentColor: KLTheme.socoEmerald,
+                            gradient: [Color(red: 0.05, green: 0.22, blue: 0.17), KLTheme.surfaceCard]
+                        ) {
+                            KLHaptics.medium()
+                            currentTab = .live
+                        }
+
+                        // Portal 2: TRUYỀN HÌNH VIỆT NAM
+                        MobilePortalRow(
+                            badgeText: "FHD SIÊU MƯỢT",
+                            badgeColor: KLTheme.accentCyan,
+                            title: "Truyền Hình Kênh TV",
+                            subtitle: "VTV Quốc Gia · HTV Thể Thao · THVL · Kênh Quốc Tế",
+                            iconSystemName: "tv.fill",
+                            accentColor: KLTheme.accentCyan,
+                            gradient: [Color(red: 0.06, green: 0.16, blue: 0.30), KLTheme.surfaceCard]
+                        ) {
+                            KLHaptics.medium()
+                            currentTab = .iptv
+                        }
+
+                        // Portal 3: KHO PHIM NETFLIX CINEMA
+                        MobilePortalRow(
+                            badgeText: "NETFLIX 4K",
+                            badgeColor: KLTheme.netflixRed,
+                            title: "Kho Phim Netflix Cinema",
+                            subtitle: "Phim Rạp Bom Tấn · Phim Bộ Mới · Hoạt Hình Anime Vietsub",
+                            iconSystemName: "film.fill",
+                            accentColor: KLTheme.netflixRed,
+                            gradient: [Color(red: 0.28, green: 0.05, blue: 0.08), KLTheme.surfaceCard]
+                        ) {
+                            KLHaptics.medium()
+                            currentTab = .phim
+                        }
+                    }
+                    .padding(.horizontal, 16)
+
+                    // 3. Live Matches Quick Carousel (If Available)
+                    if !liveMatches.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack {
+                                Text("TRẬN CẦU TÂM ĐIỂM")
+                                    .font(.system(size: 13, weight: .heavy))
+                                    .tracking(0.6)
                                     .foregroundColor(.white)
-                            }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(KLTheme.surfaceCard)
-                            .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(KLTheme.borderSubtle, lineWidth: 0.8)
-                            )
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 10)
 
-                    // 2. Three Primary Entertainment Portals (Đồng bộ chuẩn TV v7.4.3)
-                    VStack(spacing: 14) {
-                        // PORTAL 1: THỂ THAO TRỰC TIẾP
-                        HubPortalCard(
-                            categoryTag: "PHÂN KHU 01 · THỂ THAO",
-                            statusBadge: "ĐANG TRỰC TIẾP",
-                            statusColor: KLTheme.liveRed,
-                            title: "THỂ THAO TRỰC TIẾP",
-                            subtitle: "Bóng đá, Bóng rổ, Tennis, eSports với dàn BLV sôi động nhất Việt Nam.",
-                            highlights: ["SOCOLIVE", "GÀ VÀNG 33", "COLATV", "GIỜ VÀNG TV"],
-                            ctaText: "VÀO SẢNH THỂ THAO →",
-                            gradientColors: [
-                                Color(red: 0.05, green: 0.24, blue: 0.19),
-                                Color(red: 0.06, green: 0.11, blue: 0.18),
-                                KLTheme.surfaceCard
-                            ],
-                            accentColor: KLTheme.socoEmerald
-                        ) {
-                            KLHaptics.medium()
-                            withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
-                                currentTab = .live
-                            }
-                        }
+                                Spacer()
 
-                        // PORTAL 2: TRUYỀN HÌNH VIỆT NAM
-                        HubPortalCard(
-                            categoryTag: "PHÂN KHU 02 · TRUYỀN HÌNH",
-                            statusBadge: "FHD SIÊU MƯỢT",
-                            statusColor: KLTheme.accentCyan,
-                            title: "TRUYỀN HÌNH TRỰC TUYẾN",
-                            subtitle: "Hệ thống kênh VTV Quốc Gia, HTV, THVL, Kênh Địa Phương & Quốc Tế chọn lọc.",
-                            highlights: ["VTV1 - VTV9", "HTV THỂ THAO", "THVL1 - THVL2", "KÊNH ĐỊA PHƯƠNG"],
-                            ctaText: "MỞ TRUYỀN HÌNH TV →",
-                            gradientColors: [
-                                Color(red: 0.06, green: 0.18, blue: 0.34),
-                                Color(red: 0.06, green: 0.10, blue: 0.20),
-                                KLTheme.surfaceCard
-                            ],
-                            accentColor: KLTheme.accentCyan
-                        ) {
-                            KLHaptics.medium()
-                            withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
-                                currentTab = .iptv
+                                Button {
+                                    currentTab = .live
+                                } label: {
+                                    Text("Xem tất cả ›")
+                                        .font(.system(size: 11.5, weight: .bold))
+                                        .foregroundColor(KLTheme.brandOrange)
+                                }
                             }
-                        }
+                            .padding(.horizontal, 16)
 
-                        // PORTAL 3: KHO PHIM ĐIỆN ẢNH NETFLIX
-                        HubPortalCard(
-                            categoryTag: "PHÂN KHU 03 · RẠP PHIM",
-                            statusBadge: "NETFLIX CINEMA",
-                            statusColor: KLTheme.netflixRed,
-                            title: "KHO PHIM ĐIỆN ẢNH",
-                            subtitle: "Giao diện chuẩn Netflix Smart TV. Phim chiếu rạp, phim bộ, hoạt hình 4K Vietsub.",
-                            highlights: ["98% PHÙ HỢP", "TOP 10 HÔM NAY", "PHIM BỘ MỚI", "4K VIETSUB"],
-                            ctaText: "KHÁM PHÁ RẠP PHIM →",
-                            gradientColors: [
-                                Color(red: 0.32, green: 0.05, blue: 0.09),
-                                Color(red: 0.14, green: 0.06, blue: 0.12),
-                                KLTheme.surfaceCard
-                            ],
-                            accentColor: KLTheme.netflixRed
-                        ) {
-                            KLHaptics.medium()
-                            withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
-                                currentTab = .phim
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 10) {
+                                    ForEach(liveMatches.prefix(6)) { match in
+                                        Button {
+                                            selectedMatchForPlayer = match.topRoom
+                                        } label: {
+                                            VStack(alignment: .leading, spacing: 6) {
+                                                HStack {
+                                                    KLPillBadge(text: match.league, fg: KLTheme.accentCyan, bg: KLTheme.accentCyan.opacity(0.12), border: .clear)
+                                                    Spacer()
+                                                    HStack(spacing: 4) {
+                                                        Circle().fill(KLTheme.liveRed).frame(width: 5, height: 5)
+                                                        Text("LIVE")
+                                                            .font(.system(size: 9.5, weight: .heavy))
+                                                            .foregroundColor(KLTheme.liveRed)
+                                                    }
+                                                }
+
+                                                Text(match.matchTitle)
+                                                    .font(.system(size: 13, weight: .bold))
+                                                    .foregroundColor(.white)
+                                                    .lineLimit(1)
+
+                                                HStack {
+                                                    Text(match.topRoom.blvName)
+                                                        .font(.system(size: 11, weight: .semibold))
+                                                        .foregroundColor(KLTheme.brandOrange)
+                                                        .lineLimit(1)
+                                                    Spacer()
+                                                    Text(match.topRoom.providerDisplayName)
+                                                        .font(.system(size: 9.5, weight: .bold))
+                                                        .foregroundColor(KLTheme.textMuted)
+                                                }
+                                            }
+                                            .padding(12)
+                                            .frame(width: 220)
+                                            .background(KLTheme.surfaceCard)
+                                            .cornerRadius(12)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .stroke(KLTheme.borderSubtle, lineWidth: 0.8)
+                                            )
+                                        }
+                                        .buttonStyle(KLScaleButtonStyle())
+                                    }
+                                }
+                                .padding(.horizontal, 16)
                             }
                         }
                     }
-                    .padding(.horizontal, 16)
 
-                    // 3. Bento Utility Grid (Lịch Đấu, Đa Màn, Cài Đặt, Báo Lỗi Telegram)
-                    VStack(alignment: .leading, spacing: 12) {
+                    // 4. Trending Films Quick Carousel (If Available)
+                    if !trendingFilms.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack {
+                                Text("PHIM THỊNH HÀNH HÔM NAY")
+                                    .font(.system(size: 13, weight: .heavy))
+                                    .tracking(0.6)
+                                    .foregroundColor(.white)
+
+                                Spacer()
+
+                                Button {
+                                    currentTab = .phim
+                                } label: {
+                                    Text("Xem kho phim ›")
+                                        .font(.system(size: 11.5, weight: .bold))
+                                        .foregroundColor(KLTheme.netflixRed)
+                                }
+                            }
+                            .padding(.horizontal, 16)
+
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 10) {
+                                    ForEach(trendingFilms.prefix(8)) { film in
+                                        Button {
+                                            selectedFilmForEpisodes = film
+                                        } label: {
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                ZStack(alignment: .topTrailing) {
+                                                    AsyncImage(url: URL(string: film.thumbUrl.isEmpty ? film.posterUrl : film.thumbUrl)) { phase in
+                                                        if let img = phase.image {
+                                                            img.resizable().aspectRatio(contentMode: .fill)
+                                                        } else {
+                                                            KLTheme.surfaceCard
+                                                        }
+                                                    }
+                                                    .frame(width: 105, height: 155)
+                                                    .clipped()
+                                                    .cornerRadius(8)
+
+                                                    Text(film.quality)
+                                                        .font(.system(size: 8.5, weight: .black))
+                                                        .foregroundColor(.white)
+                                                        .padding(.horizontal, 4)
+                                                        .padding(.vertical, 2)
+                                                        .background(KLTheme.netflixRed)
+                                                        .cornerRadius(3)
+                                                        .padding(4)
+                                                }
+                                                .overlay(
+                                                    RoundedRectangle(cornerRadius: 8)
+                                                        .stroke(KLTheme.borderSubtle, lineWidth: 0.8)
+                                                )
+
+                                                Text(film.name)
+                                                    .font(.system(size: 11.5, weight: .bold))
+                                                    .foregroundColor(.white)
+                                                    .lineLimit(1)
+                                                    .frame(width: 105, alignment: .leading)
+                                            }
+                                        }
+                                        .buttonStyle(KLScaleButtonStyle())
+                                    }
+                                }
+                                .padding(.horizontal, 16)
+                            }
+                        }
+                    }
+
+                    // 5. Bento Utility Grid (2x2)
+                    VStack(alignment: .leading, spacing: 10) {
                         KLSectionHeader(
-                            title: "Tiện Ích & Hỗ Trợ Hệ Thống",
-                            subtitle: "Truy cập nhanh các công cụ nâng cao",
+                            title: "Tiện Ích & Hỗ Trợ",
+                            subtitle: "Truy cập nhanh các tính năng mở rộng",
                             trailingText: "v1.4.0"
                         )
 
-                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                            HubUtilityTile(
+                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                            HubMiniTile(
                                 badge: "EPG 7 NGÀY",
                                 badgeColor: KLTheme.brandOrange,
                                 title: "Lịch Thi Đấu",
-                                subtitle: "Tâm điểm các giải đấu hôm nay",
+                                iconName: "calendar",
                                 action: {
                                     KLHaptics.light()
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
-                                        currentTab = .schedule
-                                    }
+                                    onOpenSchedule()
                                 }
                             )
 
-                            HubUtilityTile(
+                            HubMiniTile(
                                 badge: "2 LUỒNG LIVE",
                                 badgeColor: KLTheme.socoEmerald,
                                 title: "Xem Đa Màn",
-                                subtitle: "Theo dõi 2 trận đấu cùng lúc",
+                                iconName: "rectangle.split.2x1.fill",
                                 action: {
                                     KLHaptics.light()
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
-                                        currentTab = .multiview
-                                    }
+                                    onOpenMultiView()
                                 }
                             )
 
-                            HubUtilityTile(
-                                badge: "TÌM NHANH",
+                            HubMiniTile(
+                                badge: "HỆ THỐNG",
                                 badgeColor: KLTheme.imdbGold,
-                                title: "Tìm Kiếm & Cài Đặt",
-                                subtitle: "Tra cứu phim, chất lượng phát",
+                                title: "Cài Đặt & Tìm",
+                                iconName: "gearshape.fill",
                                 action: {
                                     KLHaptics.light()
-                                    withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) {
-                                        currentTab = .settings
-                                    }
+                                    currentTab = .settings
                                 }
                             )
 
-                            HubUtilityTile(
+                            HubMiniTile(
                                 badge: "@T990512S",
                                 badgeColor: KLTheme.telegramBlue,
                                 title: "Báo Lỗi Telegram",
-                                subtitle: "Quét QR hỗ trợ & yêu cầu kênh",
+                                iconName: "paperplane.fill",
                                 action: {
                                     KLHaptics.medium()
                                     onOpenTelegram()
@@ -181,177 +296,130 @@ struct HomeHubView: View {
                         .padding(.horizontal, 16)
                     }
 
-                    Spacer(minLength: 90)
+                    Spacer(minLength: 40)
                 }
+                .padding(.bottom, 20)
             }
         }
-        .onAppear {
-            currentTimeStr = DataNormalizer.formatGMT7Time(Date())
+        .task {
+            async let sportsTask = SportsService.shared.fetchLiveMatches()
+            async let phimTask = PhimService.shared.fetchHomeSections()
+            let (sportsRes, phimRes) = await (sportsTask, phimTask)
+            liveMatches = (sportsRes.socolive + sportsRes.gavang33 + sportsRes.cola + sportsRes.giovang)
+            trendingFilms = phimRes.first?.films ?? []
+        }
+        .fullScreenCover(item: $selectedMatchForPlayer) { room in
+            HLSPlayerView(
+                title: room.matchTitle,
+                subtitle: "\(room.providerDisplayName) · \(room.blvName)",
+                room: room
+            )
+        }
+        .sheet(item: $selectedFilmForEpisodes) { film in
+            EpisodePickerSheet(film: film) { ep in
+                activeVodPlayback = PhimView.ActiveVodPlayback(film: film, episode: ep)
+            }
+        }
+        .fullScreenCover(item: $activeVodPlayback) { item in
+            VodWebPlayerView(film: item.film, episode: item.episode)
         }
     }
 }
 
-// MARK: - Flagship Portal Card
-private struct HubPortalCard: View {
-    let categoryTag: String
-    let statusBadge: String
-    let statusColor: Color
-    let title: String
-    let subtitle: String
-    let highlights: [String]
-    let ctaText: String
-    let gradientColors: [Color]
-    let accentColor: Color
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            VStack(alignment: .leading, spacing: 12) {
-                // Top Row: Tag & Status Pill
-                HStack {
-                    Text(categoryTag)
-                        .font(.system(size: 10, weight: .black, design: .rounded))
-                        .tracking(1.1)
-                        .foregroundColor(accentColor)
-
-                    Spacer()
-
-                    HStack(spacing: 5) {
-                        Circle()
-                            .fill(statusColor)
-                            .frame(width: 6, height: 6)
-                        Text(statusBadge)
-                            .font(.system(size: 9.5, weight: .heavy, design: .rounded))
-                            .tracking(0.5)
-                            .foregroundColor(.white)
-                    }
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 4)
-                    .background(statusColor.opacity(0.24))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(statusColor.opacity(0.5), lineWidth: 0.8)
-                    )
-                    .cornerRadius(6)
-                }
-
-                // Title & Description
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title)
-                        .font(.system(size: 21, weight: .black, design: .default))
-                        .foregroundColor(.white)
-
-                    Text(subtitle)
-                        .font(.system(size: 12.5, weight: .regular))
-                        .foregroundColor(KLTheme.textSecondary)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                // Provider / Feature Chips
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(highlights, id: \.self) { chip in
-                            Text(chip)
-                                .font(.system(size: 9.5, weight: .bold, design: .rounded))
-                                .foregroundColor(.white.opacity(0.92))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(Color.white.opacity(0.08))
-                                .cornerRadius(5)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 5)
-                                        .stroke(Color.white.opacity(0.12), lineWidth: 0.6)
-                                )
-                        }
-                    }
-                }
-                .disabled(true)
-
-                Divider()
-                    .background(Color.white.opacity(0.10))
-
-                // Bottom Action Row
-                HStack {
-                    Text(ctaText)
-                        .font(.system(size: 11.5, weight: .heavy, design: .rounded))
-                        .tracking(0.6)
-                        .foregroundColor(accentColor)
-
-                    Spacer()
-
-                    Text("CHẠM ĐỂ MỞ")
-                        .font(.system(size: 9.5, weight: .bold, design: .monospaced))
-                        .foregroundColor(KLTheme.textMuted)
-                }
-            }
-            .padding(16)
-            .background(
-                LinearGradient(
-                    colors: gradientColors,
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            .cornerRadius(18)
-            .overlay(
-                RoundedRectangle(cornerRadius: 18)
-                    .stroke(
-                        LinearGradient(
-                            colors: [accentColor.opacity(0.55), KLTheme.borderSubtle],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1.2
-                    )
-            )
-        }
-        .buttonStyle(KLScaleButtonStyle(scaleAmount: 0.975))
-    }
-}
-
-// MARK: - Bento Utility Tile
-private struct HubUtilityTile: View {
-    let badge: String
+// MARK: - Compact Mobile Portal Row
+private struct MobilePortalRow: View {
+    let badgeText: String
     let badgeColor: Color
     let title: String
     let subtitle: String
+    let iconSystemName: String
+    let accentColor: Color
+    let gradient: [Color]
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text(badge)
-                        .font(.system(size: 9.5, weight: .black, design: .rounded))
-                        .tracking(0.5)
-                        .foregroundColor(badgeColor)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3.5)
-                        .background(badgeColor.opacity(0.15))
-                        .cornerRadius(5)
+            HStack(spacing: 12) {
+                // Leading Icon Box
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(accentColor.opacity(0.18))
+                        .frame(width: 44, height: 44)
 
-                    Spacer()
+                    Image(systemName: iconSystemName)
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundColor(accentColor)
                 }
 
-                Text(title)
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(.white)
-                    .lineLimit(1)
+                // Title & Subtitle
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Text(title)
+                            .font(.system(size: 15.5, weight: .bold))
+                            .foregroundColor(.white)
 
-                Text(subtitle)
-                    .font(.system(size: 11.5, weight: .regular))
+                        KLPillBadge(text: badgeText, fg: .white, bg: badgeColor, border: .clear)
+                    }
+
+                    Text(subtitle)
+                        .font(.system(size: 11.5, weight: .regular))
+                        .foregroundColor(KLTheme.textSecondary)
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .bold))
                     .foregroundColor(KLTheme.textMuted)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.leading)
-                    .frame(height: 30, alignment: .topLeading)
             }
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(KLTheme.surfaceCard)
+            .padding(12)
+            .background(
+                LinearGradient(colors: gradient, startPoint: .leading, endPoint: .trailing)
+            )
             .cornerRadius(14)
             .overlay(
                 RoundedRectangle(cornerRadius: 14)
+                    .stroke(KLTheme.borderSubtle, lineWidth: 0.8)
+            )
+        }
+        .buttonStyle(KLScaleButtonStyle(scaleAmount: 0.98))
+    }
+}
+
+// MARK: - Hub Mini Tile
+private struct HubMiniTile: View {
+    let badge: String
+    let badgeColor: Color
+    let title: String
+    let iconName: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: iconName)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(badgeColor)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+
+                    Text(badge)
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .foregroundColor(KLTheme.textMuted)
+                }
+
+                Spacer()
+            }
+            .padding(12)
+            .background(KLTheme.surfaceCard)
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
                     .stroke(KLTheme.borderSubtle, lineWidth: 0.8)
             )
         }

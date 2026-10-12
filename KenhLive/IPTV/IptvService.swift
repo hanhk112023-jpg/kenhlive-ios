@@ -127,8 +127,9 @@ final class IptvService {
                 }
             } else if trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") {
                 if !currentName.isEmpty {
+                    let cid = currentId.isEmpty ? "\(currentName)_\(list.count)" : "\(currentId)_\(list.count)"
                     list.append(IptvChannel(
-                        channelId: currentId.isEmpty ? currentName : currentId,
+                        channelId: cid,
                         name: currentName,
                         group: currentGroup,
                         logo: currentLogo,

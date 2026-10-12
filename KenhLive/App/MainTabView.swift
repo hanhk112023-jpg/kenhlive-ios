@@ -5,47 +5,52 @@ enum KLTab: Int, CaseIterable, Identifiable {
     case live = 1
     case iptv = 2
     case phim = 3
-    case schedule = 4
-    case multiview = 5
-    case settings = 6
+    case settings = 4
 
     var id: Int { rawValue }
 
     var title: String {
         switch self {
-        case .home: return "Cổng Chọn"
+        case .home: return "Trang Chủ"
         case .live: return "Thể Thao"
-        case .iptv: return "Kênh TV"
+        case .iptv: return "Truyền Hình"
         case .phim: return "Kho Phim"
-        case .schedule: return "Lịch Đấu"
-        case .multiview: return "Đa Màn"
-        case .settings: return "Cài Đặt"
+        case .settings: return "Hệ Thống"
         }
     }
 
-    static var bottomBarTabs: [KLTab] {
-        [.home, .live, .iptv, .phim, .schedule, .settings]
+    var iconName: String {
+        switch self {
+        case .home: return "house.fill"
+        case .live: return "sportscourt.fill"
+        case .iptv: return "tv.fill"
+        case .phim: return "film.fill"
+        case .settings: return "gearshape.fill"
+        }
     }
 }
 
 struct MainTabView: View {
-    @State private var currentTab: KLTab = .home
+    @State private var selectedTab: KLTab = .home
     @State private var isShowingTelegramSheet: Bool = false
+    @State private var isShowingMultiView: Bool = false
+    @State private var isShowingSchedule: Bool = false
     @AppStorage("seen_notice_v140") private var seenNoticeV140: Bool = false
 
     var body: some View {
         VStack(spacing: 0) {
-            // 1. Flagship Top Brand Bar with Monogram Logo & Quick Actions
-            HStack(spacing: 8) {
+            // 1. Mobile-Optimized Slim Top Header Bar
+            HStack(spacing: 10) {
+                // Monogram K + KenhLive Brand
                 Button {
                     KLHaptics.selection()
                     withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-                        currentTab = .home
+                        selectedTab = .home
                     }
                 } label: {
-                    HStack(spacing: 9) {
+                    HStack(spacing: 8) {
                         ZStack {
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            RoundedRectangle(cornerRadius: 7, style: .continuous)
                                 .fill(
                                     LinearGradient(
                                         colors: [KLTheme.brandOrange, Color(red: 1.0, green: 0.55, blue: 0.1)],
@@ -53,28 +58,22 @@ struct MainTabView: View {
                                         endPoint: .bottomTrailing
                                     )
                                 )
-                                .frame(width: 28, height: 28)
+                                .frame(width: 26, height: 26)
 
                             Text("K")
-                                .font(.system(size: 16, weight: .black, design: .rounded))
+                                .font(.system(size: 15, weight: .black, design: .rounded))
                                 .foregroundColor(.white)
                         }
 
-                        VStack(alignment: .leading, spacing: 0) {
-                            HStack(spacing: 5) {
-                                Text("KENHLIVE")
-                                    .font(.system(size: 14.5, weight: .black, design: .rounded))
-                                    .tracking(1.1)
-                                    .foregroundColor(.white)
+                        HStack(spacing: 4) {
+                            Text("KENHLIVE")
+                                .font(.system(size: 14, weight: .black, design: .rounded))
+                                .tracking(1.0)
+                                .foregroundColor(.white)
 
-                                Circle()
-                                    .fill(KLTheme.liveRed)
-                                    .frame(width: 6, height: 6)
-                            }
-                            Text("SMART OTT v1.4.0")
-                                .font(.system(size: 8.5, weight: .bold))
-                                .tracking(0.8)
-                                .foregroundColor(KLTheme.textMuted)
+                            Circle()
+                                .fill(KLTheme.liveRed)
+                                .frame(width: 5, height: 5)
                         }
                     }
                 }
@@ -82,142 +81,108 @@ struct MainTabView: View {
 
                 Spacer()
 
-                // Quick Switch to MultiView
+                // Quick MultiView Button
                 Button {
                     KLHaptics.light()
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-                        currentTab = .multiview
-                    }
+                    isShowingMultiView = true
                 } label: {
-                    Text("2 MÀN")
-                        .font(.system(size: 10, weight: .heavy))
-                        .foregroundColor(currentTab == .multiview ? .white : KLTheme.brandOrange)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 6)
-                        .background(currentTab == .multiview ? KLTheme.brandOrange : KLTheme.brandOrange.opacity(0.14))
-                        .cornerRadius(8)
+                    HStack(spacing: 4) {
+                        Image(systemName: "rectangle.split.2x1.fill")
+                            .font(.system(size: 10, weight: .bold))
+                        Text("2 MÀN")
+                            .font(.system(size: 9.5, weight: .heavy))
+                    }
+                    .foregroundColor(KLTheme.brandOrange)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(KLTheme.brandOrange.opacity(0.14))
+                    .cornerRadius(7)
                 }
                 .buttonStyle(KLScaleButtonStyle())
 
-                // Quick Open Telegram Support & Notice
+                // Quick Telegram Support Button
                 Button {
                     KLHaptics.medium()
                     isShowingTelegramSheet = true
                 } label: {
-                    Text("BÁO LỖI")
-                        .font(.system(size: 10, weight: .heavy))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 6)
-                        .background(KLTheme.telegramBlue.opacity(0.24))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(KLTheme.telegramBlue.opacity(0.5), lineWidth: 0.8)
-                        )
-                        .cornerRadius(8)
-                }
-                .buttonStyle(KLScaleButtonStyle())
-
-                // Quick Switch to Search
-                Button {
-                    KLHaptics.light()
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-                        currentTab = .settings
+                    HStack(spacing: 4) {
+                        Image(systemName: "paperplane.fill")
+                            .font(.system(size: 10, weight: .bold))
+                        Text("BÁO LỖI")
+                            .font(.system(size: 9.5, weight: .heavy))
                     }
-                } label: {
-                    Text("TÌM KIẾM")
-                        .font(.system(size: 10, weight: .heavy))
-                        .foregroundColor(currentTab == .settings ? .white : KLTheme.textSecondary)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 6)
-                        .background(currentTab == .settings ? KLTheme.brandOrange : KLTheme.surfaceCard)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(KLTheme.borderSubtle, lineWidth: 0.8)
-                        )
-                        .cornerRadius(8)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(KLTheme.telegramBlue.opacity(0.25))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 7)
+                            .stroke(KLTheme.telegramBlue.opacity(0.5), lineWidth: 0.8)
+                    )
+                    .cornerRadius(7)
                 }
                 .buttonStyle(KLScaleButtonStyle())
             }
             .padding(.horizontal, 14)
-            .padding(.vertical, 10)
+            .padding(.top, 6)
+            .padding(.bottom, 8)
             .background(KLTheme.bgDeep)
             .overlay(
                 Divider().background(KLTheme.borderSubtle),
                 alignment: .bottom
             )
 
-            // 2. Main Tab Content Area
-            ZStack {
-                switch currentTab {
-                case .home:
-                    HomeHubView(currentTab: $currentTab) {
-                        isShowingTelegramSheet = true
-                    }
-                case .live:
-                    LiveSportsView()
-                case .schedule:
-                    ScheduleView()
-                case .iptv:
-                    IptvView()
-                case .phim:
-                    PhimView()
-                case .multiview:
-                    MultiViewScreen()
-                case .settings:
-                    SearchAndSettingsView()
+            // 2. Native SwiftUI TabView for iPhone (Zero Crash, Retains State, Respects Safe Area)
+            TabView(selection: $selectedTab) {
+                HomeHubView(
+                    currentTab: $selectedTab,
+                    onOpenTelegram: { isShowingTelegramSheet = true },
+                    onOpenMultiView: { isShowingMultiView = true },
+                    onOpenSchedule: { isShowingSchedule = true }
+                )
+                .tabItem {
+                    Label(KLTab.home.title, systemImage: KLTab.home.iconName)
                 }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .clipped()
+                .tag(KLTab.home)
 
-            // 3. Minimalist Typography-First Bottom Tab Bar
-            VStack(spacing: 0) {
-                Divider()
-                    .background(KLTheme.borderSubtle)
-
-                HStack(spacing: 4) {
-                    ForEach(KLTab.bottomBarTabs) { tab in
-                        let isSelected = currentTab == tab
-                        Button {
-                            KLHaptics.selection()
-                            withAnimation(.spring(response: 0.26, dampingFraction: 0.82)) {
-                                currentTab = tab
-                            }
-                        } label: {
-                            VStack(spacing: 4) {
-                                Capsule()
-                                    .fill(isSelected ? (tab == .phim ? KLTheme.netflixRed : KLTheme.brandOrange) : Color.clear)
-                                    .frame(width: 20, height: 2.5)
-
-                                Text(tab.title.uppercased())
-                                    .font(.system(size: 9.5, weight: isSelected ? .heavy : .semibold, design: .rounded))
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.75)
-                                    .foregroundColor(isSelected ? .white : KLTheme.textMuted)
-                                    .padding(.vertical, 5)
-                                    .frame(maxWidth: .infinity)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                            .fill(isSelected ? (tab == .phim ? KLTheme.netflixRed.opacity(0.22) : KLTheme.brandOrange.opacity(0.18)) : Color.clear)
-                                    )
-                            }
-                            .padding(.top, 4)
-                            .padding(.bottom, 6)
-                        }
-                        .buttonStyle(.plain)
+                LiveSportsView()
+                    .tabItem {
+                        Label(KLTab.live.title, systemImage: KLTab.live.iconName)
                     }
-                }
-                .padding(.horizontal, 8)
-                .background(Color(red: 0.04, green: 0.045, blue: 0.075).opacity(0.98))
+                    .tag(KLTab.live)
+
+                IptvView()
+                    .tabItem {
+                        Label(KLTab.iptv.title, systemImage: KLTab.iptv.iconName)
+                    }
+                    .tag(KLTab.iptv)
+
+                PhimView()
+                    .tabItem {
+                        Label(KLTab.phim.title, systemImage: KLTab.phim.iconName)
+                    }
+                    .tag(KLTab.phim)
+
+                SearchAndSettingsView()
+                    .tabItem {
+                        Label(KLTab.settings.title, systemImage: KLTab.settings.iconName)
+                    }
+                    .tag(KLTab.settings)
             }
+            .tint(KLTheme.brandOrange)
         }
         .background(KLTheme.bgDeep.ignoresSafeArea())
-        .ignoresSafeArea(.keyboard, edges: .bottom)
         .sheet(isPresented: $isShowingTelegramSheet) {
             TelegramFeedbackSheet()
         }
+        .sheet(isPresented: $isShowingMultiView) {
+            MultiViewScreen()
+        }
+        .sheet(isPresented: $isShowingSchedule) {
+            ScheduleView()
+        }
         .onAppear {
+            setupTabBarAppearance()
             if !seenNoticeV140 {
                 seenNoticeV140 = true
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
@@ -225,5 +190,30 @@ struct MainTabView: View {
                 }
             }
         }
+    }
+
+    private func setupTabBarAppearance() {
+        let appearance = UITabBarAppearance()
+        appearance.configureWithOpaqueBackground()
+        appearance.backgroundColor = UIColor(red: 10/255, green: 11/255, blue: 18/255, alpha: 0.96)
+
+        // Normal item appearance
+        let normalColor = UIColor(red: 140/255, green: 148/255, blue: 165/255, alpha: 1.0)
+        let selectedColor = UIColor(red: 255/255, green: 101/255, blue: 0/255, alpha: 1.0)
+
+        appearance.stackedLayoutAppearance.normal.iconColor = normalColor
+        appearance.stackedLayoutAppearance.normal.titleTextAttributes = [
+            .foregroundColor: normalColor,
+            .font: UIFont.systemFont(ofSize: 10, weight: .semibold)
+        ]
+
+        appearance.stackedLayoutAppearance.selected.iconColor = selectedColor
+        appearance.stackedLayoutAppearance.selected.titleTextAttributes = [
+            .foregroundColor: selectedColor,
+            .font: UIFont.systemFont(ofSize: 10, weight: .bold)
+        ]
+
+        UITabBar.appearance().standardAppearance = appearance
+        UITabBar.appearance().scrollEdgeAppearance = appearance
     }
 }

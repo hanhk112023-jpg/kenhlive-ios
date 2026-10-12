@@ -94,8 +94,8 @@ struct FilmItem: Identifiable, Codable, Hashable {
     }
 
     var imdbScore: String {
-        let hash = abs(name.hashValue)
-        let score = 8.3 + Double(hash % 14) / 10.0
+        let sum = name.unicodeScalars.reduce(0) { ($0 &+ Int($1.value)) & 0x7FFF }
+        let score = 8.3 + Double(sum % 14) / 10.0
         return String(format: "%.1f", score)
     }
 }
@@ -107,7 +107,7 @@ struct PhimSection: Identifiable, Hashable {
 }
 
 struct EpisodeItem: Identifiable, Codable, Hashable {
-    var id: String { slug }
+    var id: String { slug + "_" + embed }
     let name: String
     let slug: String
     let embed: String
