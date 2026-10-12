@@ -26,7 +26,9 @@ jobs:
         run: brew install xcodegen
 
       - name: Generate Xcode Project
-        run: xcodegen generate
+        run: |
+          xcodegen generate
+          sed -i '' 's/objectVersion = 77;/objectVersion = 56;/g' KenhLive.xcodeproj/project.pbxproj
 
       - name: Build Xcode Archive
         run: |
