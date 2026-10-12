@@ -9,6 +9,7 @@ struct SearchAndSettingsView: View {
 
     @AppStorage("kl_stream_quality") private var selectedQuality: String = "Tự động (FHD)"
     @State private var isCacheCleared: Bool = false
+    @State private var isShowingTelegramSheet: Bool = false
 
     private let qualityOptions = ["Tự động (FHD)", "Cao (1080p)", "Ổn định (720p)"]
 
@@ -176,23 +177,26 @@ struct SearchAndSettingsView: View {
                             Divider().background(KLTheme.borderSubtle).padding(.horizontal, 16)
 
                             // Contact & Feedback
-                            Link(destination: URL(string: "https://t.me/T990512S")!) {
+                            Button {
+                                KLHaptics.medium()
+                                isShowingTelegramSheet = true
+                            } label: {
                                 HStack {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text("Liên hệ & Báo lỗi nhà phát triển")
                                             .font(.system(size: 14, weight: .medium))
                                             .foregroundColor(.white)
 
-                                        Text("Telegram: @T990512S")
+                                        Text("Telegram: @T990512S · Báo lỗi, yêu cầu giải đấu")
                                             .font(.system(size: 11, weight: .regular))
                                             .foregroundColor(KLTheme.textMuted)
                                     }
 
                                     Spacer()
 
-                                    Text("MỞ")
+                                    Text("BÁO LỖI")
                                         .font(.system(size: 11, weight: .bold))
-                                        .foregroundColor(KLTheme.brandOrange)
+                                        .foregroundColor(KLTheme.telegramBlue)
                                 }
                                 .padding(.horizontal, 16)
                                 .padding(.vertical, 14)
@@ -208,11 +212,11 @@ struct SearchAndSettingsView: View {
                     HStack {
                         Spacer()
                         VStack(spacing: 3) {
-                            Text("KENHLIVE IOS · PHIÊN BẢN 1.2.0 (BẢN DỰNG 3)")
+                            Text("KENHLIVE IOS · PHIÊN BẢN 1.4.0 (BUILD 120)")
                                 .font(.system(size: 10.5, weight: .bold, design: .monospaced))
                                 .foregroundColor(KLTheme.textMuted)
 
-                            Text("THIẾT KẾ DÀNH RIÊNG CHO IPHONE")
+                            Text("APPLE GLASSMORPHISM & NETFLIX CINEMA · ĐỒNG BỘ TV")
                                 .font(.system(size: 9.5, weight: .medium, design: .monospaced))
                                 .foregroundColor(KLTheme.textMuted.opacity(0.8))
                         }
@@ -227,6 +231,9 @@ struct SearchAndSettingsView: View {
             EpisodePickerSheet(film: film) { ep in
                 activePlayback = PhimView.ActiveVodPlayback(film: film, episode: ep)
             }
+        }
+        .sheet(isPresented: $isShowingTelegramSheet) {
+            TelegramFeedbackSheet()
         }
         .fullScreenCover(item: $activePlayback) { item in
             VodWebPlayerView(film: item.film, episode: item.episode)

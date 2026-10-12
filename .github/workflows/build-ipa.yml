@@ -60,9 +60,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: KenhLive-iOS.ipa
-          name: KenhLive iOS ${{ github.ref_name }} — Native iPhone OTT Streaming
+          name: KenhLive iOS ${{ github.ref_name }} — Cổng Chọn Home Hub, Gà Vàng 33, Giờ Vàng TV & Netflix Cinema
+          body_path: RELEASE_NOTES.md
           draft: false
           prerelease: false
-          generate_release_notes: true
+          generate_release_notes: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

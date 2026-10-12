@@ -251,7 +251,9 @@ final class SportsService {
                     let blvName = a["nickName"] as? String ?? "BLV Gà Rừng"
                     let avatar = a["userImage"] as? String ?? ""
                     let urls = a["streamUrls"] as? [String] ?? []
-                    guard let streamUrl = urls.first(where: { $0.contains(".m3u8") }) ?? urls.first else { continue }
+                    // Lọc bỏ triệt để các link gvvsb.com bị lỗi chứng chỉ SSL
+                    let cleanUrls = urls.filter { !$0.contains("gvvsb.com") }
+                    guard let streamUrl = cleanUrls.first(where: { $0.contains(".m3u8") }) ?? cleanUrls.first else { continue }
 
                     rooms.append(LiveRoom(
                         roomNum: "gavang33_\(a["id"] ?? UUID().uuidString)",
@@ -311,31 +313,34 @@ final class SportsService {
                 let league = (m["league"] as? [String: Any])?["title"] as? String ?? "THỂ THAO"
 
                 let blvArr = m["blv"] as? [String] ?? []
-                let rawBlv = blvArr.first?.replacingOccurrences(of: "blv-", with: "BLV ").uppercased() ?? "BLV GIỜ VÀNG"
+                let blvList = blvArr.isEmpty ? ["BLV GIỜ VÀNG"] : blvArr
 
                 // Lấy stream trực tiếp từ fixture API nếu có
                 let streamUrl = await resolveGiovangStream(fixtureId: mid) ?? ""
 
-                rooms.append(LiveRoom(
-                    roomNum: "giovang_\(mid)",
-                    blvName: "[GIỜ VÀNG] \(rawBlv)",
-                    avatar: homeLogo,
-                    viewers: (m["view"] as? Int) ?? Int.random(in: 35000...75000),
-                    matchTitle: "\(homeName) vs \(awayName)",
-                    league: league.uppercased(),
-                    cover: homeLogo,
-                    category: "Bóng đá",
-                    blvLevel: "720p HD",
-                    score: 0,
-                    notice: "Kênh trực tiếp Giờ Vàng TV · Phát sóng tốc độ cao",
-                    provider: "giovang",
-                    directStreamUrl: streamUrl,
-                    streamReferer: "",
-                    homeTeam: homeName,
-                    awayTeam: awayName,
-                    homeLogo: homeLogo,
-                    awayLogo: awayLogo
-                ))
+                for (idx, blvSlug) in blvList.enumerated() {
+                    let rawBlv = blvSlug.replacingOccurrences(of: "blv-", with: "BLV ").uppercased()
+                    rooms.append(LiveRoom(
+                        roomNum: idx == 0 ? "giovang_\(mid)" : "giovang_\(mid)_\(idx)",
+                        blvName: "[GIỜ VÀNG] \(rawBlv)",
+                        avatar: homeLogo,
+                        viewers: (m["view"] as? Int) ?? Int.random(in: 35000...75000),
+                        matchTitle: "\(homeName) vs \(awayName)",
+                        league: league.uppercased(),
+                        cover: homeLogo,
+                        category: "Bóng đá",
+                        blvLevel: "720p HD",
+                        score: 0,
+                        notice: "Kênh trực tiếp Giờ Vàng TV · Hạ tầng VCDN Cloud",
+                        provider: "giovang",
+                        directStreamUrl: streamUrl,
+                        streamReferer: "",
+                        homeTeam: homeName,
+                        awayTeam: awayTeam,
+                        homeLogo: homeLogo,
+                        awayLogo: awayLogo
+                    ))
+                }
             }
             return rooms
         } catch {
