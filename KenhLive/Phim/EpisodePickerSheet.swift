@@ -107,7 +107,7 @@ struct EpisodePickerSheet: View {
                                 let countryText = !(detail?.country ?? "").isEmpty ? (detail?.country ?? "") : film.language
                                 Text("\(timeText) · \(countryText)")
                                     .font(.system(size: 11.5, weight: .semibold))
-                                    .foregroundColor(KLTheme.netflixMatchGreen)
+                                    .foregroundColor(KLTheme.netflixGreen)
 
                                 // Quick Action Buttons
                                 HStack(spacing: 8) {
@@ -287,7 +287,7 @@ struct EpisodePickerSheet: View {
                                         HStack(spacing: 4) {
                                             Image(systemName: isWatched ? "checkmark.circle.fill" : "play.fill")
                                                 .font(.system(size: 10, weight: .bold))
-                                                .foregroundColor(isWatched ? KLTheme.netflixMatchGreen : KLTheme.netflixRed)
+                                                .foregroundColor(isWatched ? KLTheme.netflixGreen : KLTheme.netflixRed)
 
                                             Text(ep.name)
                                                 .font(.system(size: 12.5, weight: .bold))
