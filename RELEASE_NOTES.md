@@ -1,35 +1,24 @@
-# 🚀 KENHLIVE iOS v1.4.2 (Build 122) — SỬA TRIỆT ĐỂ LỆCH TIÊU ĐỀ & ỔN ĐỊNH 4 NHÀ ĐÀI
+# 🚀 KENHLIVE iOS v1.4.3 (Build 123) — ĐẠI NÂNG CẤP RẠP PHIM NATIVE HLS 4K & GỠ BỎ ĐA MÀN HÌNH
 
-### ⚽ 1. Khắc Phục Triệt Để Lỗi Lệch Tiêu Đề Trận Đấu & Phòng Live Gà Vàng 33
-- **Căn nguyên**: Gà Vàng 33 API trả về 57 trận, nhưng chỉ có **4 trận đang đá trực tiếp** (`matchStatus == "live"`), còn lại 53 trận là lịch thi đấu sắp tới (`scheduled`). Các BLV của Gà Vàng dùng link kênh stream cá nhân cố định và được gán cho nhiều trận. Khi ứng dụng nạp các trận tương lai (như 00:00 hoặc ngày mai), người dùng bấm vào thì stream lại đang phát trận đấu mà BLV đang bình luận trực tiếp hiện tại, dẫn đến tiêu đề một đằng nhưng phát một nẻo.
-- **Khắc phục**:
-  - Lọc nghiêm ngặt: Chỉ lấy các trận **`matchStatus == "live"`** vào danh mục phát trực tiếp.
-  - Mỗi phòng phát đúng link stream của BLV trận đó từ hạ tầng `zktsva.app` `.m3u8`, lọc bỏ tên miền lỗi chứng chỉ SSL `gvvsb.com`.
-  - Khớp 100% giữa tiêu đề trận đấu, logo 2 đội và nội dung video trên sân.
-
----
-
-### 🥤 2. Khắc Phục Hoàn Toàn Đài ColaTV
-- **Căn nguyên**: Nguồn M3U của ColaTV chứa 3 luồng cho mỗi trận: `[flv]`, `[hls]` (`zhwpg.app` sống, tốc độ cao) và `[hls 2]` (`miekgo.app` chết/timeout). Trước đây app nạp cả tên miền chết và các trận chưa đá (không có chấm xanh `🟢`), khiến nhiều trận khi bấm vào bị treo xoay tròn hoặc không tải được luồng.
-- **Khắc phục**:
-  - Viết parser chuyên dụng cho ColaTV: Lọc nghiêm ngặt các trận có chấm xanh **`🟢` (Đang phát sóng trực tiếp)**.
-  - Chỉ nhận luồng HLS `.m3u8` từ máy chủ sống `zhwpg.app`, loại bỏ 100% tên miền chết `miekgo.app` và định dạng `.flv`.
-  - Trích xuất tự động tên 2 đội bóng, logo giải đấu và tên BLV Cola (`BLV 7UP`, `BLV FANTA`, `BLV ROCKSTAR`, `BLV SODA`, `BLV PEPSI`).
+### 🎬 1. Đại Nâng Cấp Kho Phim Truyện (100% Native HLS `.m3u8` & Kho Dữ Liệu Khổng Lồ)
+- **Tích hợp Hạ Tầng Phim Trực Tiếp (Direct `.m3u8` CDN)**:
+  - Toàn bộ phim bộ, phim lẻ, hoạt hình/anime giờ đây phát trực tiếp bằng luồng **HLS `.m3u8` gốc trên trình phát AVPlayer của Apple** (không còn phải nhúng qua trình duyệt WebView chậm chạp).
+  - **Không một mẩu quảng cáo hay popup**, tốc độ tải tức thì, tua thanh thời gian siêu mượt, hỗ trợ đầy đủ **Picture-in-Picture (PiP)** vừa xem phim vừa nhắn tin và truyền **AirPlay** lên TV.
+- **Thanh Tìm Kiếm Phim Trực Tiếp Ngay Tại Rạp Phim**:
+  - Tích hợp thanh tìm kiếm tức thì ngay đầu tab **Kho Phim**: Gõ tên phim, diễn viên hoặc anime (*Conan, Khánh Dư Niên, Nữ Hoàng Nước Mắt, One Piece, Lật Mặt...*) là hiển thị ngay kết quả dạng lưới 3 cột sắc nét.
+- **Đa Máy Chủ Ngôn Ngữ (`Vietsub` · `Thuyết Minh` · `Lồng Tiếng`)**:
+  - Hỗ trợ chuyển đổi trực tiếp giữa bản **Vietsub** và bản **Thuyết Minh / Lồng Tiếng** ngay trong bảng chọn tập.
+- **Chia Nhóm Tập Phim Thông Minh Cho Phim Dài Tập**:
+  - Tự động phân đoạn tập theo nhóm (`Tập 1 - 30`, `31 - 60`, `61 - 90`... lên tới hơn 1.200 tập như *Thám Tử Lừng Danh Conan*), giúp chọn tập trong 1 chạm không cần cuộn dài.
+- **Mở Rộng 13 Danh Mục & Quốc Gia**:
+  - *Mới Cập Nhật · Phim Bộ Hot · Phim Lẻ Chiếu Rạp · Hoạt Hình & Anime · Hàn Quốc · Trung Quốc · Âu Mỹ Bom Tấn · Hành Động · Cổ Trang · Tình Cảm · Kinh Dị*.
+  - Hiển thị chi tiết diễn viên, thời lượng, quốc gia, điểm IMDb và đánh dấu tập đã xem.
 
 ---
 
-### ⏰ 3. Tối Ưu Hóa & Ổn Định Đài Giờ Vàng TV
-- **Căn nguyên**: Trước đây app chỉ nạp danh sách trận từ `live.json` và để trống link stream, đợi người dùng bấm vào mới gọi tiếp API phân giải. Nếu mạng chậm hoặc API phản hồi trễ, player bị trống link và báo lỗi.
-- **Khắc phục**:
-  - Dùng **Swift TaskGroup** nạp song song chi tiết tất cả các trận đang live ngay lúc mở tab (chỉ mất ~0.5s).
-  - Gán sẵn link trực tiếp HLS `.m3u8` từ hạ tầng VCDN Cloud (`vcdn.cloud`) và tên BLV chuẩn (`BLV Chồn`, `BLV Trĩ`, `BLV Tôm`...) vào từng phòng đấu.
-  - Bấm vào là phát tức thì trong 0.05s, không còn độ trễ.
-
----
-
-### 📺 4. Tăng Cường Trình Phát HLS (`HLSPlayerView`)
-- Thêm giao diện thông báo lỗi trực quan và nút **"THỬ KẾT NỐI LẠI"** khi luồng phát bị gián đoạn mạng.
-- Tự động dọn dẹp bộ nhớ và giải phóng tài nguyên AVPlayer khi đóng trình phát.
+### 🧹 2. Loại Bỏ Hoàn Toàn Tính Năng Chia Đôi Màn Hình (MultiView)
+- Gỡ bỏ hoàn toàn màn hình và các nút **Chia đôi màn hình (2 Màn)** trên thanh Header và Trang Chủ để giao diện gọn nhẹ, tập trung tối đa cho trải nghiệm xem Phim Truyện, Thể Thao và Truyền Hình.
+- Thay thế bằng nút mở nhanh **Lịch Thi Đấu** trên thanh Header và ô **Kho Phim Hot (Netflix 4K)** tại Cổng Chọn.
 
 ---
 

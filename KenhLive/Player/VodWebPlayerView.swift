@@ -8,16 +8,22 @@ struct VodWebPlayerView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var startTime: Date = Date()
 
+    private var directHlsUrl: String {
+        if !episode.m3u8.isEmpty { return episode.m3u8 }
+        if episode.embed.contains(".m3u8") { return episode.embed }
+        return ""
+    }
+
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            if episode.embed.contains(".m3u8") {
+            if !directHlsUrl.isEmpty {
                 HLSPlayerView(
                     title: film.name,
                     subtitle: "\(film.quality) · \(episode.name)",
                     roomNum: nil,
-                    directUrl: episode.embed
+                    directUrl: directHlsUrl
                 )
             } else {
                 NguoncWebView(embedUrl: episode.embed)
@@ -79,6 +85,7 @@ struct VodWebPlayerView: View {
             episodeName: episode.name,
             episodeSlug: episode.slug,
             embedUrl: episode.embed,
+            m3u8Url: episode.m3u8,
             positionMs: posMs,
             durationMs: estDurationMs,
             updatedAt: Date()

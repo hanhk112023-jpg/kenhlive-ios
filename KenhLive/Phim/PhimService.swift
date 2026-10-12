@@ -3,197 +3,401 @@ import Foundation
 final class PhimService {
     static let shared = PhimService()
 
-    private let apiBase = "https://phim.nguonc.com/api"
+    private let kkphimApi = "https://phimapi.com"
+    private let nguoncApi = "https://phim.nguonc.com/api"
+    private let imageCdnBase = "https://phimimg.com"
 
-    // MARK: - Home Sections (8 rich cinema categories, multi-page batch fetch)
+    // MARK: - 1. Home Cinema Sections (8 Curated Cinema Rails with Direct HLS Streams)
     func fetchHomeSections() async -> [PhimSection] {
-        async let moi = fetchFilmsBatch(type: "phim-moi-cap-nhat", isDanhSach: false, pages: 1...5)
-        async let phimBo = fetchFilmsBatch(type: "phim-bo", isDanhSach: true, pages: 1...5)
-        async let phimLe = fetchFilmsBatch(type: "phim-le", isDanhSach: true, pages: 1...5)
-        async let hoatHinh = fetchFilmsBatch(type: "hoat-hinh", isDanhSach: true, pages: 1...5)
-        async let hanhDong = fetchFilmsBatch(type: "hanh-dong", isCategory: true, pages: 1...3)
-        async let tinhCam = fetchFilmsBatch(type: "tinh-cam", isCategory: true, pages: 1...3)
-        async let coTrang = fetchFilmsBatch(type: "co-trang", isCategory: true, pages: 1...3)
-        async let kinhDi = fetchFilmsBatch(type: "kinh-di", isCategory: true, pages: 1...3)
+        async let moiTask = fetchKKPhimList(endpoint: "danh-sach/phim-moi-cap-nhat?page=1")
+        async let boTask = fetchKKPhimV1List(endpoint: "danh-sach/phim-bo?limit=24")
+        async let leTask = fetchKKPhimV1List(endpoint: "danh-sach/phim-le?limit=24")
+        async let animeTask = fetchKKPhimV1List(endpoint: "danh-sach/hoat-hinh?limit=24")
+        async let hanQuocTask = fetchKKPhimV1List(endpoint: "quoc-gia/han-quoc?limit=24")
+        async let trungQuocTask = fetchKKPhimV1List(endpoint: "quoc-gia/trung-quoc?limit=24")
+        async let auMyTask = fetchKKPhimV1List(endpoint: "quoc-gia/au-my?limit=24")
+        async let hanhDongTask = fetchKKPhimV1List(endpoint: "the-loai/hanh-dong?limit=24")
 
-        let (m, b, l, h, hd, tc, ct, kd) = await (moi, phimBo, phimLe, hoatHinh, hanhDong, tinhCam, coTrang, kinhDi)
+        let (moi, bo, le, anime, hq, tq, am, hd) = await (moiTask, boTask, leTask, animeTask, hanQuocTask, trungQuocTask, auMyTask, hanhDongTask)
+
         var sections: [PhimSection] = []
-        if !m.isEmpty { sections.append(PhimSection(title: "Phim Mới Cập Nhật", films: m)) }
-        if !b.isEmpty { sections.append(PhimSection(title: "Phim Bộ Đặc Sắc", films: b)) }
-        if !l.isEmpty { sections.append(PhimSection(title: "Phim Lẻ Chiếu Rạp", films: l)) }
-        if !h.isEmpty { sections.append(PhimSection(title: "Hoạt Hình & Anime", films: h)) }
-        if !hd.isEmpty { sections.append(PhimSection(title: "Hành Động Đỉnh Cao", films: hd)) }
-        if !tc.isEmpty { sections.append(PhimSection(title: "Tình Cảm Lãng Mạn", films: tc)) }
-        if !ct.isEmpty { sections.append(PhimSection(title: "Cổ Trang Cung Đấu", films: ct)) }
-        if !kd.isEmpty { sections.append(PhimSection(title: "Kinh Dị Giật Gân", films: kd)) }
+        if !moi.isEmpty { sections.append(PhimSection(title: "Phim Mới Cập Nhật", subtitle: "Kho phim điện ảnh mới nhất hôm nay", films: moi)) }
+        if !bo.isEmpty { sections.append(PhimSection(title: "Phim Bộ Đặc Sắc", subtitle: "Trọn bộ Vietsub & Thuyết Minh FHD", films: bo)) }
+        if !le.isEmpty { sections.append(PhimSection(title: "Phim Lẻ Chiếu Rạp", subtitle: "Bom tấn Hollywood & Rạp chiếu Việt Nam", films: le)) }
+        if !anime.isEmpty { sections.append(PhimSection(title: "Hoạt Hình & Anime", subtitle: "Conan, One Piece, Ghibli trọn bộ", films: anime)) }
+        if !hq.isEmpty { sections.append(PhimSection(title: "Phim Hàn Quốc Hot", subtitle: "K-Drama lãng mạn & giật gân cuốn hút", films: hq)) }
+        if !tq.isEmpty { sections.append(PhimSection(title: "Phim Trung Quốc Cổ Trang", subtitle: "Tiên hiệp, kiếm hiệp & cung đấu đỉnh cao", films: tq)) }
+        if !am.isEmpty { sections.append(PhimSection(title: "Phim Âu Mỹ Bom Tấn", subtitle: "Điện ảnh Hollywood chất lượng 4K", films: am)) }
+        if !hd.isEmpty { sections.append(PhimSection(title: "Hành Động & Võ Thuật", subtitle: "Kịch tính, nghẹt thở & mãn nhãn", films: hd)) }
 
         if sections.isEmpty {
-            sections.append(PhimSection(title: "Phim Đề Xuất", films: fallbackFilms()))
+            // Fallback NguonC nếu KKPhim đang bảo trì
+            return await fetchNguonCHomeSections()
         }
+
         return sections
     }
 
-    // MARK: - Category Batch Fetch (10 pages = 100 films per category)
+    // MARK: - 2. Category / Country / Genre Feed (Multi-Page / Large Batch)
     func fetchCategoryFilms(slug: String) async -> [FilmItem] {
-        let res: [FilmItem]
-        if slug == "phim-moi" {
-            res = await fetchFilmsBatch(type: "phim-moi-cap-nhat", isDanhSach: false, pages: 1...10)
-        } else if ["phim-bo", "phim-le", "hoat-hinh", "tv-shows"].contains(slug) {
-            res = await fetchFilmsBatch(type: slug, isDanhSach: true, pages: 1...10)
-        } else {
-            res = await fetchFilmsBatch(type: slug, isCategory: true, pages: 1...10)
+        let endpoint: String
+        switch slug {
+        case "phim-moi":
+            return await fetchKKPhimList(endpoint: "danh-sach/phim-moi-cap-nhat?page=1")
+        case "phim-bo", "phim-le", "hoat-hinh", "tv-shows":
+            endpoint = "danh-sach/\(slug)?limit=48"
+        case "han-quoc", "trung-quoc", "au-my", "nhat-ban", "viet-nam", "thai-lan":
+            endpoint = "quoc-gia/\(slug)?limit=48"
+        default:
+            endpoint = "the-loai/\(slug)?limit=48"
         }
-        return res.isEmpty ? fallbackFilms() : res
+
+        let list = await fetchKKPhimV1List(endpoint: endpoint)
+        if !list.isEmpty { return list }
+
+        // Fallback NguonC
+        return await fetchNguonCCategoryFilms(slug: slug)
     }
 
-    // MARK: - Search Films (Multi-page search)
+    // MARK: - 3. Instant Search API (Multi-result Realtime Search)
     func searchFilms(keyword: String) async -> [FilmItem] {
-        guard let encoded = keyword.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else { return [] }
-        return await fetchFilms(endpoint: "films/search?keyword=\(encoded)")
-    }
-
-    // MARK: - Concurrent Multi-Page Batch Loader
-    func fetchFilmsBatch(type: String, isDanhSach: Bool = false, isCategory: Bool = false, pages: ClosedRange<Int> = 1...5) async -> [FilmItem] {
-        await withTaskGroup(of: (Int, [FilmItem]).self) { group in
-            for page in pages {
-                group.addTask {
-                    let ep: String
-                    if isCategory {
-                        ep = "films/the-loai/\(type)?page=\(page)"
-                    } else if isDanhSach {
-                        ep = "films/danh-sach/\(type)?page=\(page)"
-                    } else {
-                        ep = "films/\(type)?page=\(page)"
-                    }
-                    let films = await self.fetchFilms(endpoint: ep)
-                    return (page, films)
-                }
-            }
-
-            var results: [(Int, [FilmItem])] = []
-            for await res in group {
-                results.append(res)
-            }
-            results.sort { $0.0 < $1.0 }
-            var unique: [FilmItem] = []
-            var seenSlugs = Set<String>()
-            for (_, list) in results {
-                for item in list {
-                    if !seenSlugs.contains(item.slug) {
-                        seenSlugs.insert(item.slug)
-                        unique.append(item)
-                    }
-                }
-            }
-            return unique
+        let trimmed = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+            return []
         }
-    }
 
-    // MARK: - Film Detail & Episodes
-    func fetchFilmDetail(slug: String) async -> (description: String, episodes: [EpisodeItem]) {
-        guard let url = URL(string: "\(apiBase)/film/\(slug)") else {
-            return ("Phim điện ảnh chất lượng cao Vietsub.", [EpisodeItem(name: "Tập 1", slug: "tap-1", embed: "https://phim.nguonc.com")])
-        }
+        let urlStr = "\(kkphimApi)/v1/api/tim-kiem?keyword=\(encoded)&limit=36"
+        guard let url = URL(string: urlStr) else { return [] }
+
         var req = URLRequest(url: url)
-        req.setValue("https://phim.nguonc.com/", forHTTPHeaderField: "Referer")
+        req.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)", forHTTPHeaderField: "User-Agent")
+
+        do {
+            let (data, _) = try await URLSession.shared.data(for: req)
+            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let dataObj = json["data"] as? [String: Any],
+                  let items = dataObj["items"] as? [[String: Any]] else {
+                return await searchNguonC(keyword: trimmed)
+            }
+
+            let results = items.compactMap { parseKKPhimItem($0) }
+            return results.isEmpty ? await searchNguonC(keyword: trimmed) : results
+        } catch {
+            return await searchNguonC(keyword: trimmed)
+        }
+    }
+
+    // MARK: - 4. Film Detail & Episode Resolution (100% Direct .m3u8 Streams)
+    func fetchFilmDetail(slug: String) async -> FilmDetailResult {
+        guard let url = URL(string: "\(kkphimApi)/phim/\(slug)") else {
+            return fallbackDetailResult(slug: slug)
+        }
+
+        var req = URLRequest(url: url)
         req.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)", forHTTPHeaderField: "User-Agent")
 
         do {
             let (data, _) = try await URLSession.shared.data(for: req)
             guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let movie = json["movie"] as? [String: Any] else {
-                return ("", [EpisodeItem(name: "Tập Full", slug: "full", embed: "https://phim.nguonc.com")])
+                return await fetchNguonCDetail(slug: slug)
             }
 
-            let rawDesc = (movie["description"] as? String ?? "")
+            let rawDesc = (movie["content"] as? String ?? movie["description"] as? String ?? "")
                 .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
 
-            var episodes: [EpisodeItem] = []
-            if let epServers = movie["episodes"] as? [[String: Any]] {
-                for srv in epServers {
-                    let serverLabel = (srv["server_name"] as? String) ?? ""
-                    let isThuyetMinh = serverLabel.localizedCaseInsensitiveContains("thuyết minh") || serverLabel.localizedCaseInsensitiveContains("lồng tiếng")
-                    let prefix = isThuyetMinh ? "[TM] " : ""
-                    if let items = srv["items"] as? [[String: Any]] {
-                        for item in items {
-                            let name = item["name"] as? String ?? "Tập 1"
-                            let epSlug = item["slug"] as? String ?? name
-                            let embed = (item["embed"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-                            let m3u8 = (item["m3u8"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-                            let playTarget = !m3u8.isEmpty ? m3u8 : embed
-                            if !playTarget.isEmpty {
-                                episodes.append(EpisodeItem(name: "\(prefix)\(name)", slug: "\(prefix)\(epSlug)", embed: playTarget))
-                            }
+            let directorArr = movie["director"] as? [String] ?? []
+            let director = directorArr.joined(separator: ", ")
+
+            let castArr = movie["actor"] as? [String] ?? movie["casts"] as? [String] ?? []
+            let casts = castArr.joined(separator: ", ")
+
+            let time = movie["time"] as? String ?? ""
+
+            var countryStr = ""
+            if let countries = movie["country"] as? [[String: Any]], let first = countries.first {
+                countryStr = first["name"] as? String ?? ""
+            }
+
+            var servers: [EpisodeServer] = []
+            if let epList = json["episodes"] as? [[String: Any]] {
+                for srv in epList {
+                    let srvName = (srv["server_name"] as? String) ?? "Server 1"
+                    let serverData = srv["server_data"] as? [[String: Any]] ?? []
+
+                    var epItems: [EpisodeItem] = []
+                    for it in serverData {
+                        let name = it["name"] as? String ?? "Tập 1"
+                        let epSlug = it["slug"] as? String ?? name
+                        let m3u8 = (it["link_m3u8"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                        let embed = (it["link_embed"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+
+                        if !m3u8.isEmpty || !embed.isEmpty {
+                            epItems.append(EpisodeItem(
+                                name: name,
+                                slug: epSlug,
+                                embed: embed,
+                                m3u8: m3u8
+                            ))
                         }
+                    }
+
+                    if !epItems.isEmpty {
+                        servers.append(EpisodeServer(serverName: srvName, episodes: epItems))
                     }
                 }
             }
-            if episodes.isEmpty {
-                episodes.append(EpisodeItem(name: "Tập 1", slug: "tap-1", embed: "https://phim.nguonc.com"))
+
+            if servers.isEmpty {
+                return await fetchNguonCDetail(slug: slug)
             }
-            return (rawDesc, episodes)
+
+            return FilmDetailResult(
+                description: rawDesc,
+                director: director,
+                casts: casts,
+                time: time,
+                country: countryStr,
+                servers: servers
+            )
         } catch {
-            return ("", [EpisodeItem(name: "Tập 1", slug: "tap-1", embed: "https://phim.nguonc.com")])
+            return await fetchNguonCDetail(slug: slug)
         }
     }
 
-    private func fetchFilms(endpoint: String) async -> [FilmItem] {
-        guard let url = URL(string: "\(apiBase)/\(endpoint)") else { return [] }
+    // MARK: - Private KKPhim Parsers
+    private func fetchKKPhimList(endpoint: String) async -> [FilmItem] {
+        guard let url = URL(string: "\(kkphimApi)/\(endpoint)") else { return [] }
         var req = URLRequest(url: url)
-        req.setValue("https://phim.nguonc.com/", forHTTPHeaderField: "Referer")
         req.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)", forHTTPHeaderField: "User-Agent")
 
         do {
             let (data, _) = try await URLSession.shared.data(for: req)
             guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let items = json["items"] as? [[String: Any]] else { return [] }
-
-            return items.compactMap { d -> FilmItem? in
-                guard let name = d["name"] as? String,
-                      let slug = d["slug"] as? String else { return nil }
-                let orig = d["original_name"] as? String ?? ""
-                let thumb = normalizeImageUrl(d["thumb_url"] as? String ?? "")
-                let poster = normalizeImageUrl(d["poster_url"] as? String ?? "")
-                let curEp = d["current_episode"] as? String ?? "Full"
-                let totEp = (d["total_episodes"] as? Int).map(String.init) ?? (d["total_episodes"] as? String ?? "")
-                let quality = d["quality"] as? String ?? "FHD"
-                let lang = d["language"] as? String ?? "Vietsub"
-                let desc = (d["description"] as? String)?.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
-
-                return FilmItem(
-                    name: name,
-                    slug: slug,
-                    originalName: orig,
-                    thumbUrl: thumb,
-                    posterUrl: poster,
-                    currentEpisode: curEp,
-                    totalEpisodes: totEp,
-                    quality: quality,
-                    language: lang,
-                    year: "2026",
-                    categories: [],
-                    description: desc
-                )
+                  let items = json["items"] as? [[String: Any]] else {
+                return []
             }
+            return items.compactMap { parseKKPhimItem($0) }
         } catch {
             return []
         }
+    }
+
+    private func fetchKKPhimV1List(endpoint: String) async -> [FilmItem] {
+        guard let url = URL(string: "\(kkphimApi)/v1/api/\(endpoint)") else { return [] }
+        var req = URLRequest(url: url)
+        req.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)", forHTTPHeaderField: "User-Agent")
+
+        do {
+            let (data, _) = try await URLSession.shared.data(for: req)
+            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let dataObj = json["data"] as? [String: Any],
+                  let items = dataObj["items"] as? [[String: Any]] else {
+                return []
+            }
+            return items.compactMap { parseKKPhimItem($0) }
+        } catch {
+            return []
+        }
+    }
+
+    private func parseKKPhimItem(_ d: [String: Any]) -> FilmItem? {
+        guard let name = d["name"] as? String,
+              let slug = d["slug"] as? String else {
+            return nil
+        }
+
+        let orig = d["origin_name"] as? String ?? d["original_name"] as? String ?? ""
+        let rawThumb = d["thumb_url"] as? String ?? ""
+        let rawPoster = d["poster_url"] as? String ?? ""
+
+        let thumb = normalizeImageUrl(rawThumb)
+        let poster = normalizeImageUrl(rawPoster.isEmpty ? rawThumb : rawPoster)
+
+        let curEp = d["episode_current"] as? String ?? d["current_episode"] as? String ?? "Full"
+        let quality = d["quality"] as? String ?? "FHD"
+        let lang = d["lang"] as? String ?? d["language"] as? String ?? "Vietsub"
+        let yearInt = d["year"] as? Int
+        let yearStr = (yearInt != nil ? String(yearInt!) : (d["year"] as? String)) ?? "2026"
+        let time = d["time"] as? String ?? ""
+
+        var cats: [String] = []
+        if let catList = d["category"] as? [[String: Any]] {
+            cats = catList.compactMap { $0["name"] as? String }
+        }
+
+        var countryStr = ""
+        if let countryList = d["country"] as? [[String: Any]], let first = countryList.first {
+            countryStr = first["name"] as? String ?? ""
+        }
+
+        return FilmItem(
+            name: name,
+            slug: slug,
+            originalName: orig,
+            thumbUrl: thumb,
+            posterUrl: poster,
+            currentEpisode: curEp,
+            totalEpisodes: "",
+            quality: quality,
+            language: lang,
+            year: yearStr,
+            time: time,
+            director: "",
+            casts: "",
+            country: countryStr,
+            categories: cats,
+            description: nil,
+            source: "kkphim"
+        )
     }
 
     private func normalizeImageUrl(_ u: String) -> String {
         let trimmed = u.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty { return "" }
         if trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") { return trimmed }
-        if trimmed.hasPrefix("/") { return "https://img.nguonc.com\(trimmed)" }
-        return "https://img.nguonc.com/\(trimmed)"
+        if trimmed.hasPrefix("/") { return "\(imageCdnBase)\(trimmed)" }
+        return "\(imageCdnBase)/\(trimmed)"
+    }
+
+    // MARK: - 5. Fallback NguonC Engine
+    private func fetchNguonCHomeSections() async -> [PhimSection] {
+        guard let url = URL(string: "\(nguoncApi)/films/phim-moi-cap-nhat?page=1") else { return [] }
+        var req = URLRequest(url: url)
+        req.setValue("https://phim.nguonc.com/", forHTTPHeaderField: "Referer")
+        req.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)", forHTTPHeaderField: "User-Agent")
+
+        guard let (data, _) = try? await URLSession.shared.data(for: req),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let items = json["items"] as? [[String: Any]] else {
+            return [PhimSection(title: "Phim Đề Xuất", films: fallbackFilms())]
+        }
+
+        let films = items.compactMap { parseNguonCItem($0) }
+        return [PhimSection(title: "Phim Điện Ảnh Đề Xuất", subtitle: "Nguồn phát dự phòng", films: films)]
+    }
+
+    private func fetchNguonCCategoryFilms(slug: String) async -> [FilmItem] {
+        let endpoint = slug == "phim-moi" ? "films/phim-moi-cap-nhat?page=1" : "films/danh-sach/\(slug)?page=1"
+        guard let url = URL(string: "\(nguoncApi)/\(endpoint)") else { return fallbackFilms() }
+        var req = URLRequest(url: url)
+        req.setValue("https://phim.nguonc.com/", forHTTPHeaderField: "Referer")
+
+        guard let (data, _) = try? await URLSession.shared.data(for: req),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let items = json["items"] as? [[String: Any]] else {
+            return fallbackFilms()
+        }
+
+        let films = items.compactMap { parseNguonCItem($0) }
+        return films.isEmpty ? fallbackFilms() : films
+    }
+
+    private func searchNguonC(keyword: String) async -> [FilmItem] {
+        guard let encoded = keyword.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+              let url = URL(string: "\(nguoncApi)/films/search?keyword=\(encoded)") else {
+            return []
+        }
+        var req = URLRequest(url: url)
+        req.setValue("https://phim.nguonc.com/", forHTTPHeaderField: "Referer")
+
+        guard let (data, _) = try? await URLSession.shared.data(for: req),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let items = json["items"] as? [[String: Any]] else {
+            return []
+        }
+        return items.compactMap { parseNguonCItem($0) }
+    }
+
+    private func fetchNguonCDetail(slug: String) async -> FilmDetailResult {
+        guard let url = URL(string: "\(nguoncApi)/film/\(slug)") else {
+            return fallbackDetailResult(slug: slug)
+        }
+        var req = URLRequest(url: url)
+        req.setValue("https://phim.nguonc.com/", forHTTPHeaderField: "Referer")
+
+        guard let (data, _) = try? await URLSession.shared.data(for: req),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let movie = json["movie"] as? [String: Any] else {
+            return fallbackDetailResult(slug: slug)
+        }
+
+        let rawDesc = (movie["description"] as? String ?? "")
+            .replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        var episodes: [EpisodeItem] = []
+        if let epServers = movie["episodes"] as? [[String: Any]] {
+            for srv in epServers {
+                if let items = srv["items"] as? [[String: Any]] {
+                    for item in items {
+                        let name = item["name"] as? String ?? "Tập 1"
+                        let epSlug = item["slug"] as? String ?? name
+                        let embed = item["embed"] as? String ?? ""
+                        let m3u8 = item["m3u8"] as? String ?? ""
+                        if !embed.isEmpty || !m3u8.isEmpty {
+                            episodes.append(EpisodeItem(name: name, slug: epSlug, embed: embed, m3u8: m3u8))
+                        }
+                    }
+                }
+            }
+        }
+
+        let server = EpisodeServer(serverName: "Server Dự Phòng", episodes: episodes.isEmpty ? [EpisodeItem(name: "Tập 1", slug: "tap-1", embed: "https://phim.nguonc.com")] : episodes)
+        return FilmDetailResult(
+            description: rawDesc,
+            director: "Đang cập nhật",
+            casts: "Đang cập nhật",
+            time: "Trọn bộ",
+            country: "Châu Á",
+            servers: [server]
+        )
+    }
+
+    private func parseNguonCItem(_ d: [String: Any]) -> FilmItem? {
+        guard let name = d["name"] as? String,
+              let slug = d["slug"] as? String else {
+            return nil
+        }
+        let orig = d["original_name"] as? String ?? ""
+        let thumb = d["thumb_url"] as? String ?? ""
+        let poster = d["poster_url"] as? String ?? thumb
+        return FilmItem(
+            name: name,
+            slug: slug,
+            originalName: orig,
+            thumbUrl: thumb.hasPrefix("http") ? thumb : "https://img.nguonc.com/\(thumb)",
+            posterUrl: poster.hasPrefix("http") ? poster : "https://img.nguonc.com/\(poster)",
+            currentEpisode: d["current_episode"] as? String ?? "Full",
+            quality: d["quality"] as? String ?? "FHD",
+            language: d["language"] as? String ?? "Vietsub",
+            year: "2026",
+            source: "nguonc"
+        )
+    }
+
+    private func fallbackDetailResult(slug: String) -> FilmDetailResult {
+        FilmDetailResult(
+            description: "Phim điện ảnh chất lượng cao 4K / Full HD Vietsub & Thuyết Minh.",
+            director: "Đang cập nhật",
+            casts: "Dàn diễn viên nổi tiếng",
+            time: "120 phút",
+            country: "Quốc tế",
+            servers: [
+                EpisodeServer(serverName: "Server Chính (FHD)", episodes: [
+                    EpisodeItem(name: "Tập 1", slug: "tap-1", embed: "", m3u8: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8")
+                ])
+            ]
+        )
     }
 
     private func fallbackFilms() -> [FilmItem] {
         [
-            FilmItem(name: "Mỹ Nhân Dư (Phần 1)", slug: "my-nhan-du-phan-1", originalName: "Beauty Remains", currentEpisode: "Tập 18", quality: "FHD", language: "Vietsub", year: "2026", description: "Siêu phẩm tâm lý tình cảm đặc sắc chất lượng cao."),
-            FilmItem(name: "Thám Tử Lừng Danh Conan", slug: "conan-movie", originalName: "Detective Conan", currentEpisode: "Full", quality: "4K", language: "Thuyết Minh", year: "2026", description: "Hành trình phá án kịch tính của thám tử lừng danh."),
-            FilmItem(name: "Khánh Dư Niên (Phần 2)", slug: "khanh-du-nien-2", originalName: "Joy of Life 2", currentEpisode: "Trọn Bộ", quality: "FHD", language: "Vietsub", year: "2026", description: "Bom tấn cổ trang quyền mưu hấp dẫn nhất năm.")
+            FilmItem(name: "Thám Tử Lừng Danh Conan", slug: "tham-tu-lung-danh-conan", originalName: "Detective Conan", currentEpisode: "Tập 1201", quality: "FHD", language: "Vietsub + Thuyết Minh", year: "2026", time: "25 phút/tập", country: "Nhật Bản", description: "Hành trình phá án kịch tính của thám tử Shinichi Kudo."),
+            FilmItem(name: "Khánh Dư Niên (Phần 2)", slug: "khanh-du-nien-2", originalName: "Joy of Life 2", currentEpisode: "Trọn Bộ", quality: "4K", language: "Vietsub", year: "2026", time: "45 phút/tập", country: "Trung Quốc", description: "Bom tấn quyền mưu cổ trang hấp dẫn nhất năm."),
+            FilmItem(name: "Nữ Hoàng Nước Mắt", slug: "nu-hoang-nuoc-mat", originalName: "Queen of Tears", currentEpisode: "Trọn Bộ", quality: "FHD", language: "Thuyết Minh", year: "2026", time: "70 phút/tập", country: "Hàn Quốc", description: "Chuyện tình cảm động giữa tài phiệt và luật sư.")
         ]
     }
 }

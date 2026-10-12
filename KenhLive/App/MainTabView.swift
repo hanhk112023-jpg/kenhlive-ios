@@ -33,7 +33,6 @@ enum KLTab: Int, CaseIterable, Identifiable {
 struct MainTabView: View {
     @State private var selectedTab: KLTab = .home
     @State private var isShowingTelegramSheet: Bool = false
-    @State private var isShowingMultiView: Bool = false
     @State private var isShowingSchedule: Bool = false
     @AppStorage("seen_notice_v140") private var seenNoticeV140: Bool = false
 
@@ -81,15 +80,15 @@ struct MainTabView: View {
 
                 Spacer()
 
-                // Quick MultiView Button
+                // Quick Schedule Button
                 Button {
                     KLHaptics.light()
-                    isShowingMultiView = true
+                    isShowingSchedule = true
                 } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: "rectangle.split.2x1.fill")
+                        Image(systemName: "calendar")
                             .font(.system(size: 10, weight: .bold))
-                        Text("2 MÀN")
+                        Text("LỊCH ĐÁ")
                             .font(.system(size: 9.5, weight: .heavy))
                     }
                     .foregroundColor(KLTheme.brandOrange)
@@ -137,7 +136,6 @@ struct MainTabView: View {
                 HomeHubView(
                     currentTab: $selectedTab,
                     onOpenTelegram: { isShowingTelegramSheet = true },
-                    onOpenMultiView: { isShowingMultiView = true },
                     onOpenSchedule: { isShowingSchedule = true }
                 )
                 .tabItem {
@@ -174,9 +172,6 @@ struct MainTabView: View {
         .background(KLTheme.bgDeep.ignoresSafeArea())
         .sheet(isPresented: $isShowingTelegramSheet) {
             TelegramFeedbackSheet()
-        }
-        .sheet(isPresented: $isShowingMultiView) {
-            MultiViewScreen()
         }
         .sheet(isPresented: $isShowingSchedule) {
             ScheduleView()

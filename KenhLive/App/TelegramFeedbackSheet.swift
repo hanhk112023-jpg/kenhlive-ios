@@ -46,7 +46,7 @@ struct TelegramFeedbackSheet: View {
                             .tracking(1.8)
                             .foregroundColor(KLTheme.brandOrange)
 
-                        Text("KenhLive v1.4.2 (iOS Mobile-First)")
+                        Text("KenhLive v1.4.3 (Rạp Phim HLS 4K)")
                             .font(.system(size: 22, weight: .heavy))
                             .foregroundColor(.white)
 

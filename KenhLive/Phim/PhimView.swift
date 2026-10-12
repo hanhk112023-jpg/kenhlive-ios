@@ -4,10 +4,17 @@ struct PhimView: View {
     @ObservedObject private var storage = StorageManager.shared
     @State private var selectedFilter: String = "tat-ca"
     @State private var sections: [PhimSection] = []
+    @State private var categoryFilms: [FilmItem] = []
     @State private var featuredFilms: [FilmItem] = []
     @State private var heroIndex: Int = 0
     @State private var heroSynopsis: String = ""
     @State private var isLoading: Bool = true
+
+    // Search state
+    @State private var searchQuery: String = ""
+    @State private var searchResults: [FilmItem] = []
+    @State private var isSearching: Bool = false
+    @State private var searchTask: Task<Void, Never>? = nil
 
     @State private var selectedFilmForEpisodes: FilmItem? = nil
     @State private var activePlayback: ActiveVodPlayback? = nil
@@ -20,14 +27,17 @@ struct PhimView: View {
 
     private let filterPills: [KLFilterItem<String>] = [
         KLFilterItem(id: "tat-ca", title: "Trang Chủ Phim"),
-        KLFilterItem(id: "lich-su", title: "Danh Sách Của Tôi"),
+        KLFilterItem(id: "lich-su", title: "Đã Lưu & Xem Gần Đây"),
         KLFilterItem(id: "phim-moi", title: "Mới Cập Nhật"),
-        KLFilterItem(id: "phim-bo", title: "Phim Bộ"),
-        KLFilterItem(id: "phim-le", title: "Phim Lẻ"),
+        KLFilterItem(id: "phim-bo", title: "Phim Bộ Hot"),
+        KLFilterItem(id: "phim-le", title: "Phim Lẻ Chiếu Rạp"),
         KLFilterItem(id: "hoat-hinh", title: "Hoạt Hình & Anime"),
+        KLFilterItem(id: "han-quoc", title: "Hàn Quốc"),
+        KLFilterItem(id: "trung-quoc", title: "Trung Quốc"),
+        KLFilterItem(id: "au-my", title: "Âu Mỹ Bom Tấn"),
         KLFilterItem(id: "hanh-dong", title: "Hành Động"),
-        KLFilterItem(id: "tinh-cam", title: "Tình Cảm"),
         KLFilterItem(id: "co-trang", title: "Cổ Trang"),
+        KLFilterItem(id: "tinh-cam", title: "Tình Cảm"),
         KLFilterItem(id: "kinh-di", title: "Kinh Dị")
     ]
 
@@ -41,14 +51,14 @@ struct PhimView: View {
             KLTheme.bgDeep.ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 20) {
-                    // 1. Netflix Editorial Header
+                VStack(alignment: .leading, spacing: 18) {
+                    // 1. Netflix Editorial Header Bar
                     HStack(alignment: .center) {
                         HStack(spacing: 8) {
                             Text("K")
                                 .font(.system(size: 16, weight: .black, design: .rounded))
                                 .foregroundColor(.white)
-                                .frame(width: 24, height: 24)
+                                .frame(width: 25, height: 25)
                                 .background(KLTheme.netflixRed)
                                 .cornerRadius(5)
 
@@ -59,7 +69,7 @@ struct PhimView: View {
                                     .foregroundColor(KLTheme.netflixRed)
 
                                 Text("Kho Phim Netflix Cinema")
-                                    .font(.system(size: 22, weight: .heavy))
+                                    .font(.system(size: 21, weight: .heavy))
                                     .foregroundColor(.white)
                             }
                         }
@@ -67,7 +77,7 @@ struct PhimView: View {
                         Spacer()
 
                         KLPillBadge(
-                            text: "4K · VIETSUB",
+                            text: "HLS 4K NATIVE",
                             fg: KLTheme.imdbGold,
                             bg: KLTheme.imdbGold.opacity(0.14),
                             border: KLTheme.imdbGold.opacity(0.4)
@@ -76,86 +86,51 @@ struct PhimView: View {
                     .padding(.horizontal, 16)
                     .padding(.top, 10)
 
-                    // 2. Category Filter Strip
-                    KLFilterStrip(items: filterPills, selection: $selectedFilter)
-                        .onChange(of: selectedFilter) { newCat in
-                            Task { await loadCategory(newCat) }
-                        }
+                    // 2. Real-Time Cinema Search Bar
+                    HStack(spacing: 10) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(KLTheme.textMuted)
 
-                    // 3. Netflix Cinema Billboard Hero
-                    if let hero = currentHero {
-                        NetflixBillboardHeroCard(
-                            film: hero,
-                            synopsis: heroSynopsis,
-                            currentIndex: heroIndex,
-                            totalCount: max(1, featuredFilms.count),
-                            isFavorite: storage.isFavoriteFilm(slug: hero.slug),
-                            onPlayNow: {
-                                KLHaptics.medium()
-                                Task {
-                                    let detail = await PhimService.shared.fetchFilmDetail(slug: hero.slug)
-                                    if let firstEp = detail.episodes.first {
-                                        activePlayback = ActiveVodPlayback(film: hero, episode: firstEp)
-                                    }
-                                }
-                            },
-                            onOpenEpisodes: {
-                                KLHaptics.light()
-                                selectedFilmForEpisodes = hero
-                            },
-                            onToggleFavorite: {
-                                KLHaptics.selection()
-                                storage.toggleFavoriteFilm(slug: hero.slug)
-                            },
-                            onCycleNext: {
-                                KLHaptics.light()
-                                if featuredFilms.count > 1 {
-                                    withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
-                                        heroIndex = (heroIndex + 1) % featuredFilms.count
-                                    }
-                                    Task { await loadHeroSynopsis() }
-                                }
+                        TextField("Tìm tên phim, diễn viên, anime (Conan, Khánh Dư Niên...)", text: $searchQuery)
+                            .font(.system(size: 13.5, weight: .medium))
+                            .foregroundColor(.white)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                            .onChange(of: searchQuery) { query in
+                                performSearch(query: query)
                             }
-                        )
-                    }
 
-                    // 4. Continue Watching Rail (Netflix Red Progress)
-                    if !storage.watchHistory.isEmpty && (selectedFilter == "tat-ca" || selectedFilter == "lich-su") {
-                        ContinueWatchingRail(items: storage.watchHistory) { item in
-                            KLHaptics.medium()
-                            let film = FilmItem(
-                                name: item.filmName,
-                                slug: item.filmSlug,
-                                thumbUrl: item.posterUrl,
-                                posterUrl: item.posterUrl
-                            )
-                            let ep = EpisodeItem(name: item.episodeName, slug: item.episodeSlug, embed: item.embedUrl)
-                            activePlayback = ActiveVodPlayback(film: film, episode: ep)
+                        if isSearching {
+                            ProgressView()
+                                .tint(KLTheme.netflixRed)
+                                .scaleEffect(0.8)
+                        } else if !searchQuery.isEmpty {
+                            Button {
+                                searchQuery = ""
+                                searchResults = []
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(KLTheme.textMuted)
+                            }
                         }
                     }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(KLTheme.surfaceCard)
+                    .cornerRadius(10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(searchQuery.isEmpty ? KLTheme.borderSubtle : KLTheme.netflixRed.opacity(0.6), lineWidth: 1)
+                    )
+                    .padding(.horizontal, 16)
 
-                    // 5. Film Catalog Sections (2:3 Netflix Posters)
-                    ForEach(sections) { section in
-                        FilmSectionRow(
-                            title: section.title,
-                            films: section.films,
-                            watchHistory: storage.watchHistory,
-                            onSelectFilm: { film in
-                                KLHaptics.light()
-                                selectedFilmForEpisodes = film
-                            },
-                            onSeeMore: {
-                                KLHaptics.selection()
-                                if section.title.contains("Mới") { selectedFilter = "phim-moi" }
-                                else if section.title.contains("Bộ") { selectedFilter = "phim-bo" }
-                                else if section.title.contains("Lẻ") { selectedFilter = "phim-le" }
-                                else if section.title.contains("Hoạt Hình") { selectedFilter = "hoat-hinh" }
-                                else if section.title.contains("Hành Động") { selectedFilter = "hanh-dong" }
-                                else if section.title.contains("Tình Cảm") { selectedFilter = "tinh-cam" }
-                                else if section.title.contains("Cổ Trang") { selectedFilter = "co-trang" }
-                                else if section.title.contains("Kinh Dị") { selectedFilter = "kinh-di" }
-                            }
-                        )
+                    // 3. Search Results Overlay OR Regular Cinema Catalog
+                    if !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty {
+                        renderSearchResultsView()
+                    } else {
+                        renderMainCatalogView()
                     }
 
                     Spacer(minLength: 90)
@@ -166,7 +141,7 @@ struct PhimView: View {
                 await loadCategory(selectedFilter)
             }
 
-            if isLoading && sections.isEmpty {
+            if isLoading && sections.isEmpty && categoryFilms.isEmpty {
                 ProgressView()
                     .tint(KLTheme.netflixRed)
             }
@@ -186,28 +161,299 @@ struct PhimView: View {
         }
     }
 
+    // MARK: - Search Results View
+    @ViewBuilder
+    private func renderSearchResultsView() -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("KẾT QUẢ TÌM KIẾM")
+                    .font(.system(size: 11, weight: .heavy))
+                    .tracking(0.8)
+                    .foregroundColor(KLTheme.textMuted)
+
+                Spacer()
+
+                Text("\(searchResults.count) PHIM")
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundColor(KLTheme.imdbGold)
+            }
+            .padding(.horizontal, 16)
+
+            if searchResults.isEmpty && !isSearching {
+                VStack(spacing: 12) {
+                    Image(systemName: "film.stack")
+                        .font(.system(size: 38))
+                        .foregroundColor(KLTheme.textMuted)
+
+                    Text("Không tìm thấy phim phù hợp với \"\(searchQuery)\"")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(KLTheme.textSecondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 40)
+            } else {
+                LazyVGrid(columns: [
+                    GridItem(.flexible(), spacing: 10),
+                    GridItem(.flexible(), spacing: 10),
+                    GridItem(.flexible(), spacing: 10)
+                ], spacing: 14) {
+                    ForEach(searchResults) { film in
+                        Button {
+                            KLHaptics.light()
+                            selectedFilmForEpisodes = film
+                        } label: {
+                            PosterCell(film: film)
+                        }
+                        .buttonStyle(KLScaleButtonStyle())
+                    }
+                }
+                .padding(.horizontal, 16)
+            }
+        }
+    }
+
+    // MARK: - Main Catalog View (Filter Strip, Hero, Continue Watching, Rails/Grid)
+    @ViewBuilder
+    private func renderMainCatalogView() -> some View {
+        VStack(alignment: .leading, spacing: 18) {
+            // Category Filter Strip
+            KLFilterStrip(items: filterPills, selection: $selectedFilter)
+                .onChange(of: selectedFilter) { newCat in
+                    Task { await loadCategory(newCat) }
+                }
+
+            if selectedFilter == "tat-ca" {
+                // Billboard Hero
+                if let hero = currentHero {
+                    NetflixBillboardHeroCard(
+                        film: hero,
+                        synopsis: heroSynopsis,
+                        currentIndex: heroIndex,
+                        totalCount: max(1, featuredFilms.count),
+                        isFavorite: storage.isFavoriteFilm(slug: hero.slug),
+                        onPlayNow: {
+                            KLHaptics.medium()
+                            Task {
+                                let detail = await PhimService.shared.fetchFilmDetail(slug: hero.slug)
+                                if let firstEp = detail.allEpisodes.first {
+                                    activePlayback = ActiveVodPlayback(film: hero, episode: firstEp)
+                                }
+                            }
+                        },
+                        onOpenEpisodes: {
+                            KLHaptics.light()
+                            selectedFilmForEpisodes = hero
+                        },
+                        onToggleFavorite: {
+                            KLHaptics.selection()
+                            storage.toggleFavoriteFilm(slug: hero.slug)
+                        },
+                        onCycleNext: {
+                            KLHaptics.light()
+                            if featuredFilms.count > 1 {
+                                withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+                                    heroIndex = (heroIndex + 1) % featuredFilms.count
+                                }
+                                Task { await loadHeroSynopsis() }
+                            }
+                        }
+                    )
+                }
+
+                // Continue Watching Rail
+                if !storage.watchHistory.isEmpty {
+                    ContinueWatchingRail(items: storage.watchHistory) { item in
+                        KLHaptics.medium()
+                        let film = FilmItem(
+                            name: item.filmName,
+                            slug: item.filmSlug,
+                            thumbUrl: item.posterUrl,
+                            posterUrl: item.posterUrl
+                        )
+                        let ep = EpisodeItem(
+                            name: item.episodeName,
+                            slug: item.episodeSlug,
+                            embed: item.embedUrl,
+                            m3u8: item.m3u8Url
+                        )
+                        activePlayback = ActiveVodPlayback(film: film, episode: ep)
+                    }
+                }
+
+                // Catalog Sections
+                ForEach(sections) { section in
+                    FilmSectionRow(
+                        title: section.title,
+                        subtitle: section.subtitle,
+                        films: section.films,
+                        watchHistory: storage.watchHistory,
+                        onSelectFilm: { film in
+                            KLHaptics.light()
+                            selectedFilmForEpisodes = film
+                        },
+                        onSeeMore: {
+                            KLHaptics.selection()
+                            if section.title.contains("Mới") { selectedFilter = "phim-moi" }
+                            else if section.title.contains("Bộ") { selectedFilter = "phim-bo" }
+                            else if section.title.contains("Lẻ") { selectedFilter = "phim-le" }
+                            else if section.title.contains("Hoạt Hình") { selectedFilter = "hoat-hinh" }
+                            else if section.title.contains("Hàn Quốc") { selectedFilter = "han-quoc" }
+                            else if section.title.contains("Trung Quốc") { selectedFilter = "trung-quoc" }
+                            else if section.title.contains("Âu Mỹ") { selectedFilter = "au-my" }
+                            else if section.title.contains("Hành Động") { selectedFilter = "hanh-dong" }
+                        }
+                    )
+                }
+            } else if selectedFilter == "lich-su" {
+                // My List & History View
+                renderMyListView()
+            } else {
+                // Filtered Grid View for specific category / country
+                renderCategoryGridView()
+            }
+        }
+    }
+
+    // MARK: - Category Grid View
+    @ViewBuilder
+    private func renderCategoryGridView() -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            let title = filterPills.first(where: { $0.id == selectedFilter })?.title ?? "Danh Mục Phim"
+            HStack {
+                Text(title.uppercased())
+                    .font(.system(size: 13, weight: .heavy))
+                    .tracking(0.6)
+                    .foregroundColor(.white)
+
+                Spacer()
+
+                Text("\(categoryFilms.count) PHIM")
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundColor(KLTheme.imdbGold)
+            }
+            .padding(.horizontal, 16)
+
+            LazyVGrid(columns: [
+                GridItem(.flexible(), spacing: 10),
+                GridItem(.flexible(), spacing: 10),
+                GridItem(.flexible(), spacing: 10)
+            ], spacing: 14) {
+                ForEach(categoryFilms) { film in
+                    Button {
+                        KLHaptics.light()
+                        selectedFilmForEpisodes = film
+                    } label: {
+                        PosterCell(film: film)
+                    }
+                    .buttonStyle(KLScaleButtonStyle())
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+
+    // MARK: - My List View
+    @ViewBuilder
+    private func renderMyListView() -> some View {
+        VStack(alignment: .leading, spacing: 18) {
+            if !storage.watchHistory.isEmpty {
+                ContinueWatchingRail(items: storage.watchHistory) { item in
+                    KLHaptics.medium()
+                    let film = FilmItem(
+                        name: item.filmName,
+                        slug: item.filmSlug,
+                        thumbUrl: item.posterUrl,
+                        posterUrl: item.posterUrl
+                    )
+                    let ep = EpisodeItem(
+                        name: item.episodeName,
+                        slug: item.episodeSlug,
+                        embed: item.embedUrl,
+                        m3u8: item.m3u8Url
+                    )
+                    activePlayback = ActiveVodPlayback(film: film, episode: ep)
+                }
+            }
+
+            let favSlugs = storage.favoriteFilmSlugs
+            let allLoaded = (sections.flatMap { $0.films } + categoryFilms + featuredFilms)
+            let favFilms = allLoaded.filter { favSlugs.contains($0.slug) }
+
+            VStack(alignment: .leading, spacing: 12) {
+                Text("PHIM ĐÃ LƯU TRONG DANH SÁCH (\(favSlugs.count))")
+                    .font(.system(size: 11.5, weight: .heavy))
+                    .tracking(0.8)
+                    .foregroundColor(KLTheme.textMuted)
+                    .padding(.horizontal, 16)
+
+                if favFilms.isEmpty {
+                    VStack(spacing: 10) {
+                        Image(systemName: "bookmark")
+                            .font(.system(size: 32))
+                            .foregroundColor(KLTheme.textMuted)
+                        Text("Chưa có phim nào được lưu vào danh sách")
+                            .font(.system(size: 12.5, weight: .medium))
+                            .foregroundColor(KLTheme.textSecondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 30)
+                } else {
+                    LazyVGrid(columns: [
+                        GridItem(.flexible(), spacing: 10),
+                        GridItem(.flexible(), spacing: 10),
+                        GridItem(.flexible(), spacing: 10)
+                    ], spacing: 14) {
+                        ForEach(favFilms) { film in
+                            Button {
+                                KLHaptics.light()
+                                selectedFilmForEpisodes = film
+                            } label: {
+                                PosterCell(film: film)
+                            }
+                            .buttonStyle(KLScaleButtonStyle())
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                }
+            }
+        }
+    }
+
+    // MARK: - Logic Helpers
+    private func performSearch(query: String) {
+        searchTask?.cancel()
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            searchResults = []
+            isSearching = false
+            return
+        }
+
+        isSearching = true
+        searchTask = Task {
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            guard !Task.isCancelled else { return }
+            let results = await PhimService.shared.searchFilms(keyword: trimmed)
+            if !Task.isCancelled {
+                searchResults = results
+                isSearching = false
+            }
+        }
+    }
+
     private func loadCategory(_ slug: String) async {
         isLoading = true
         if slug == "tat-ca" {
             let home = await PhimService.shared.fetchHomeSections()
             sections = home
-            featuredFilms = Array((home.first?.films ?? []).prefix(8))
+            featuredFilms = Array((home.first?.films ?? []).prefix(10))
             heroIndex = 0
             await loadHeroSynopsis()
         } else if slug == "lich-su" {
-            let favSlugs = storage.favoriteFilmSlugs
-            let allLoaded = sections.flatMap { $0.films }
-            let favFilms = allLoaded.filter { favSlugs.contains($0.slug) }
-            if !favFilms.isEmpty {
-                sections = [PhimSection(title: "Phim Đã Lưu Trong Danh Sách", films: favFilms)]
-            }
+            // handled dynamically
         } else {
             let list = await PhimService.shared.fetchCategoryFilms(slug: slug)
-            let catTitle = filterPills.first(where: { $0.id == slug })?.title ?? "Danh Mục Phim"
-            sections = [PhimSection(title: catTitle, films: list)]
-            featuredFilms = Array(list.prefix(8))
-            heroIndex = 0
-            await loadHeroSynopsis()
+            categoryFilms = list
         }
         isLoading = false
     }
@@ -222,7 +468,85 @@ struct PhimView: View {
     }
 }
 
-// MARK: - Netflix Cinema Billboard Hero Card (Synchronized with TV v7.4.3)
+// MARK: - Poster Grid Cell (2:3 Aspect Ratio)
+private struct PosterCell: View {
+    let film: FilmItem
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            ZStack {
+                AsyncImage(url: URL(string: film.posterUrl.isEmpty ? film.thumbUrl : film.posterUrl)) { phase in
+                    if let img = phase.image {
+                        img
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                    } else {
+                        KLTheme.surfaceCard
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 155)
+                .clipped()
+
+                // Corner Badges Overlay
+                VStack {
+                    HStack {
+                        Text("★ \(film.imdbScore)")
+                            .font(.system(size: 9, weight: .heavy, design: .rounded))
+                            .foregroundColor(KLTheme.imdbGold)
+                            .padding(.horizontal, 4.5)
+                            .padding(.vertical, 2)
+                            .background(Color.black.opacity(0.80))
+                            .cornerRadius(3.5)
+
+                        Spacer()
+
+                        Text(film.quality)
+                            .font(.system(size: 8.5, weight: .black))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 4.5)
+                            .padding(.vertical, 2)
+                            .background(KLTheme.netflixRed)
+                            .cornerRadius(3.5)
+                    }
+                    .padding(5)
+
+                    Spacer()
+
+                    HStack {
+                        Text(film.currentEpisode.isEmpty ? "Full" : film.currentEpisode)
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Color.black.opacity(0.80))
+                            .cornerRadius(3.5)
+                        Spacer()
+                    }
+                    .padding(5)
+                }
+            }
+            .frame(height: 155)
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.white.opacity(0.12), lineWidth: 0.8)
+            )
+
+            Text(film.name)
+                .font(.system(size: 11.5, weight: .bold))
+                .foregroundColor(.white)
+                .lineLimit(1)
+
+            Text("\(film.year) · \(film.language)")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(KLTheme.textMuted)
+                .lineLimit(1)
+        }
+    }
+}
+
+// MARK: - Netflix Cinema Billboard Hero Card
 private struct NetflixBillboardHeroCard: View {
     let film: FilmItem
     let synopsis: String
@@ -236,7 +560,7 @@ private struct NetflixBillboardHeroCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Spacer(minLength: 48)
+            Spacer(minLength: 40)
 
             // Row 1: Netflix Series Brand Identifier + Index
             HStack(spacing: 7) {
@@ -265,14 +589,14 @@ private struct NetflixBillboardHeroCard: View {
                 }
             }
 
-            // Row 2: Dramatic Movie Title
+            // Row 2: Movie Title
             Text(film.name)
-                .font(.system(size: 24, weight: .black))
+                .font(.system(size: 22, weight: .black))
                 .foregroundColor(.white)
                 .lineLimit(2)
                 .shadow(color: .black.opacity(0.9), radius: 6, x: 0, y: 2)
 
-            // Row 3: Netflix Metadata Bar (98% Match · Year · 16+ · Quality · IMDb)
+            // Row 3: Netflix Metadata Bar
             HStack(spacing: 8) {
                 Text("98% Phù Hợp")
                     .font(.system(size: 12, weight: .heavy))
@@ -299,10 +623,6 @@ private struct NetflixBillboardHeroCard: View {
                     .padding(.vertical, 1.5)
                     .background(Color.white.opacity(0.14))
                     .cornerRadius(3)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 3)
-                            .stroke(Color.white.opacity(0.35), lineWidth: 0.8)
-                    )
 
                 Text("★ \(film.imdbScore)")
                     .font(.system(size: 11.5, weight: .heavy))
@@ -319,7 +639,7 @@ private struct NetflixBillboardHeroCard: View {
                     .background(KLTheme.netflixRed)
                     .cornerRadius(4)
 
-                Text("Số #\(currentIndex + 1) trong Danh mục Phim Thịnh Hành Hôm Nay")
+                Text("Số #\(currentIndex + 1) trong Phim Thịnh Hành Hôm Nay")
                     .font(.system(size: 11.5, weight: .bold))
                     .foregroundColor(.white)
                     .lineLimit(1)
@@ -331,59 +651,51 @@ private struct NetflixBillboardHeroCard: View {
                 .foregroundColor(Color.white.opacity(0.78))
                 .lineLimit(2)
 
-            // Row 6: Netflix Action Buttons (White Play Button + Translucent Glass Secondary)
+            // Row 6: Netflix Action Buttons
             HStack(spacing: 8) {
-                // Iconic White Netflix Play Button
                 Button(action: onPlayNow) {
                     HStack(spacing: 6) {
                         Text("▶")
                             .font(.system(size: 12, weight: .black))
                         Text("XEM NGAY")
-                            .font(.system(size: 13, weight: .black))
+                            .font(.system(size: 12.5, weight: .black))
                             .tracking(0.4)
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 11)
+                    .padding(.vertical, 10.5)
                     .foregroundColor(.black)
                     .background(Color.white)
                     .cornerRadius(8)
                 }
                 .buttonStyle(KLScaleButtonStyle())
 
-                // Secondary Episode Button
                 Button(action: onOpenEpisodes) {
                     Text("ℹ CHỌN TẬP")
-                        .font(.system(size: 12, weight: .bold))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 11)
+                        .font(.system(size: 11.5, weight: .bold))
+                        .padding(.horizontal, 13)
+                        .padding(.vertical, 10.5)
                         .foregroundColor(.white)
                         .background(Color.white.opacity(0.18))
                         .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.white.opacity(0.25), lineWidth: 0.8)
-                        )
                 }
                 .buttonStyle(KLScaleButtonStyle())
 
-                // Save Bookmark Button
                 Button(action: onToggleFavorite) {
                     Text(isFavorite ? "✓ ĐÃ LƯU" : "+ LƯU")
-                        .font(.system(size: 11.5, weight: .bold))
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 11)
+                        .font(.system(size: 11, weight: .bold))
+                        .padding(.horizontal, 11)
+                        .padding(.vertical, 10.5)
                         .foregroundColor(isFavorite ? KLTheme.imdbGold : .white)
                         .background(Color.white.opacity(0.14))
                         .cornerRadius(8)
                 }
                 .buttonStyle(KLScaleButtonStyle())
 
-                // Next Film Cycle Button
                 if totalCount > 1 {
                     Button(action: onCycleNext) {
                         Text("↻")
-                            .font(.system(size: 14, weight: .black))
-                            .padding(.horizontal, 12)
+                            .font(.system(size: 13, weight: .black))
+                            .padding(.horizontal, 11)
                             .padding(.vertical, 9.5)
                             .foregroundColor(.white)
                             .background(Color.white.opacity(0.14))
@@ -412,7 +724,6 @@ private struct NetflixBillboardHeroCard: View {
                     }
                 }
 
-                // Multi-stop Netflix Cinema Scrim
                 LinearGradient(
                     colors: [
                         KLTheme.bgDeep.opacity(0.10),
@@ -435,13 +746,13 @@ private struct NetflixBillboardHeroCard: View {
     }
 }
 
-// MARK: - Continue Watching Rail (Netflix Red Progress)
+// MARK: - Continue Watching Rail
 private struct ContinueWatchingRail: View {
     let items: [WatchProgress]
     let onTap: (WatchProgress) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 11) {
             KLSectionHeader(
                 title: "Tiếp Tục Xem",
                 subtitle: "Khôi phục ngay tập phim đang xem dở",
@@ -467,12 +778,12 @@ private struct ContinueWatchingRail: View {
                                 }
 
                                 Text(item.filmName)
-                                    .font(.system(size: 14, weight: .bold))
+                                    .font(.system(size: 13.5, weight: .bold))
                                     .foregroundColor(.white)
                                     .lineLimit(1)
 
                                 Text(item.episodeName)
-                                    .font(.system(size: 11.5, weight: .medium))
+                                    .font(.system(size: 11, weight: .medium))
                                     .foregroundColor(KLTheme.textSecondary)
 
                                 GeometryReader { geo in
@@ -488,7 +799,7 @@ private struct ContinueWatchingRail: View {
                                 .frame(height: 4)
                             }
                             .padding(14)
-                            .frame(width: 225)
+                            .frame(width: 220)
                             .background(KLTheme.surfaceCard)
                             .cornerRadius(12)
                             .overlay(
@@ -505,34 +816,41 @@ private struct ContinueWatchingRail: View {
     }
 }
 
-// MARK: - Horizontal 2:3 Netflix Poster Carousel
+// MARK: - Horizontal Film Section Row
 private struct FilmSectionRow: View {
     let title: String
+    let subtitle: String
     let films: [FilmItem]
     let watchHistory: [WatchProgress]
     let onSelectFilm: (FilmItem) -> Void
     var onSeeMore: (() -> Void)? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 11) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
-                HStack(spacing: 8) {
-                    Rectangle()
-                        .fill(KLTheme.netflixRed)
-                        .frame(width: 3.5, height: 15)
-                        .cornerRadius(2)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 7) {
+                        Rectangle()
+                            .fill(KLTheme.netflixRed)
+                            .frame(width: 3.5, height: 14)
+                            .cornerRadius(2)
 
-                    Text(title)
-                        .font(.system(size: 15.5, weight: .heavy))
-                        .foregroundColor(.white)
+                        Text(title)
+                            .font(.system(size: 15, weight: .heavy))
+                            .foregroundColor(.white)
+                    }
+
+                    Text(subtitle)
+                        .font(.system(size: 10.5, weight: .medium))
+                        .foregroundColor(KLTheme.textMuted)
                 }
 
                 Spacer()
 
                 if let onSeeMore = onSeeMore {
                     Button(action: onSeeMore) {
-                        Text("Khám phá tất cả ›")
-                            .font(.system(size: 12, weight: .bold))
+                        Text("Tất cả ›")
+                            .font(.system(size: 11.5, weight: .bold))
                             .foregroundColor(KLTheme.textSecondary)
                     }
                 }
@@ -548,9 +866,8 @@ private struct FilmSectionRow: View {
                             onSelectFilm(film)
                         } label: {
                             VStack(alignment: .leading, spacing: 6) {
-                                // 2:3 Poster Frame (130 x 195)
                                 ZStack {
-                                    AsyncImage(url: URL(string: film.thumbUrl.isEmpty ? film.posterUrl : film.thumbUrl)) { phase in
+                                    AsyncImage(url: URL(string: film.posterUrl.isEmpty ? film.thumbUrl : film.posterUrl)) { phase in
                                         if let img = phase.image {
                                             img
                                                 .resizable()
@@ -559,10 +876,10 @@ private struct FilmSectionRow: View {
                                             KLTheme.surfaceCard
                                         }
                                     }
-                                    .frame(width: 130, height: 195)
+                                    .frame(width: 125, height: 185)
                                     .clipped()
 
-                                    // Bottom Gradient Scrim on Poster
+                                    // Gradient Scrim
                                     VStack {
                                         Spacer()
                                         LinearGradient(
@@ -570,64 +887,63 @@ private struct FilmSectionRow: View {
                                             startPoint: .top,
                                             endPoint: .bottom
                                         )
-                                        .frame(height: 55)
+                                        .frame(height: 50)
                                     }
 
-                                    // Corner Badges Overlay
+                                    // Overlay Badges
                                     VStack {
                                         HStack {
                                             Text("★ \(film.imdbScore)")
-                                                .font(.system(size: 9.5, weight: .heavy, design: .rounded))
+                                                .font(.system(size: 9, weight: .heavy, design: .rounded))
                                                 .foregroundColor(KLTheme.imdbGold)
-                                                .padding(.horizontal, 5.5)
-                                                .padding(.vertical, 2.5)
+                                                .padding(.horizontal, 4.5)
+                                                .padding(.vertical, 2)
                                                 .background(Color.black.opacity(0.78))
-                                                .cornerRadius(4)
+                                                .cornerRadius(3.5)
 
                                             Spacer()
 
                                             Text(film.quality)
-                                                .font(.system(size: 9, weight: .black))
+                                                .font(.system(size: 8.5, weight: .black))
                                                 .foregroundColor(.white)
-                                                .padding(.horizontal, 5.5)
-                                                .padding(.vertical, 2.5)
+                                                .padding(.horizontal, 4.5)
+                                                .padding(.vertical, 2)
                                                 .background(KLTheme.netflixRed)
-                                                .cornerRadius(4)
+                                                .cornerRadius(3.5)
                                         }
-                                        .padding(6)
+                                        .padding(5)
 
                                         Spacer()
 
                                         HStack {
                                             Text(film.currentEpisode.isEmpty ? "Full" : film.currentEpisode)
-                                                .font(.system(size: 9.5, weight: .bold))
+                                                .font(.system(size: 9, weight: .bold))
                                                 .foregroundColor(.white)
-                                                .padding(.horizontal, 6)
-                                                .padding(.vertical, 2.5)
+                                                .padding(.horizontal, 5)
+                                                .padding(.vertical, 2)
                                                 .background(Color.black.opacity(0.78))
-                                                .cornerRadius(4)
+                                                .cornerRadius(3.5)
                                             Spacer()
                                         }
-                                        .padding(.horizontal, 6)
-                                        .padding(.bottom, progress > 0 ? 8 : 6)
+                                        .padding(.horizontal, 5)
+                                        .padding(.bottom, progress > 0 ? 7 : 5)
 
-                                        // Netflix Red Progress Bar at Poster Bottom
                                         if progress > 0 {
                                             GeometryReader { geo in
                                                 ZStack(alignment: .leading) {
                                                     Rectangle()
                                                         .fill(Color.white.opacity(0.25))
-                                                        .frame(height: 3.5)
+                                                        .frame(height: 3)
                                                     Rectangle()
                                                         .fill(KLTheme.netflixRed)
-                                                        .frame(width: geo.size.width * max(0.1, progress), height: 3.5)
+                                                        .frame(width: geo.size.width * max(0.1, progress), height: 3)
                                                 }
                                             }
-                                            .frame(height: 3.5)
+                                            .frame(height: 3)
                                         }
                                     }
                                 }
-                                .frame(width: 130, height: 195)
+                                .frame(width: 125, height: 185)
                                 .cornerRadius(10)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 10)
@@ -635,18 +951,18 @@ private struct FilmSectionRow: View {
                                 )
 
                                 Text(film.name)
-                                    .font(.system(size: 12.5, weight: .bold))
+                                    .font(.system(size: 12, weight: .bold))
                                     .foregroundColor(.white)
                                     .lineLimit(1)
-                                    .frame(width: 130, alignment: .leading)
+                                    .frame(width: 125, alignment: .leading)
 
                                 Text("\(film.year) · \(film.language)")
-                                    .font(.system(size: 10.5, weight: .medium))
+                                    .font(.system(size: 10, weight: .medium))
                                     .foregroundColor(KLTheme.textMuted)
                                     .lineLimit(1)
-                                    .frame(width: 130, alignment: .leading)
+                                    .frame(width: 125, alignment: .leading)
                             }
-                            .frame(width: 130)
+                            .frame(width: 125)
                         }
                         .buttonStyle(KLScaleButtonStyle())
                     }
@@ -654,5 +970,11 @@ private struct FilmSectionRow: View {
                 .padding(.horizontal, 16)
             }
         }
+    }
+}
+
+private struct RotatedCardBorderModifier: View {
+    var body: some View {
+        EmptyView()
     }
 }

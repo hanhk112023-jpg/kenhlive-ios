@@ -3,7 +3,6 @@ import SwiftUI
 struct HomeHubView: View {
     @Binding var currentTab: KLTab
     let onOpenTelegram: () -> Void
-    let onOpenMultiView: () -> Void
     let onOpenSchedule: () -> Void
 
     @State private var liveMatches: [LiveMatchGroup] = []
@@ -245,7 +244,7 @@ struct HomeHubView: View {
                         KLSectionHeader(
                             title: "Tiện Ích & Hỗ Trợ",
                             subtitle: "Truy cập nhanh các tính năng mở rộng",
-                            trailingText: "v1.4.2"
+                            trailingText: "v1.4.3"
                         )
 
                         LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
@@ -261,13 +260,13 @@ struct HomeHubView: View {
                             )
 
                             HubMiniTile(
-                                badge: "2 LUỒNG LIVE",
-                                badgeColor: KLTheme.socoEmerald,
-                                title: "Xem Đa Màn",
-                                iconName: "rectangle.split.2x1.fill",
+                                badge: "NETFLIX 4K",
+                                badgeColor: KLTheme.netflixRed,
+                                title: "Kho Phim Hot",
+                                iconName: "film.stack.fill",
                                 action: {
                                     KLHaptics.light()
-                                    onOpenMultiView()
+                                    currentTab = .phim
                                 }
                             )
 
