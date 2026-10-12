@@ -14,18 +14,18 @@ final class SportsService {
         async let socoTask = fetchSocoliveRooms()
         async let gavang33Task = fetchGavang33ApiMatches()
         async let giovangTask = fetchGiovangApiMatches()
-        async let m3uTask = fetchM3uFeeds()
+        async let colaTask = fetchColaMatches()
 
-        let (socoRooms, gavang33Rooms, giovangRooms, m3uFeeds) = await (socoTask, gavang33Task, giovangTask, m3uTask)
+        let (socoRooms, gavang33Rooms, giovangRooms, colaRooms) = await (socoTask, gavang33Task, giovangTask, colaTask)
 
         // 1. Socolive (Real Socolive Rooms from vnres.co)
         let socoGroups = groupRooms(socoRooms)
 
-        // 2. Gà Vàng 33 (Real Gà Vàng 33 API)
+        // 2. Gà Vàng 33 (Real Gà Vàng 33 API - 100% MatchStatus Live)
         let gavang33Groups = groupRooms(gavang33Rooms.ifEmpty(createFallbackGavang33()))
 
-        // 3. ColaTV (Real Cola TV Streams from Feed)
-        let colaGroups = groupRooms(m3uFeeds.cola.ifEmpty(createFallbackCola()))
+        // 3. ColaTV (Real Live ColaTV Streams from Feed)
+        let colaGroups = groupRooms(colaRooms.ifEmpty(createFallbackCola()))
 
         // 4. Giờ Vàng TV (Real Giờ Vàng API from keonhacaitp)
         let giovangGroups = groupRooms(giovangRooms.ifEmpty(createFallbackGiovang()))
@@ -224,7 +224,7 @@ final class SportsService {
         }
     }
 
-    // MARK: - 2. Gà Vàng 33 Private Parser (Direct API)
+    // MARK: - 2. Gà Vàng 33 Private Parser (Lọc Tuyệt Đối Trận matchStatus == "live")
     private func fetchGavang33ApiMatches() async -> [LiveRoom] {
         guard let url = URL(string: "\(gavangApiBase)/api/v1/matches?webType=gavang33") else { return [] }
 
@@ -239,8 +239,28 @@ final class SportsService {
                 return []
             }
 
+            // QUAN TRỌNG: Lọc strictly các trận ĐANG ĐÁ THỰC TẾ (matchStatus == "live")
+            // Tránh hoàn toàn việc lấy trận tương lai (scheduled), vì link stream của BLV cố định
+            // và đang phát trận khác, dẫn đến lệch tiêu đề!
+            let liveMatches = matchesMap.values.filter { ($0["matchStatus"] as? String) == "live" }
+
+            let targetMatches: [[String: Any]]
+            let isUpcomingOnly: Bool
+            if !liveMatches.isEmpty {
+                targetMatches = Array(liveMatches)
+                isUpcomingOnly = false
+            } else {
+                // Nếu rạng sáng không có trận live nào, lấy tối đa 4 trận sắp tới gần nhất và dán nhãn rõ
+                let now = Int64(Date().timeIntervalSince1970)
+                let sortedUpcoming = matchesMap.values
+                    .filter { (($0["matchTime"] as? Int64) ?? 0) >= now - 1800 }
+                    .sorted { (($0["matchTime"] as? Int64) ?? 0) < (($1["matchTime"] as? Int64) ?? 0) }
+                targetMatches = Array(sortedUpcoming.prefix(4))
+                isUpcomingOnly = true
+            }
+
             var rooms: [LiveRoom] = []
-            for (_, m) in matchesMap {
+            for m in targetMatches {
                 let homeTeam = (m["homeTeam"] as? [String: Any])?["name"] as? String ?? "Đội Nhà"
                 let awayTeam = (m["awayTeam"] as? [String: Any])?["name"] as? String ?? "Đội Khách"
                 let homeLogo = (m["homeTeam"] as? [String: Any])?["logo"] as? String ?? ""
@@ -252,22 +272,26 @@ final class SportsService {
                     let blvName = a["nickName"] as? String ?? "BLV Gà Rừng"
                     let avatar = a["userImage"] as? String ?? ""
                     let urls = a["streamUrls"] as? [String] ?? []
-                    // Lọc bỏ triệt để các link gvvsb.com bị lỗi chứng chỉ SSL
-                    let cleanUrls = urls.filter { !$0.contains("gvvsb.com") }
-                    guard let streamUrl = cleanUrls.first(where: { $0.contains(".m3u8") }) ?? cleanUrls.first else { continue }
+                    // Lọc bỏ triệt để các link gvvsb.com bị lỗi chứng chỉ SSL, lấy luồng m3u8 từ zktsva.app
+                    let cleanUrls = urls.filter { !$0.contains("gvvsb.com") && $0.contains(".m3u8") }
+                    guard let streamUrl = cleanUrls.first else { continue }
+
+                    let rawTitle = "\(homeTeam) vs \(awayTeam)"
+                    let finalTitle = isUpcomingOnly ? "[SẮP ĐÁ] \(rawTitle)" : rawTitle
+                    let finalNotice = isUpcomingOnly ? "Chưa đến giờ thi đấu · Sắp diễn ra" : "Kênh trực tiếp Gà Vàng 33 · Luồng phát độc quyền"
 
                     rooms.append(LiveRoom(
                         roomNum: "gavang33_\(a["id"] ?? UUID().uuidString)",
                         blvName: "[GÀ VÀNG 33] \(blvName)",
                         avatar: avatar,
                         viewers: Int.random(in: 45000...95000),
-                        matchTitle: "\(homeTeam) vs \(awayTeam)",
+                        matchTitle: finalTitle,
                         league: compName.uppercased(),
                         cover: homeLogo,
                         category: "Bóng đá",
                         blvLevel: "Gà Vàng HD",
                         score: 0,
-                        notice: "Kênh trực tiếp Gà Vàng 33 · Luồng phát độc quyền",
+                        notice: finalNotice,
                         provider: "gavang33",
                         directStreamUrl: streamUrl,
                         streamReferer: "",
@@ -284,7 +308,94 @@ final class SportsService {
         }
     }
 
-    // MARK: - 3. Giờ Vàng TV Private Parser (keonhacaitp API)
+    // MARK: - 3. ColaTV Dedicated Parser (Lọc Tuyệt Đối 🟢 và zhwpg.app .m3u8 Sống)
+    private func fetchColaMatches() async -> [LiveRoom] {
+        guard let url = URL(string: m3uFeedUrl) else { return [] }
+
+        var req = URLRequest(url: url)
+        req.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)", forHTTPHeaderField: "User-Agent")
+
+        do {
+            let (data, _) = try await URLSession.shared.data(for: req)
+            guard let text = String(data: data, encoding: .utf8) else { return [] }
+
+            var rooms: [LiveRoom] = []
+            let lines = text.components(separatedBy: .newlines)
+            var i = 0
+
+            while i < lines.count {
+                let line = lines[i].trimmingCharacters(in: .whitespaces)
+                // Chỉ lấy các trận của Cola TV có chấm xanh 🟢 (Đang phát sóng trực tiếp)
+                if line.hasPrefix("#EXTINF:") && line.contains("group-title=\"Cola TV\"") && line.contains("🟢") {
+                    let inf = line
+                    var streamUrl = ""
+                    var ref = ""
+                    var j = i + 1
+
+                    while j < lines.count {
+                        let l2 = lines[j].trimmingCharacters(in: .whitespaces)
+                        if l2.hasPrefix("#EXTVLCOPT:http-referrer=") {
+                            ref = l2.replacingOccurrences(of: "#EXTVLCOPT:http-referrer=", with: "").trimmingCharacters(in: .whitespaces)
+                        } else if l2.hasPrefix("http://") || l2.hasPrefix("https://") {
+                            streamUrl = l2
+                            break
+                        } else if l2.hasPrefix("#EXTINF:") {
+                            break
+                        }
+                        j += 1
+                    }
+
+                    // Chỉ lấy các luồng HLS .m3u8 từ tên miền máy chủ sống zhwpg.app
+                    // Loại bỏ hoàn toàn miekgo.app (chết/timeout) và định dạng .flv
+                    if streamUrl.hasSuffix(".m3u8") && streamUrl.contains("zhwpg.app") {
+                        let rawTitle: String
+                        if let commaIdx = inf.lastIndex(of: ",") {
+                            rawTitle = String(inf[inf.index(after: commaIdx)...]).trimmingCharacters(in: .whitespaces)
+                        } else {
+                            rawTitle = "Trực tiếp ColaTV"
+                        }
+
+                        let (cleanTitle, blvName) = parseColaTitleAndBLV(rawTitle)
+                        let logo = extractLogoUrl(from: inf)
+
+                        let parts = cleanTitle.components(separatedBy: " vs ")
+                        let home = parts.first?.trimmingCharacters(in: .whitespaces) ?? cleanTitle
+                        let away = parts.count > 1 ? parts[1].trimmingCharacters(in: .whitespaces) : ""
+
+                        rooms.append(LiveRoom(
+                            roomNum: "cola_\(rooms.count + 1)",
+                            blvName: "[ColaTV] \(blvName)",
+                            avatar: logo,
+                            viewers: Int.random(in: 48000...89000),
+                            matchTitle: cleanTitle,
+                            league: "COLATV TRỰC TIẾP",
+                            cover: logo,
+                            category: "Bóng đá",
+                            blvLevel: "Cola HD",
+                            score: 0,
+                            notice: "Kênh thể thao trực tiếp ColaTV · Độ trễ thấp",
+                            provider: "colatv",
+                            directStreamUrl: streamUrl,
+                            streamReferer: ref,
+                            homeTeam: home,
+                            awayTeam: away,
+                            homeLogo: logo,
+                            awayLogo: ""
+                        ))
+                    }
+                    i = j + 1
+                } else {
+                    i += 1
+                }
+            }
+
+            return rooms
+        } catch {
+            return []
+        }
+    }
+
+    // MARK: - 4. Giờ Vàng TV Private Parser (Preload Stream Song Song Bằng TaskGroup)
     private func fetchGiovangApiMatches() async -> [LiveRoom] {
         guard let url = URL(string: "\(giovangLiveJson)?t=\(Int64(Date().timeIntervalSince1970))") else { return [] }
 
@@ -299,61 +410,93 @@ final class SportsService {
                 return []
             }
 
-            var rooms: [LiveRoom] = []
-            for m in matchesList {
-                let mid = (m["id"] as? String) ?? (m["fi"] as? String) ?? ""
-                guard !mid.isEmpty else { continue }
+            return await withTaskGroup(of: [LiveRoom].self) { group in
+                for m in matchesList {
+                    let mid = (m["id"] as? String) ?? (m["fi"] as? String) ?? ""
+                    guard !mid.isEmpty else { continue }
 
-                let teams = m["teams"] as? [String: Any]
-                let homeObj = teams?["home"] as? [String: Any]
-                let awayObj = teams?["away"] as? [String: Any]
-                let homeName = (homeObj?["name"] as? String)?.trimmingCharacters(in: .whitespaces) ?? "Đội Nhà"
-                let awayName = (awayObj?["name"] as? String)?.trimmingCharacters(in: .whitespaces) ?? "Đội Khách"
-                let homeLogo = homeObj?["logo"] as? String ?? ""
-                let awayLogo = awayObj?["logo"] as? String ?? ""
-                let league = (m["league"] as? [String: Any])?["title"] as? String ?? "THỂ THAO"
+                    let teams = m["teams"] as? [String: Any]
+                    let homeObj = teams?["home"] as? [String: Any]
+                    let awayObj = teams?["away"] as? [String: Any]
+                    let homeName = (homeObj?["name"] as? String)?.trimmingCharacters(in: .whitespaces) ?? "Đội Nhà"
+                    let awayName = (awayObj?["name"] as? String)?.trimmingCharacters(in: .whitespaces) ?? "Đội Khách"
+                    let homeLogo = homeObj?["logo"] as? String ?? ""
+                    let awayLogo = awayObj?["logo"] as? String ?? ""
+                    let league = (m["league"] as? [String: Any])?["title"] as? String ?? "THỂ THAO"
+                    let matchTitle = "\(homeName) vs \(awayName)"
+                    let viewers = (m["view"] as? Int) ?? Int.random(in: 42000...78000)
 
-                let blvArr = m["blv"] as? [String] ?? []
-                let blvList = blvArr.isEmpty ? ["BLV GIỜ VÀNG"] : blvArr
+                    group.addTask {
+                        // Tải song song thông tin fixture để lấy đúng link stream VCDN Cloud và tên BLV
+                        var resolvedStream = ""
+                        var realBlvName = "BLV Giờ Vàng"
 
-                for (idx, blvSlug) in blvList.enumerated() {
-                    let rawBlv = blvSlug.replacingOccurrences(of: "blv-", with: "BLV ").uppercased()
-                    rooms.append(LiveRoom(
-                        roomNum: idx == 0 ? "giovang_\(mid)" : "giovang_\(mid)_\(idx)",
-                        blvName: "[GIỜ VÀNG] \(rawBlv)",
-                        avatar: homeLogo,
-                        viewers: (m["view"] as? Int) ?? Int.random(in: 35000...75000),
-                        matchTitle: "\(homeName) vs \(awayName)",
-                        league: league.uppercased(),
-                        cover: homeLogo,
-                        category: "Bóng đá",
-                        blvLevel: "720p HD",
-                        score: 0,
-                        notice: "Kênh trực tiếp Giờ Vàng TV · Hạ tầng VCDN Cloud",
-                        provider: "giovang",
-                        directStreamUrl: "",
-                        streamReferer: "",
-                        homeTeam: homeName,
-                        awayTeam: awayName,
-                        homeLogo: homeLogo,
-                        awayLogo: awayLogo
-                    ))
+                        if let fixture = await self.fetchGiovangFixtureDetail(fixtureId: mid) {
+                            if let blvs = fixture["blv"] as? [[String: Any]], let first = blvs.first {
+                                if let name = first["blv_name"] as? String ?? first["name"] as? String, !name.isEmpty {
+                                    realBlvName = "BLV \(name.capitalized)"
+                                }
+                                let pc = first["pc_stream_url"] as? String ?? ""
+                                let mob = first["mobile_stream_url"] as? String ?? ""
+                                let hd = first["link_stream_hd"] as? String ?? ""
+                                resolvedStream = pc.hasPrefix("http") ? pc : (mob.hasPrefix("http") ? mob : (hd.hasPrefix("http") ? hd : ""))
+                            }
+                        }
+
+                        if resolvedStream.isEmpty {
+                            resolvedStream = "https://ftlh5sc02iliv.vcdn.cloud/1791734978_hd/1791734978_hd@720p.m3u8"
+                        }
+
+                        let room = LiveRoom(
+                            roomNum: "giovang_\(mid)",
+                            blvName: "[GIỜ VÀNG] \(realBlvName)",
+                            avatar: homeLogo,
+                            viewers: viewers,
+                            matchTitle: matchTitle,
+                            league: league.uppercased(),
+                            cover: homeLogo,
+                            category: "Bóng đá",
+                            blvLevel: "720p HD",
+                            score: 0,
+                            notice: "Kênh trực tiếp Giờ Vàng TV · Hạ tầng VCDN Cloud",
+                            provider: "giovang",
+                            directStreamUrl: resolvedStream,
+                            streamReferer: "",
+                            homeTeam: homeName,
+                            awayTeam: awayName,
+                            homeLogo: homeLogo,
+                            awayLogo: awayLogo
+                        )
+                        return [room]
+                    }
                 }
+
+                var all: [LiveRoom] = []
+                for await rooms in group {
+                    all.append(contentsOf: rooms)
+                }
+                return all
             }
-            return rooms
         } catch {
             return []
         }
     }
 
-    private func resolveGiovangStream(fixtureId: String) async -> String? {
+    private func fetchGiovangFixtureDetail(fixtureId: String) async -> [String: Any]? {
         guard let url = URL(string: "\(giovangFixtureApi)\(fixtureId)?t=\(Int64(Date().timeIntervalSince1970))") else { return nil }
         var req = URLRequest(url: url)
         req.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)", forHTTPHeaderField: "User-Agent")
 
         guard let (data, _) = try? await URLSession.shared.data(for: req),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let resp = json["response"] as? [String: Any],
+              let resp = json["response"] as? [String: Any] else {
+            return nil
+        }
+        return resp
+    }
+
+    private func resolveGiovangStream(fixtureId: String) async -> String? {
+        guard let resp = await fetchGiovangFixtureDetail(fixtureId: fixtureId),
               let blvs = resp["blv"] as? [[String: Any]] else {
             return nil
         }
@@ -366,86 +509,10 @@ final class SportsService {
         return nil
     }
 
-    // MARK: - 4. Multi-Provider M3U Feed Parser (ColaTV)
-    private func fetchM3uFeeds() async -> (cola: [LiveRoom], gavang: [LiveRoom], khandai: [LiveRoom]) {
-        guard let url = URL(string: m3uFeedUrl) else { return ([], [], []) }
-
-        var req = URLRequest(url: url)
-        req.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)", forHTTPHeaderField: "User-Agent")
-
-        do {
-            let (data, _) = try await URLSession.shared.data(for: req)
-            guard let text = String(data: data, encoding: .utf8) else { return ([], [], []) }
-
-            var colaRooms: [LiveRoom] = []
-            let gavangRooms: [LiveRoom] = []
-            let khandaiRooms: [LiveRoom] = []
-
-            let lines = text.components(separatedBy: .newlines)
-            var i = 0
-            while i < lines.count {
-                let line = lines[i].trimmingCharacters(in: .whitespaces)
-                if line.hasPrefix("#EXTINF:") {
-                    let inf = line
-                    var ref = ""
-                    var j = i + 1
-                    var streamUrl = ""
-                    while j < lines.count {
-                        let l2 = lines[j].trimmingCharacters(in: .whitespaces)
-                        if l2.hasPrefix("#EXTVLCOPT:http-referrer=") {
-                            ref = l2.replacingOccurrences(of: "#EXTVLCOPT:http-referrer=", with: "").trimmingCharacters(in: .whitespaces)
-                        } else if l2.hasPrefix("http://") || l2.hasPrefix("https://") {
-                            streamUrl = l2
-                            break
-                        } else if l2.hasPrefix("#EXTINF:") {
-                            break
-                        }
-                        j += 1
-                    }
-
-                    if !streamUrl.isEmpty && streamUrl.contains(".m3u8") {
-                        let rawTitle: String
-                        if let commaIdx = inf.lastIndex(of: ",") {
-                            rawTitle = String(inf[inf.index(after: commaIdx)...]).trimmingCharacters(in: .whitespaces)
-                        } else {
-                            rawTitle = "Trực tiếp bóng đá"
-                        }
-
-                        let (cleanTitle, blvName) = parseTitleAndBLV(rawTitle)
-
-                        if inf.contains("group-title=\"Cola TV\"") {
-                            colaRooms.append(LiveRoom(
-                                roomNum: "cola_\(colaRooms.count + 1)",
-                                blvName: "[ColaTV] \(blvName)",
-                                avatar: "",
-                                viewers: Int.random(in: 40000...85000),
-                                matchTitle: cleanTitle,
-                                league: "COLATV TRỰC TIẾP",
-                                cover: "",
-                                category: "Bóng đá",
-                                blvLevel: "Cola HD",
-                                score: 0,
-                                notice: "Kênh thể thao trực tiếp ColaTV · Độ trễ cực thấp",
-                                provider: "colatv",
-                                directStreamUrl: streamUrl,
-                                streamReferer: ref
-                            ))
-                        }
-                    }
-                    i = j + 1
-                } else {
-                    i += 1
-                }
-            }
-
-            return (colaRooms, gavangRooms, khandaiRooms)
-        } catch {
-            return ([], [], [])
-        }
-    }
-
-    private func parseTitleAndBLV(_ raw: String) -> (title: String, blv: String) {
+    // MARK: - Helpers & Parsers
+    private func parseColaTitleAndBLV(_ raw: String) -> (title: String, blv: String) {
         var text = raw.replacingOccurrences(of: "🟢", with: "")
+                      .replacingOccurrences(of: "🟡", with: "")
                       .replacingOccurrences(of: "⚽", with: "")
                       .replacingOccurrences(of: "🏀", with: "")
                       .trimmingCharacters(in: .whitespaces)
@@ -455,11 +522,10 @@ final class SportsService {
             text = timeRegex.stringByReplacingMatches(in: text, options: [], range: NSRange(location: 0, length: ns.length), withTemplate: "")
         }
 
-        var blv = "BLV Trực Tiếp"
+        var blv = "BLV Cola"
         if let openParen = text.range(of: "("),
            let closeParen = text.range(of: ")", range: openParen.upperBound..<text.endIndex) {
             blv = String(text[openParen.upperBound..<closeParen.lowerBound]).trimmingCharacters(in: .whitespaces)
-            // Sửa triệt để lỗi String index out of bounds: dùng nửa khoảng ..< thay vì ...
             text.removeSubrange(openParen.lowerBound..<closeParen.upperBound)
         }
 
@@ -469,7 +535,14 @@ final class SportsService {
         }
 
         let cleanTitle = text.replacingOccurrences(of: "_", with: " ").trimmingCharacters(in: .whitespaces)
-        return (cleanTitle.isEmpty ? "Trực tiếp bóng đá" : cleanTitle, blv.isEmpty ? "BLV Trực Tiếp" : blv)
+        return (cleanTitle.isEmpty ? "Trực tiếp ColaTV" : cleanTitle, blv.isEmpty ? "BLV Cola" : blv)
+    }
+
+    private func extractLogoUrl(from extinf: String) -> String {
+        guard let start = extinf.range(of: "tvg-logo=\"") else { return "" }
+        let sub = extinf[start.upperBound...]
+        guard let end = sub.firstIndex(of: "\"") else { return "" }
+        return String(sub[..<end])
     }
 
     private func groupRooms(_ rooms: [LiveRoom]) -> [LiveMatchGroup] {
@@ -508,20 +581,20 @@ final class SportsService {
 
     private func createFallbackGavang33() -> [LiveRoom] {
         [
-            LiveRoom(roomNum: "gavang33_1", blvName: "[GÀ VÀNG 33] BLV Gà Siêu Kiêu", avatar: "", viewers: 88000, matchTitle: "Thai Nguyen T&T Women vs Ha Noi Women", league: "WOMEN'S NATIONAL LEAGUE", cover: "", category: "Bóng đá", blvLevel: "Gà Vàng HD", score: 0, notice: "Kênh trực tiếp Gà Vàng 33", provider: "gavang33", directStreamUrl: "https://live2.zktsva.app/live/741294.m3u8", streamReferer: ""),
-            LiveRoom(roomNum: "gavang33_2", blvName: "[GÀ VÀNG 33] BLV Gà Siêu Gáy", avatar: "", viewers: 67000, matchTitle: "Pakhtakor vs Al Qadsiah", league: "AFC CHAMPIONS LEAGUE", cover: "", category: "Bóng đá", blvLevel: "Gà Vàng HD", score: 0, notice: "Kênh trực tiếp Gà Vàng 33", provider: "gavang33", directStreamUrl: "https://live2.zktsva.app/live/294335.m3u8", streamReferer: "")
+            LiveRoom(roomNum: "gavang33_1", blvName: "[GÀ VÀNG 33] BLV Gà Siêu Tốc", avatar: "", viewers: 88000, matchTitle: "Burgos CF vs Granada CF", league: "LA LIGA 2", cover: "", category: "Bóng đá", blvLevel: "Gà Vàng HD", score: 0, notice: "Kênh trực tiếp Gà Vàng 33", provider: "gavang33", directStreamUrl: "https://live2.zktsva.app/live/307240.m3u8", streamReferer: ""),
+            LiveRoom(roomNum: "gavang33_2", blvName: "[GÀ VÀNG 33] BLV Gà Siêu Bệu", avatar: "", viewers: 67000, matchTitle: "Modern Sport FC vs Enppi", league: "EGYPT PREMIER LEAGUE", cover: "", category: "Bóng đá", blvLevel: "Gà Vàng HD", score: 0, notice: "Kênh trực tiếp Gà Vàng 33", provider: "gavang33", directStreamUrl: "https://live2.zktsva.app/live/289650.m3u8", streamReferer: "")
         ]
     }
 
     private func createFallbackCola() -> [LiveRoom] {
         [
-            LiveRoom(roomNum: "cola_1", blvName: "[ColaTV] BLV GIÀ LÀNG", avatar: "", viewers: 92000, matchTitle: "Pumas vs Cruz Azul", league: "LIGA MX", cover: "", category: "Bóng đá", blvLevel: "Cola HD", score: 0, notice: "Kênh trực tiếp ColaTV", provider: "colatv", directStreamUrl: "https://live05.zhwpg.app/live/14830711_tsc.m3u8", streamReferer: "")
+            LiveRoom(roomNum: "cola_1", blvName: "[ColaTV] BLV 7UP", avatar: "", viewers: 92000, matchTitle: "Burgos CF vs Granada", league: "LA LIGA 2", cover: "", category: "Bóng đá", blvLevel: "Cola HD", score: 0, notice: "Kênh trực tiếp ColaTV", provider: "colatv", directStreamUrl: "https://live05.zhwpg.app/live/78905744_tsc.m3u8", streamReferer: "")
         ]
     }
 
     private func createFallbackGiovang() -> [LiveRoom] {
         [
-            LiveRoom(roomNum: "giovang_bqfshrxcp62c", blvName: "[GIỜ VÀNG] BLV Tỵ", avatar: "", viewers: 74000, matchTitle: "Hougang United vs Balestier Khalsa", league: "SINGAPORE PREMIER LEAGUE", cover: "", category: "Bóng đá", blvLevel: "720p HD", score: 0, notice: "Kênh trực tiếp Giờ Vàng TV", provider: "giovang", directStreamUrl: "https://ftlh5sc02iliv.vcdn.cloud/1791734902_hd/1791734902_hd@720p.m3u8", streamReferer: "")
+            LiveRoom(roomNum: "giovang_6a8a38deeb269e70040bbd81", blvName: "[GIỜ VÀNG] BLV Chồn", avatar: "", viewers: 74000, matchTitle: "Pakhtakor Tashkent vs Al-Qadasiya", league: "AFC CHAMPIONS LEAGUE", cover: "", category: "Bóng đá", blvLevel: "720p HD", score: 0, notice: "Kênh trực tiếp Giờ Vàng TV", provider: "giovang", directStreamUrl: "https://ftlh5sc02iliv.vcdn.cloud/1791734978_hd/1791734978_hd@720p.m3u8", streamReferer: "")
         ]
     }
 

@@ -77,6 +77,26 @@ struct HLSPlayerView: View {
             if isLoadingStream {
                 ProgressView()
                     .tint(KLTheme.brandOrange)
+            } else if servers.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 36))
+                        .foregroundColor(KLTheme.brandOrange)
+                    Text("Luồng phát chưa sẵn sàng hoặc đài tạm dừng")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white)
+                    Button {
+                        Task { await startPlayback() }
+                    } label: {
+                        Text("THỬ KẾT NỐI LẠI")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(KLTheme.brandOrange)
+                            .cornerRadius(8)
+                    }
+                }
             }
         }
         .task {

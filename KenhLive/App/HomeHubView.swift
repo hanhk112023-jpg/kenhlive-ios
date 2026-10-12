@@ -245,7 +245,7 @@ struct HomeHubView: View {
                         KLSectionHeader(
                             title: "Tiện Ích & Hỗ Trợ",
                             subtitle: "Truy cập nhanh các tính năng mở rộng",
-                            trailingText: "v1.4.0"
+                            trailingText: "v1.4.2"
                         )
 
                         LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {

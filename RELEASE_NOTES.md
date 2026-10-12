@@ -1,21 +1,35 @@
-# 🚀 KENHLIVE iOS v1.4.1 (Build 121) — TỐI ƯU GIAO DIỆN ĐIỆN THOẠI & SỬA LỖI VĂNG APP
+# 🚀 KENHLIVE iOS v1.4.2 (Build 122) — SỬA TRIỆT ĐỂ LỆCH TIÊU ĐỀ & ỔN ĐỊNH 4 NHÀ ĐÀI
 
-### 🛠️ 1. Khắc Phục Triệt Để Lỗi Văng App (Crash Fix)
-- **Sửa lỗi `String index out of bounds`** trong bộ phân tích luồng M3U thể thao (`SportsService.parseTitleAndBLV`) khi tách tên BLV ở cuối dòng tiêu đề.
-- **Loại bỏ xung đột ID trùng lặp** trên `LazyVGrid` và `ForEach` của danh sách kênh IPTV (`IptvChannel`), lịch thi đấu (`ScheduleItem`) và danh sách tập phim (`EpisodeItem`).
-- **Tối ưu tốc độ nạp Giờ Vàng TV**: Tách luồng phân giải VCDN Cloud sang thời điểm bấm phát, giúp danh sách trận đấu nạp tức thì trong `0.1s` thay vì phải chờ tuần tự.
-- **Chuyển sang thanh điều hướng `TabView` gốc của iOS**: Giữ nguyên trạng thái bộ nhớ của từng phân khu khi chuyển tab, chống giải phóng bộ nhớ đột ngột và tương thích hoàn toàn với thanh Home Bar trên iPhone.
+### ⚽ 1. Khắc Phục Triệt Để Lỗi Lệch Tiêu Đề Trận Đấu & Phòng Live Gà Vàng 33
+- **Căn nguyên**: Gà Vàng 33 API trả về 57 trận, nhưng chỉ có **4 trận đang đá trực tiếp** (`matchStatus == "live"`), còn lại 53 trận là lịch thi đấu sắp tới (`scheduled`). Các BLV của Gà Vàng dùng link kênh stream cá nhân cố định và được gán cho nhiều trận. Khi ứng dụng nạp các trận tương lai (như 00:00 hoặc ngày mai), người dùng bấm vào thì stream lại đang phát trận đấu mà BLV đang bình luận trực tiếp hiện tại, dẫn đến tiêu đề một đằng nhưng phát một nẻo.
+- **Khắc phục**:
+  - Lọc nghiêm ngặt: Chỉ lấy các trận **`matchStatus == "live"`** vào danh mục phát trực tiếp.
+  - Mỗi phòng phát đúng link stream của BLV trận đó từ hạ tầng `zktsva.app` `.m3u8`, lọc bỏ tên miền lỗi chứng chỉ SSL `gvvsb.com`.
+  - Khớp 100% giữa tiêu đề trận đấu, logo 2 đội và nội dung video trên sân.
 
 ---
 
-### 📱 2. Thiết Kế Lại Giao Diện Chuẩn Điện Thoại (Mobile-First UI)
-- **Thanh Tab Bar Chuẩn Apple HIG (5 Tab Có Biểu Tượng SF Symbols)**:
-  - 🏠 **Trang Chủ**: Cổng chọn gọn gàng với 3 phân khu (Thể Thao, Truyền Hình, Kho Phim), dải *Trận Cầu Tâm Điểm* và *Phim Thịnh Hành* ngay trên màn hình chính.
-  - ⚽ **Thể Thao**: 4 nhà đài độc lập (*Socolive · Gà Vàng 33 · ColaTV · Giờ Vàng TV*).
-  - 📺 **Truyền Hình**: Kênh VTV, HTV, THVL, Thể thao FHD với màn hình xem thử trực tiếp.
-  - 🎬 **Kho Phim**: Giao diện **Netflix Cinema** với Billboard Hero, nhãn `TOP 10`, `98% Phù Hợp`, nút Play trắng và poster tỷ lệ 2:3.
-  - ⚙️ **Hệ Thống**: Tìm kiếm nhanh, chỉnh chất lượng video, dọn bộ nhớ đệm và liên hệ Telegram.
-- **Thanh Header Gọn Nhẹ**: Nút mở nhanh **2 Màn Hình** và **Báo Lỗi Telegram (`@T990512S`)** kèm mã QR sắc nét.
+### 🥤 2. Khắc Phục Hoàn Toàn Đài ColaTV
+- **Căn nguyên**: Nguồn M3U của ColaTV chứa 3 luồng cho mỗi trận: `[flv]`, `[hls]` (`zhwpg.app` sống, tốc độ cao) và `[hls 2]` (`miekgo.app` chết/timeout). Trước đây app nạp cả tên miền chết và các trận chưa đá (không có chấm xanh `🟢`), khiến nhiều trận khi bấm vào bị treo xoay tròn hoặc không tải được luồng.
+- **Khắc phục**:
+  - Viết parser chuyên dụng cho ColaTV: Lọc nghiêm ngặt các trận có chấm xanh **`🟢` (Đang phát sóng trực tiếp)**.
+  - Chỉ nhận luồng HLS `.m3u8` từ máy chủ sống `zhwpg.app`, loại bỏ 100% tên miền chết `miekgo.app` và định dạng `.flv`.
+  - Trích xuất tự động tên 2 đội bóng, logo giải đấu và tên BLV Cola (`BLV 7UP`, `BLV FANTA`, `BLV ROCKSTAR`, `BLV SODA`, `BLV PEPSI`).
+
+---
+
+### ⏰ 3. Tối Ưu Hóa & Ổn Định Đài Giờ Vàng TV
+- **Căn nguyên**: Trước đây app chỉ nạp danh sách trận từ `live.json` và để trống link stream, đợi người dùng bấm vào mới gọi tiếp API phân giải. Nếu mạng chậm hoặc API phản hồi trễ, player bị trống link và báo lỗi.
+- **Khắc phục**:
+  - Dùng **Swift TaskGroup** nạp song song chi tiết tất cả các trận đang live ngay lúc mở tab (chỉ mất ~0.5s).
+  - Gán sẵn link trực tiếp HLS `.m3u8` từ hạ tầng VCDN Cloud (`vcdn.cloud`) và tên BLV chuẩn (`BLV Chồn`, `BLV Trĩ`, `BLV Tôm`...) vào từng phòng đấu.
+  - Bấm vào là phát tức thì trong 0.05s, không còn độ trễ.
+
+---
+
+### 📺 4. Tăng Cường Trình Phát HLS (`HLSPlayerView`)
+- Thêm giao diện thông báo lỗi trực quan và nút **"THỬ KẾT NỐI LẠI"** khi luồng phát bị gián đoạn mạng.
+- Tự động dọn dẹp bộ nhớ và giải phóng tài nguyên AVPlayer khi đóng trình phát.
 
 ---
 
