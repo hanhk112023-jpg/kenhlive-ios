@@ -125,11 +125,22 @@ struct MultiViewScreen: View {
     }
 
     private func loadAvailableStreams() async {
-        let iptvCats = await IptvService.shared.fetchCuratedChannels()
-        let channels = iptvCats.flatMap { $0.channels }.prefix(15)
-        availableItems = channels.map {
-            MultiViewSlotItem(title: $0.name, subtitle: $0.group, streamUrl: $0.streamUrl)
+        let (soco, cola, gavang, khandai) = await SportsService.shared.fetchLiveMatches()
+        var items: [MultiViewSlotItem] = []
+
+        for g in (soco + gavang + cola + khandai).prefix(10) {
+            let top = g.topRoom
+            let url = !top.directStreamUrl.isEmpty ? top.directStreamUrl : "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8"
+            items.append(MultiViewSlotItem(title: g.matchTitle, subtitle: "\(top.providerDisplayName) · \(top.blvName)", streamUrl: url))
         }
+
+        let iptvCats = await IptvService.shared.fetchCuratedChannels()
+        let channels = iptvCats.flatMap { $0.channels }.prefix(12)
+        items.append(contentsOf: channels.map {
+            MultiViewSlotItem(title: $0.name, subtitle: $0.group, streamUrl: $0.streamUrl)
+        })
+
+        availableItems = items
     }
 }
 

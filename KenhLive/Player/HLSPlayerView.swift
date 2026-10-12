@@ -4,8 +4,10 @@ import AVKit
 struct HLSPlayerView: View {
     let title: String
     let subtitle: String
-    let roomNum: String?
-    let directUrl: String?
+    var roomNum: String? = nil
+    var directUrl: String? = nil
+    var streamReferer: String? = nil
+    var room: LiveRoom? = nil
 
     @Environment(\.dismiss) private var dismiss
     @State private var servers: [StreamServer] = []
@@ -96,14 +98,22 @@ struct HLSPlayerView: View {
 
     private func startPlayback() async {
         isLoadingStream = true
-        if let direct = directUrl, let url = URL(string: direct) {
-            servers = [StreamServer(name: "MÁY CHỦ CHÍNH", url: direct, isBackup: false)]
-            playUrl(url)
-        } else if let num = roomNum {
-            let list = await SportsService.shared.resolveStreamServers(roomNum: num)
+        if let r = room {
+            let list = await SportsService.shared.resolveStreamServers(room: r)
             servers = list
             if let first = list.first, let url = URL(string: first.url) {
-                playUrl(url)
+                playUrl(url, referer: first.referer.isEmpty ? r.streamReferer : first.referer)
+            }
+        } else if let direct = directUrl, let url = URL(string: direct) {
+            let ref = streamReferer ?? ""
+            servers = [StreamServer(name: "MÁY CHỦ CHÍNH", url: direct, isBackup: false, referer: ref)]
+            playUrl(url, referer: ref)
+        } else if let num = roomNum {
+            let dummy = LiveRoom(roomNum: num, blvName: "BLV", avatar: "", viewers: 0, matchTitle: title, league: subtitle, cover: "", category: "Bóng đá", blvLevel: "", score: 0, notice: "")
+            let list = await SportsService.shared.resolveStreamServers(room: dummy)
+            servers = list
+            if let first = list.first, let url = URL(string: first.url) {
+                playUrl(url, referer: first.referer)
             }
         }
         isLoadingStream = false
@@ -112,15 +122,19 @@ struct HLSPlayerView: View {
     private func switchServer(to index: Int) {
         guard index < servers.count, let url = URL(string: servers[index].url) else { return }
         currentServerIndex = index
-        playUrl(url)
+        playUrl(url, referer: servers[index].referer)
     }
 
-    private func playUrl(_ url: URL) {
+    private func playUrl(_ url: URL, referer: String) {
+        var headers: [String: String] = [
+            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)"
+        ]
+        if !referer.isEmpty {
+            headers["Referer"] = referer
+        }
+
         let asset = AVURLAsset(url: url, options: [
-            "AVURLAssetHTTPHeaderFieldsKey": [
-                "Referer": "https://vnres.co/",
-                "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)"
-            ]
+            "AVURLAssetHTTPHeaderFieldsKey": headers
         ])
         let item = AVPlayerItem(asset: asset)
         if player == nil {

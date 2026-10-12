@@ -3,26 +3,53 @@ import Foundation
 final class SportsService {
     static let shared = SportsService()
 
-    private let apiBase = "https://json.vnres.co"
+    private let socoApiBase = "https://json.vnres.co"
+    private let gavangApiBase = "https://gavangtv-api.adviceme.io"
+    private let m3uFeedUrl = "https://thtt.pages.dev/tttt.m3u"
 
-    // MARK: - Fetch Live Matches for 4 Providers
+    // MARK: - Fetch Independent Live Matches for All 4 Providers
     func fetchLiveMatches() async -> (socolive: [LiveMatchGroup], cola: [LiveMatchGroup], gavang: [LiveMatchGroup], khandai: [LiveMatchGroup]) {
-        let baseRooms = await fetchSocoliveRooms()
-        let socoGroups = groupRooms(baseRooms, provider: "socolive")
+        async let socoTask = fetchSocoliveRooms()
+        async let gavangTask = fetchGavangApiMatches()
+        async let m3uTask = fetchM3uFeeds()
 
-        // 4 Separate Provider rails (Never merged into one)
-        let colaGroups = createDerivedProviderGroups(baseGroups: socoGroups, provider: "colatv", prefix: "ColaTV", viewerRatio: 0.88)
-        let gavangGroups = createDerivedProviderGroups(baseGroups: socoGroups, provider: "gavang", prefix: "Gà Vàng", viewerRatio: 0.76)
-        let khandaiGroups = createDerivedProviderGroups(baseGroups: socoGroups, provider: "khandai", prefix: "Khán Đài", viewerRatio: 0.65)
+        let (socoRooms, gavangRooms, m3uFeeds) = await (socoTask, gavangTask, m3uTask)
+
+        // 1. Socolive (Real Socolive Rooms from vnres.co)
+        let socoGroups = groupRooms(socoRooms)
+
+        // 2. Gà Vàng TV (Real Gà Vàng API + M3U Feed fallback)
+        var allGavang = gavangRooms
+        allGavang.append(contentsOf: m3uFeeds.gavang)
+        let gavangGroups = groupRooms(allGavang.ifEmpty(createFallbackGavang()))
+
+        // 3. ColaTV (Real Cola TV Streams from Feed)
+        let colaGroups = groupRooms(m3uFeeds.cola.ifEmpty(createFallbackCola()))
+
+        // 4. Khán Đài TV (Real Khán Đài / Chuối Chiên / Xôi Lạc Streams)
+        let khandaiGroups = groupRooms(m3uFeeds.khandai.ifEmpty(createFallbackKhandai()))
 
         return (socoGroups, colaGroups, gavangGroups, khandaiGroups)
     }
 
-    // MARK: - Stream Resolver (Real HLS JSONP with fallback)
-    func resolveStreamServers(roomNum: String) async -> [StreamServer] {
-        let cleanRoom = extractRealRoomNum(roomNum)
+    // MARK: - Stream Resolver (Independent Per Provider - Never Redirects to Socolive)
+    func resolveStreamServers(room: LiveRoom) async -> [StreamServer] {
+        // A. If the room has a direct independent stream URL (Gà Vàng, ColaTV, Khán Đài)
+        if !room.directStreamUrl.isEmpty {
+            return [
+                StreamServer(
+                    name: "MÁY CHỦ CHÍNH · \(room.providerDisplayName) (Trực Tiếp)",
+                    url: room.directStreamUrl,
+                    isBackup: false,
+                    referer: room.streamReferer
+                )
+            ]
+        }
+
+        // B. Socolive Stream Resolution (Only for real Socolive rooms)
+        let cleanRoom = room.roomNum.replacingOccurrences(of: "soco_", with: "")
         let now = Int64(Date().timeIntervalSince1970)
-        guard let url = URL(string: "\(apiBase)/room/\(cleanRoom)/detail.json?callback=detail&v=\(now)&_=\(now)") else {
+        guard let url = URL(string: "\(socoApiBase)/room/\(cleanRoom)/detail.json?callback=detail&v=\(now)&_=\(now)") else {
             return fallbackServers()
         }
 
@@ -40,25 +67,11 @@ final class SportsService {
             }
 
             var servers: [StreamServer] = []
-            let providerTag: String
-            if roomNum.hasPrefix("cola_") {
-                providerTag = "&src=colatv&edge=fast"
-            } else if roomNum.hasPrefix("gavang_") {
-                providerTag = "&src=gavang&buffer=high"
-            } else if roomNum.hasPrefix("khandai_") {
-                providerTag = "&src=khandai&cdn=direct"
-            } else {
-                providerTag = ""
-            }
-
             if let hdM3u8 = stream["hdM3u8"] as? String, !hdM3u8.isEmpty {
-                servers.append(StreamServer(name: "SERVER CHÍNH · FHD (Siêu Mượt)", url: hdM3u8 + providerTag, isBackup: false))
+                servers.append(StreamServer(name: "SERVER CHÍNH · FHD (Siêu Mượt)", url: hdM3u8, isBackup: false, referer: "https://vnres.co/"))
             }
             if let m3u8 = stream["m3u8"] as? String, !m3u8.isEmpty {
-                servers.append(StreamServer(name: "SERVER DỰ PHÒNG 1 · HD (Tốc Độ Cao)", url: m3u8 + providerTag, isBackup: true))
-            }
-            if let hdFlv = stream["hdFlv"] as? String, !hdFlv.isEmpty, hdFlv.contains(".m3u8") {
-                servers.append(StreamServer(name: "SERVER DỰ PHÒNG 2 · SD", url: hdFlv + providerTag, isBackup: true))
+                servers.append(StreamServer(name: "SERVER DỰ PHÒNG 1 · HD (Tốc Độ Cao)", url: m3u8, isBackup: true, referer: "https://vnres.co/"))
             }
 
             return servers.isEmpty ? fallbackServers() : servers
@@ -67,7 +80,7 @@ final class SportsService {
         }
     }
 
-    // MARK: - 7-Day Schedule
+    // MARK: - 7-Day Schedule EPG
     func fetchSchedule() async -> [ScheduleItem] {
         let fmt = DateFormatter()
         fmt.dateFormat = "yyyyMMdd"
@@ -75,8 +88,7 @@ final class SportsService {
         let todayStr = fmt.string(from: Date())
         let now = Int64(Date().timeIntervalSince1970)
 
-        // Try today's matches
-        let urlStr = "\(apiBase)/match/matches_\(todayStr).json?callback=matches&v=\(now)&_=\(now)"
+        let urlStr = "\(socoApiBase)/match/matches_\(todayStr).json?callback=matches&v=\(now)&_=\(now)"
         if let url = URL(string: urlStr) {
             var req = URLRequest(url: url)
             req.setValue("https://vnres.co/", forHTTPHeaderField: "Referer")
@@ -133,20 +145,13 @@ final class SportsService {
             }
         }
 
-        // Reliable curated schedule fallback
-        return [
-            ScheduleItem(homeName: "Arsenal", awayName: "Chelsea", homeLogo: "https://media.api-sports.io/football/teams/42.png", awayLogo: "https://media.api-sports.io/football/teams/49.png", league: "NGOẠI HẠNG ANH", matchTime: "22:30 · Hôm nay", statusText: "ĐANG ĐÁ", homeScore: "1", awayScore: "0", hasLive: true),
-            ScheduleItem(homeName: "Real Madrid", awayName: "Barcelona", homeLogo: "https://media.api-sports.io/football/teams/541.png", awayLogo: "https://media.api-sports.io/football/teams/529.png", league: "LA LIGA", matchTime: "02:00 · Ngày mai", statusText: "SẮP ĐÁ", homeScore: "-", awayScore: "-", hasLive: true),
-            ScheduleItem(homeName: "Man City", awayName: "Liverpool", homeLogo: "https://media.api-sports.io/football/teams/50.png", awayLogo: "https://media.api-sports.io/football/teams/40.png", league: "NGOẠI HẠNG ANH", matchTime: "19:30 · 13/10", statusText: "SẮP ĐÁ", homeScore: "-", awayScore: "-", hasLive: true),
-            ScheduleItem(homeName: "Inter Milan", awayName: "Juventus", homeLogo: "https://media.api-sports.io/football/teams/505.png", awayLogo: "https://media.api-sports.io/football/teams/496.png", league: "SERIE A", matchTime: "01:45 · 14/10", statusText: "SẮP ĐÁ", homeScore: "-", awayScore: "-", hasLive: false),
-            ScheduleItem(homeName: "Bayern Munich", awayName: "Dortmund", homeLogo: "https://media.api-sports.io/football/teams/157.png", awayLogo: "https://media.api-sports.io/football/teams/165.png", league: "BUNDESLIGA", matchTime: "23:30 · 14/10", statusText: "SẮP ĐÁ", homeScore: "-", awayScore: "-", hasLive: false)
-        ]
+        return fallbackSchedule()
     }
 
-    // MARK: - Private Helpers
+    // MARK: - 1. Socolive Private Parser
     private func fetchSocoliveRooms() async -> [LiveRoom] {
         let now = Int64(Date().timeIntervalSince1970)
-        guard let url = URL(string: "\(apiBase)/all_live_rooms.json?callback=rooms&v=\(now)&_=\(now)") else { return [] }
+        guard let url = URL(string: "\(socoApiBase)/all_live_rooms.json?callback=rooms&v=\(now)&_=\(now)") else { return [] }
 
         var req = URLRequest(url: url)
         req.setValue("https://vnres.co/", forHTTPHeaderField: "Referer")
@@ -157,7 +162,7 @@ final class SportsService {
             guard let rawStr = String(data: data, encoding: .utf8),
                   let json = stripAndParseJsonp(rawStr),
                   let dataObj = json["data"] as? [String: Any] else {
-                return fallbackLiveRooms()
+                return []
             }
 
             var allRooms: [LiveRoom] = []
@@ -190,18 +195,214 @@ final class SportsService {
                         blvLevel: (anchor["growDto"] as? [String: Any])?["name"] as? String ?? "VIP",
                         score: 0,
                         notice: notice,
-                        provider: "socolive"
+                        provider: "socolive",
+                        directStreamUrl: "",
+                        streamReferer: "https://vnres.co/"
                     ))
                 }
             }
-
-            return allRooms.isEmpty ? fallbackLiveRooms() : allRooms
+            return allRooms
         } catch {
-            return fallbackLiveRooms()
+            return []
         }
     }
 
-    private func groupRooms(_ rooms: [LiveRoom], provider: String) -> [LiveMatchGroup] {
+    // MARK: - 2. Gà Vàng TV Private Parser (Direct API)
+    private func fetchGavangApiMatches() async -> [LiveRoom] {
+        guard let url = URL(string: "\(gavangApiBase)/api/v1/matches?webType=gavang") else { return [] }
+
+        var req = URLRequest(url: url)
+        req.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)", forHTTPHeaderField: "User-Agent")
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        do {
+            let (data, _) = try await URLSession.shared.data(for: req)
+            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let matchesMap = json["data"] as? [String: [String: Any]] else {
+                return []
+            }
+
+            var rooms: [LiveRoom] = []
+            for (_, m) in matchesMap {
+                let homeTeam = (m["homeTeam"] as? [String: Any])?["name"] as? String ?? "Đội Nhà"
+                let awayTeam = (m["awayTeam"] as? [String: Any])?["name"] as? String ?? "Đội Khách"
+                let homeLogo = (m["homeTeam"] as? [String: Any])?["logo"] as? String ?? ""
+                let awayLogo = (m["awayTeam"] as? [String: Any])?["logo"] as? String ?? ""
+                let compName = (m["competition"] as? [String: Any])?["name"] as? String ?? "GÀ VÀNG TV"
+
+                let anchorList = m["anchorAppointmentVoList"] as? [[String: Any]] ?? []
+                for a in anchorList {
+                    let blvName = a["nickName"] as? String ?? "BLV Gà Rừng"
+                    let avatar = a["userImage"] as? String ?? ""
+                    let urls = a["streamUrls"] as? [String] ?? []
+                    guard let streamUrl = urls.first(where: { $0.contains(".m3u8") }) ?? urls.first else { continue }
+
+                    rooms.append(LiveRoom(
+                        roomNum: "gavang_\(a["id"] ?? UUID().uuidString)",
+                        blvName: "[GÀ VÀNG] \(blvName)",
+                        avatar: avatar,
+                        viewers: Int.random(in: 45000...95000),
+                        matchTitle: "\(homeTeam) vs \(awayTeam)",
+                        league: compName.uppercased(),
+                        cover: homeLogo,
+                        category: "Bóng đá",
+                        blvLevel: "Gà Vàng HD",
+                        score: 0,
+                        notice: "Kênh trực tiếp Gà Vàng TV · Luồng phát độc quyền",
+                        provider: "gavang",
+                        directStreamUrl: streamUrl,
+                        streamReferer: "",
+                        homeTeam: homeTeam,
+                        awayTeam: awayTeam,
+                        homeLogo: homeLogo,
+                        awayLogo: awayLogo
+                    ))
+                }
+            }
+            return rooms
+        } catch {
+            return []
+        }
+    }
+
+    // MARK: - 3. Multi-Provider M3U Feed Parser (ColaTV & Khán Đài)
+    private func fetchM3uFeeds() async -> (cola: [LiveRoom], gavang: [LiveRoom], khandai: [LiveRoom]) {
+        guard let url = URL(string: m3uFeedUrl) else { return ([], [], []) }
+
+        var req = URLRequest(url: url)
+        req.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)", forHTTPHeaderField: "User-Agent")
+
+        do {
+            let (data, _) = try await URLSession.shared.data(for: req)
+            guard let text = String(data: data, encoding: .utf8) else { return ([], [], []) }
+
+            var colaRooms: [LiveRoom] = []
+            var gavangRooms: [LiveRoom] = []
+            var khandaiRooms: [LiveRoom] = []
+
+            let lines = text.components(separatedBy: .newlines)
+            var i = 0
+            while i < lines.count {
+                let line = lines[i].trimmingCharacters(in: .whitespaces)
+                if line.hasPrefix("#EXTINF:") {
+                    let inf = line
+                    var ref = ""
+                    var j = i + 1
+                    var streamUrl = ""
+                    while j < lines.count {
+                        let l2 = lines[j].trimmingCharacters(in: .whitespaces)
+                        if l2.hasPrefix("#EXTVLCOPT:http-referrer=") {
+                            ref = l2.replacingOccurrences(of: "#EXTVLCOPT:http-referrer=", with: "").trimmingCharacters(in: .whitespaces)
+                        } else if l2.hasPrefix("http://") || l2.hasPrefix("https://") {
+                            streamUrl = l2
+                            break
+                        } else if l2.hasPrefix("#EXTINF:") {
+                            break
+                        }
+                        j += 1
+                    }
+
+                    if !streamUrl.isEmpty && streamUrl.contains(".m3u8") {
+                        let rawTitle: String
+                        if let commaIdx = inf.lastIndex(of: ",") {
+                            rawTitle = String(inf[inf.index(after: commaIdx)...]).trimmingCharacters(in: .whitespaces)
+                        } else {
+                            rawTitle = "Trực tiếp bóng đá"
+                        }
+
+                        let (cleanTitle, blvName) = parseTitleAndBLV(rawTitle)
+
+                        if inf.contains("group-title=\"Cola TV\"") {
+                            colaRooms.append(LiveRoom(
+                                roomNum: "cola_\(colaRooms.count + 1)",
+                                blvName: "[ColaTV] \(blvName)",
+                                avatar: "",
+                                viewers: Int.random(in: 40000...85000),
+                                matchTitle: cleanTitle,
+                                league: "COLATV TRỰC TIẾP",
+                                cover: "",
+                                category: "Bóng đá",
+                                blvLevel: "Cola HD",
+                                score: 0,
+                                notice: "Kênh thể thao trực tiếp ColaTV · Độ trễ cực thấp",
+                                provider: "colatv",
+                                directStreamUrl: streamUrl,
+                                streamReferer: ref
+                            ))
+                        } else if inf.contains("Gà Vàng") {
+                            gavangRooms.append(LiveRoom(
+                                roomNum: "gavang_m3u_\(gavangRooms.count + 1)",
+                                blvName: "[GÀ VÀNG] \(blvName)",
+                                avatar: "",
+                                viewers: Int.random(in: 35000...75000),
+                                matchTitle: cleanTitle,
+                                league: "GÀ VÀNG TV",
+                                cover: "",
+                                category: "Bóng đá",
+                                blvLevel: "Gà Vàng Live",
+                                score: 0,
+                                notice: "Kênh trực tiếp Gà Vàng TV · Luồng phát tốc độ cao",
+                                provider: "gavang",
+                                directStreamUrl: streamUrl,
+                                streamReferer: ref
+                            ))
+                        } else if inf.contains("Chuối Chiên TV") || inf.contains("Sao Kê TV") || inf.contains("Xôi Lạc") || inf.contains("Giờ Vàng") {
+                            khandaiRooms.append(LiveRoom(
+                                roomNum: "khandai_\(khandaiRooms.count + 1)",
+                                blvName: "[KHÁN ĐÀI] \(blvName)",
+                                avatar: "",
+                                viewers: Int.random(in: 38000...90000),
+                                matchTitle: cleanTitle,
+                                league: "KHÁN ĐÀI TV",
+                                cover: "",
+                                category: "Bóng đá",
+                                blvLevel: "Khán Đài 1",
+                                score: 0,
+                                notice: "Kênh trực tiếp Khán Đài TV · Bình luận chuyên sâu",
+                                provider: "khandai",
+                                directStreamUrl: streamUrl,
+                                streamReferer: ref.isEmpty ? "https://live.chuoichien.tv/" : ref
+                            ))
+                        }
+                    }
+                    i = j + 1
+                } else {
+                    i += 1
+                }
+            }
+
+            return (colaRooms, gavangRooms, khandaiRooms)
+        } catch {
+            return ([], [], [])
+        }
+    }
+
+    private func parseTitleAndBLV(_ raw: String) -> (title: String, blv: String) {
+        var text = raw.replacingOccurrences(of: "🟢", with: "")
+                      .replacingOccurrences(of: "⚽", with: "")
+                      .replacingOccurrences(of: "🏀", with: "")
+                      .trimmingCharacters(in: .whitespaces)
+
+        if let timeRegex = try? NSRegularExpression(pattern: "^\\d{2}:\\d{2}(\\s+\\d{2}/\\d{2})?\\s*") {
+            text = timeRegex.stringByReplacingMatches(in: text, options: [], range: NSRange(location: 0, length: text.count), withTemplate: "")
+        }
+
+        var blv = "BLV Trực Tiếp"
+        if let openParen = text.range(of: "("),
+           let closeParen = text.range(of: ")", range: openParen.upperBound..<text.endIndex) {
+            blv = String(text[openParen.upperBound..<closeParen.lowerBound]).trimmingCharacters(in: .whitespaces)
+            text.removeSubrange(openParen.lowerBound...closeParen.upperBound)
+        }
+
+        if let bracketRegex = try? NSRegularExpression(pattern: "\\[[^\\]]+\\]") {
+            text = bracketRegex.stringByReplacingMatches(in: text, options: [], range: NSRange(location: 0, length: text.count), withTemplate: "")
+        }
+
+        let cleanTitle = text.replacingOccurrences(of: "_", with: " ").trimmingCharacters(in: .whitespaces)
+        return (cleanTitle.isEmpty ? "Trực tiếp bóng đá" : cleanTitle, blv)
+    }
+
+    private func groupRooms(_ rooms: [LiveRoom]) -> [LiveMatchGroup] {
         var map: [String: [LiveRoom]] = [:]
         for r in rooms {
             let key = "\(r.league) — \(r.matchTitle)"
@@ -214,40 +415,11 @@ final class SportsService {
         }.sorted { $0.totalViewers > $1.totalViewers }
     }
 
-    private func createDerivedProviderGroups(baseGroups: [LiveMatchGroup], provider: String, prefix: String, viewerRatio: Double) -> [LiveMatchGroup] {
-        return baseGroups.map { g in
-            let top = g.topRoom
-            let cleanRoom = extractRealRoomNum(top.roomNum)
-            let derivedRoom = LiveRoom(
-                roomNum: "\(provider)_\(cleanRoom)",
-                blvName: "[\(prefix)] BLV \(prefix) HD",
-                avatar: top.avatar,
-                viewers: max(1200, Int(Double(top.viewers) * viewerRatio)),
-                matchTitle: g.matchTitle,
-                league: g.league,
-                cover: top.cover,
-                category: top.category,
-                blvLevel: "Server \(prefix)",
-                score: top.score,
-                notice: "Kênh thể thao trực tiếp \(prefix) · Tốc độ cao",
-                provider: provider
-            )
-            return LiveMatchGroup(matchKey: "\(provider)_\(g.matchKey)", matchTitle: g.matchTitle, league: g.league, rooms: [derivedRoom])
-        }
-    }
-
-    private func extractRealRoomNum(_ raw: String) -> String {
-        raw.replacingOccurrences(of: "cola_", with: "")
-           .replacingOccurrences(of: "gavang_", with: "")
-           .replacingOccurrences(of: "khandai_", with: "")
-    }
-
     private func stripAndParseJsonp(_ text: String) -> [String: Any]? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let openParen = trimmed.firstIndex(of: "("),
               let closeParen = trimmed.lastIndex(of: ")"),
               openParen < closeParen else {
-            // Might be plain JSON
             guard let data = trimmed.data(using: .utf8) else { return nil }
             return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
         }
@@ -263,11 +435,36 @@ final class SportsService {
         ]
     }
 
-    private func fallbackLiveRooms() -> [LiveRoom] {
+    private func createFallbackGavang() -> [LiveRoom] {
         [
-            LiveRoom(roomNum: "235232", blvName: "BLV Leo HD", avatar: "", viewers: 95000, matchTitle: "Man United vs Arsenal", league: "NGOẠI HẠNG ANH", cover: "", category: "Bóng đá", blvLevel: "Lv.5", score: 0, notice: "Trận cầu siêu kinh điển Ngoại Hạng Anh", provider: "socolive"),
-            LiveRoom(roomNum: "235233", blvName: "BLV Batman", avatar: "", viewers: 78000, matchTitle: "Real Madrid vs Barcelona", league: "LA LIGA", cover: "", category: "Bóng đá", blvLevel: "Lv.5", score: 0, notice: "El Clasico rực lửa Tây Ban Nha", provider: "socolive"),
-            LiveRoom(roomNum: "235234", blvName: "BLV Cà Khịa", avatar: "", viewers: 64000, matchTitle: "Hà Nội FC vs Thể Công Viettel", league: "V-LEAGUE 1", cover: "", category: "Bóng đá", blvLevel: "Lv.4", score: 0, notice: "Derby Thủ đô rực lửa Hàng Đẫy", provider: "socolive")
+            LiveRoom(roomNum: "gavang_1", blvName: "[GÀ VÀNG] BLV Gà Siêu Bệu", avatar: "", viewers: 88000, matchTitle: "Pumas U.N.A.M. vs Cruz Azul", league: "LIGA MX", cover: "", category: "Bóng đá", blvLevel: "Gà Vàng HD", score: 0, notice: "Kênh trực tiếp Gà Vàng TV", provider: "gavang", directStreamUrl: "https://live2.zktsva.app/live/289650.m3u8", streamReferer: ""),
+            LiveRoom(roomNum: "gavang_2", blvName: "[GÀ VÀNG] BLV Gà Siêu Tốc", avatar: "", viewers: 67000, matchTitle: "Guangzhou vs Shanghai Second", league: "CHINESE SUPER LEAGUE", cover: "", category: "Bóng đá", blvLevel: "Gà Vàng HD", score: 0, notice: "Kênh trực tiếp Gà Vàng TV", provider: "gavang", directStreamUrl: "https://live2.zktsva.app/live/307240.m3u8", streamReferer: "")
         ]
+    }
+
+    private func createFallbackCola() -> [LiveRoom] {
+        [
+            LiveRoom(roomNum: "cola_1", blvName: "[ColaTV] BLV GIÀ LÀNG", avatar: "", viewers: 92000, matchTitle: "Pumas vs Cruz Azul", league: "LIGA MX", cover: "", category: "Bóng đá", blvLevel: "Cola HD", score: 0, notice: "Kênh trực tiếp ColaTV", provider: "colatv", directStreamUrl: "https://live05.zhwpg.app/live/14830711_tsc.m3u8", streamReferer: "")
+        ]
+    }
+
+    private func createFallbackKhandai() -> [LiveRoom] {
+        [
+            LiveRoom(roomNum: "khandai_1", blvName: "[KHÁN ĐÀI] BLV Chuối Kem", avatar: "", viewers: 74000, matchTitle: "Pumas vs Cruz Azul", league: "LIGA MX", cover: "", category: "Bóng đá", blvLevel: "Khán Đài 1", score: 0, notice: "Kênh trực tiếp Khán Đài TV", provider: "khandai", directStreamUrl: "https://gckc0525.edgemaxcdn.org/live/chuoikemhd/playlist.m3u8", streamReferer: "https://live.chuoichien.tv/")
+        ]
+    }
+
+    private func fallbackSchedule() -> [ScheduleItem] {
+        [
+            ScheduleItem(homeName: "Arsenal", awayName: "Chelsea", homeLogo: "https://media.api-sports.io/football/teams/42.png", awayLogo: "https://media.api-sports.io/football/teams/49.png", league: "NGOẠI HẠNG ANH", matchTime: "22:30 · Hôm nay", statusText: "ĐANG ĐÁ", homeScore: "1", awayScore: "0", hasLive: true),
+            ScheduleItem(homeName: "Real Madrid", awayName: "Barcelona", homeLogo: "https://media.api-sports.io/football/teams/541.png", awayLogo: "https://media.api-sports.io/football/teams/529.png", league: "LA LIGA", matchTime: "02:00 · Ngày mai", statusText: "SẮP ĐÁ", homeScore: "-", awayScore: "-", hasLive: true),
+            ScheduleItem(homeName: "Man City", awayName: "Liverpool", homeLogo: "https://media.api-sports.io/football/teams/50.png", awayLogo: "https://media.api-sports.io/football/teams/40.png", league: "NGOẠI HẠNG ANH", matchTime: "19:30 · 13/10", statusText: "SẮP ĐÁ", homeScore: "-", awayScore: "-", hasLive: true)
+        ]
+    }
+}
+
+private extension Array {
+    func ifEmpty(_ fallback: [Element]) -> [Element] {
+        self.isEmpty ? fallback : self
     }
 }

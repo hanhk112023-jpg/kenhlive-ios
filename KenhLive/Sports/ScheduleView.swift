@@ -145,8 +145,7 @@ struct ScheduleView: View {
             HLSPlayerView(
                 title: room.matchTitle,
                 subtitle: room.league,
-                roomNum: room.roomNum,
-                directUrl: nil
+                room: room
             )
         }
     }

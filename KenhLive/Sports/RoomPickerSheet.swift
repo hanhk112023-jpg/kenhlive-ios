@@ -54,6 +54,8 @@ struct RoomPickerSheet: View {
                                                 .font(.system(size: 15, weight: .heavy))
                                                 .foregroundColor(KLTheme.textPrimary)
 
+                                            KLPillBadge(text: room.providerDisplayName, fg: .white, bg: providerColor(room.provider), border: .clear)
+
                                             if !room.blvLevel.isEmpty {
                                                 KLPillBadge(text: room.blvLevel, fg: KLTheme.brandOrange, bg: KLTheme.brandOrange.opacity(0.12), border: KLTheme.brandOrange.opacity(0.25))
                                             }
@@ -106,5 +108,14 @@ struct RoomPickerSheet: View {
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
+    }
+
+    private func providerColor(_ p: String) -> Color {
+        switch p.lowercased() {
+        case "gavang": return Color(red: 0.96, green: 0.62, blue: 0.04)
+        case "colatv": return KLTheme.brandOrange
+        case "khandai": return Color(red: 0.23, green: 0.51, blue: 0.96)
+        default: return Color(red: 0.06, green: 0.72, blue: 0.50)
+        }
     }
 }
