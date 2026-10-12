@@ -226,7 +226,7 @@ final class SportsService {
                 matchTitle: g.matchTitle,
                 league: g.league,
                 cover: top.cover,
-                category: g.category,
+                category: top.category,
                 blvLevel: "Server \(prefix)",
                 score: top.score,
                 notice: "Kênh thể thao trực tiếp \(prefix) · Tốc độ cao",
