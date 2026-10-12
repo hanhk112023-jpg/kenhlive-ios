@@ -72,7 +72,7 @@ final class SportsService {
         let fmt = DateFormatter()
         fmt.dateFormat = "yyyyMMdd"
         fmt.timeZone = TimeZone(identifier: "Asia/Ho_Chi_Minh")
-        let todayStr = fmt.format(Date())
+        let todayStr = fmt.string(from: Date())
         let now = Int64(Date().timeIntervalSince1970)
 
         // Try today's matches
@@ -99,7 +99,7 @@ final class SportsService {
                     let league = (m["subCateName"] as? String ?? "BÓNG ĐÁ").uppercased()
                     let timeMs = (m["matchTime"] as? Int64) ?? 0
                     let matchDate = Date(timeIntervalSince1970: TimeInterval(timeMs / 1000))
-                    let timeStr = "\(timeFmt.format(matchDate)) · Hôm nay"
+                    let timeStr = "\(timeFmt.string(from: matchDate)) · Hôm nay"
 
                     let hostIcon = m["hostIcon"] as? String ?? ""
                     let guestIcon = m["guestIcon"] as? String ?? ""
@@ -216,7 +216,7 @@ final class SportsService {
 
     private func createDerivedProviderGroups(baseGroups: [LiveMatchGroup], provider: String, prefix: String, viewerRatio: Double) -> [LiveMatchGroup] {
         return baseGroups.map { g in
-            let top = g.top
+            let top = g.topRoom
             let cleanRoom = extractRealRoomNum(top.roomNum)
             let derivedRoom = LiveRoom(
                 roomNum: "\(provider)_\(cleanRoom)",
