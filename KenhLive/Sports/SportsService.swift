@@ -8,6 +8,8 @@ final class SportsService {
     private let giovangLiveJson = "https://live-api.keonhacaitp.one/storage/livestream/live.json"
     private let giovangFixtureApi = "https://live-api.keonhacaitp.one/api/fixtures/"
     private let m3uFeedUrl = "https://thtt.pages.dev/tttt.m3u"
+    private let colaConfigUrl = "https://api.colaapis6.com/?t="
+    private let colaDefaultApi = "https://api.gvapi.cc"
 
     // MARK: - Fetch Independent Live Matches for All 4 Providers
     func fetchLiveMatches() async -> (socolive: [LiveMatchGroup], cola: [LiveMatchGroup], gavang33: [LiveMatchGroup], giovang: [LiveMatchGroup]) {
@@ -308,8 +310,163 @@ final class SportsService {
         }
     }
 
-    // MARK: - 3. ColaTV Dedicated Parser (Lọc Tuyệt Đối 🟢 và zhwpg.app .m3u8 Sống)
+    // MARK: - 3. ColaTV Dedicated Parser (Hỗ trợ Cola API Chính Thức có Tỉ Số Real-Time & Logo)
     private func fetchColaMatches() async -> [LiveRoom] {
+        let apiRooms = await fetchColaOfficialApiMatches()
+        if !apiRooms.isEmpty {
+            return apiRooms
+        }
+        return await fetchColaM3uMatches()
+    }
+
+    private func fetchColaOfficialApiMatches() async -> [LiveRoom] {
+        let apiBase = await resolveColaApiBase()
+        guard let url = URL(string: "\(apiBase)/api/matches?t=\(Int64(Date().timeIntervalSince1970))") else {
+            return []
+        }
+
+        var req = URLRequest(url: url)
+        req.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)", forHTTPHeaderField: "User-Agent")
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        do {
+            let (data, _) = try await URLSession.shared.data(for: req)
+            guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let matchesMap = json["data"] as? [String: [String: Any]] else {
+                return []
+            }
+
+            var liveRooms: [LiveRoom] = []
+            var upcomingRooms: [LiveRoom] = []
+
+            for (_, m) in matchesMap {
+                let homeTeam = (m["homeTeamName"] as? String) ?? (m["home_team"] as? [String: Any])?["name"] as? String ?? ""
+                let awayTeam = (m["awayTeamName"] as? String) ?? (m["away_team"] as? [String: Any])?["name"] as? String ?? ""
+                guard !homeTeam.isEmpty, !awayTeam.isEmpty else { continue }
+
+                let homeLogo = (m["homeTeamLogo"] as? String) ?? (m["home_team"] as? [String: Any])?["logo"] as? String ?? ""
+                let awayLogo = (m["awayTeamLogo"] as? String) ?? (m["away_team"] as? [String: Any])?["logo"] as? String ?? ""
+                let compName = (m["competitionName"] as? String) ?? (m["competition"] as? [String: Any])?["name"] as? String ?? "COLATV TRỰC TIẾP"
+
+                let status = m["matchStatus"] as? Int ?? 0
+                let statusStr = m["match_status"] as? String ?? ""
+                let isLive = status == 2 || statusStr == "live"
+
+                let homeScores = m["homeScore"] as? [Int] ?? []
+                let awayScores = m["awayScore"] as? [Int] ?? []
+
+                let finalTitle: String
+                let finalNotice: String
+
+                if isLive, let hScore = homeScores.first, let aScore = awayScores.first {
+                    finalTitle = "\(homeTeam) \(hScore) - \(aScore) \(awayTeam)"
+                    finalNotice = "Trực tiếp ColaTV · Tỉ số \(hScore) - \(aScore)"
+                } else if isLive {
+                    finalTitle = "\(homeTeam) vs \(awayTeam)"
+                    finalNotice = "Kênh trực tiếp ColaTV · Luồng phát gốc"
+                } else {
+                    finalTitle = "[SẮP ĐÁ] \(homeTeam) vs \(awayTeam)"
+                    finalNotice = "Chưa đến giờ thi đấu · Sắp diễn ra"
+                }
+
+                let anchorList = m["anchorAppointmentVoList"] as? [[String: Any]] ?? []
+                var matchRooms: [LiveRoom] = []
+
+                for a in anchorList {
+                    let blvName = (a["nickName"] as? String)?.trimmingCharacters(in: .whitespaces) ?? "BLV Cola"
+                    let cleanBlv = blvName.hasPrefix("BLV ") ? blvName : "BLV \(blvName)"
+                    let avatar = (a["userImage"] as? String) ?? homeLogo
+
+                    var streamUrl = a["playStreamAddress2"] as? String ?? ""
+                    if streamUrl.isEmpty {
+                        if let servers = a["servers"] as? [String] {
+                            streamUrl = servers.first(where: { $0.contains(".m3u8") }) ?? ""
+                        }
+                    }
+                    if streamUrl.isEmpty {
+                        streamUrl = a["playStreamAddress"] as? String ?? ""
+                    }
+                    guard !streamUrl.isEmpty else { continue }
+
+                    matchRooms.append(LiveRoom(
+                        roomNum: "cola_\(streamUrl)",
+                        blvName: "[ColaTV] \(cleanBlv)",
+                        avatar: avatar,
+                        viewers: a["visitHistory"] as? Int ?? Int.random(in: 45000...89000),
+                        matchTitle: finalTitle,
+                        league: compName.uppercased(),
+                        cover: homeLogo,
+                        category: "Bóng đá",
+                        blvLevel: "Cola HD",
+                        score: 0,
+                        notice: finalNotice,
+                        provider: "colatv",
+                        directStreamUrl: streamUrl,
+                        streamReferer: "",
+                        homeTeam: homeTeam,
+                        awayTeam: awayTeam,
+                        homeLogo: homeLogo,
+                        awayLogo: awayLogo
+                    ))
+                }
+
+                if matchRooms.isEmpty, isLive {
+                    let vUrl = (m["video_url"] as? String) ?? (m["videoUrl"] as? String) ?? ""
+                    if !vUrl.isEmpty, vUrl.hasPrefix("http") {
+                        matchRooms.append(LiveRoom(
+                            roomNum: "cola_\(vUrl)",
+                            blvName: "[ColaTV] Tiếng Hiện Trường",
+                            avatar: homeLogo,
+                            viewers: 25000,
+                            matchTitle: finalTitle,
+                            league: compName.uppercased(),
+                            cover: homeLogo,
+                            category: "Bóng đá",
+                            blvLevel: "Cola Live",
+                            score: 0,
+                            notice: finalNotice,
+                            provider: "colatv",
+                            directStreamUrl: vUrl,
+                            streamReferer: "",
+                            homeTeam: homeTeam,
+                            awayTeam: awayTeam,
+                            homeLogo: homeLogo,
+                            awayLogo: awayLogo
+                        ))
+                    }
+                }
+
+                if isLive {
+                    liveRooms.append(contentsOf: matchRooms)
+                } else {
+                    upcomingRooms.append(contentsOf: matchRooms)
+                }
+            }
+
+            return liveRooms + upcomingRooms
+        } catch {
+            return []
+        }
+    }
+
+    private func resolveColaApiBase() async -> String {
+        guard let url = URL(string: "\(colaConfigUrl)\(Int64(Date().timeIntervalSince1970))") else {
+            return colaDefaultApi
+        }
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                if let u = (json["api_url"] as? String) ?? (json["api_url_2"] as? String), !u.isEmpty, u.hasPrefix("http") {
+                    return u
+                }
+            }
+            return colaDefaultApi
+        } catch {
+            return colaDefaultApi
+        }
+    }
+
+    private func fetchColaM3uMatches() async -> [LiveRoom] {
         guard let url = URL(string: m3uFeedUrl) else { return [] }
 
         var req = URLRequest(url: url)
