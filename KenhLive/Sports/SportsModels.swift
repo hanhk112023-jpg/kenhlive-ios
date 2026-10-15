@@ -54,15 +54,62 @@ struct LiveMatchGroup: Identifiable, Hashable {
     var homeTeamName: String {
         let top = topRoom
         if !top.homeTeam.isEmpty { return top.homeTeam }
-        let parts = matchTitle.components(separatedBy: " vs ")
+        var title = matchTitle
+        if let score = liveScore {
+            title = title.replacingOccurrences(of: score, with: "vs")
+        }
+        title = title.replacingOccurrences(of: "[SẮP ĐÁ]", with: "")
+        title = title.replacingOccurrences(of: "[SẮP DIỄN RA]", with: "")
+        let parts = title.components(separatedBy: " vs ")
         return parts.first?.trimmingCharacters(in: .whitespaces) ?? matchTitle
     }
 
     var awayTeamName: String {
         let top = topRoom
         if !top.awayTeam.isEmpty { return top.awayTeam }
-        let parts = matchTitle.components(separatedBy: " vs ")
+        var title = matchTitle
+        if let score = liveScore {
+            title = title.replacingOccurrences(of: score, with: "vs")
+        }
+        title = title.replacingOccurrences(of: "[SẮP ĐÁ]", with: "")
+        title = title.replacingOccurrences(of: "[SẮP DIỄN RA]", with: "")
+        let parts = title.components(separatedBy: " vs ")
         return parts.count > 1 ? parts[1].trimmingCharacters(in: .whitespaces) : ""
+    }
+
+    var homeLogoUrl: String {
+        let top = topRoom
+        return !top.homeLogo.isEmpty ? top.homeLogo : (TeamLogoRegistry.shared.findLogo(for: homeTeamName) ?? "")
+    }
+
+    var awayLogoUrl: String {
+        let top = topRoom
+        return !top.awayLogo.isEmpty ? top.awayLogo : (TeamLogoRegistry.shared.findLogo(for: awayTeamName) ?? "")
+    }
+
+    var liveScore: String? {
+        let text = matchTitle + " " + topRoom.notice
+        let pattern = "\\b(\\d{1,2})\\s*-\\s*(\\d{1,2})\\b"
+        if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
+            let nsText = text as NSString
+            if let match = regex.firstMatch(in: text, options: [], range: NSRange(location: 0, length: nsText.length)) {
+                return nsText.substring(with: match.range).replacingOccurrences(of: " ", with: "")
+                    .replacingOccurrences(of: "-", with: " - ")
+            }
+        }
+        return nil
+    }
+
+    var isScheduled: Bool {
+        matchTitle.contains("[SẮP ĐÁ]") || matchTitle.contains("[SẮP DIỄN RA]")
+    }
+
+    var provider: String {
+        topRoom.provider
+    }
+
+    var providerDisplayName: String {
+        topRoom.providerDisplayName
     }
 }
 

@@ -16,6 +16,21 @@ struct PhimView: View {
     @State private var isSearching: Bool = false
     @State private var searchTask: Task<Void, Never>? = nil
 
+    private let trendingKeywords = [
+        "One Piece",
+        "Conan",
+        "Ao no Hako",
+        "Dan Da Dan",
+        "Doraemon",
+        "Dragon Ball",
+        "Lật Mặt",
+        "Tây Du Ký",
+        "Naruto",
+        "Solo Leveling",
+        "Jujutsu Kaisen",
+        "Bleach"
+    ]
+
     @State private var selectedFilmForEpisodes: FilmItem? = nil
     @State private var activePlayback: ActiveVodPlayback? = nil
 
@@ -125,6 +140,36 @@ struct PhimView: View {
                             .stroke(searchQuery.isEmpty ? KLTheme.borderSubtle : KLTheme.netflixRed.opacity(0.6), lineWidth: 1)
                     )
                     .padding(.horizontal, 16)
+
+                    // 2b. Trending Keywords Strip (Gợi Ý Bấm Nhanh Chuẩn Netflix)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 7) {
+                            Text("🔥")
+                                .font(.system(size: 11))
+                            ForEach(trendingKeywords, id: \.self) { kw in
+                                let isSelected = searchQuery.lowercased() == kw.lowercased()
+                                Button {
+                                    KLHaptics.light()
+                                    searchQuery = kw
+                                    performSearch(query: kw)
+                                } label: {
+                                    Text(kw)
+                                        .font(.system(size: 11.5, weight: isSelected ? .bold : .medium))
+                                        .foregroundColor(isSelected ? .white : KLTheme.textSecondary)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(isSelected ? KLTheme.brandOrange : KLTheme.surfaceCard)
+                                        .cornerRadius(12)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .stroke(isSelected ? Color.clear : KLTheme.borderSubtle, lineWidth: 0.8)
+                                        )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                    }
 
                     // 3. Search Results Overlay OR Regular Cinema Catalog
                     if !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty {

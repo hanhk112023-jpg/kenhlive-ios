@@ -73,7 +73,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: KenhLive-iOS.ipa
-          name: KenhLive iOS ${{ github.ref_name }} — Cổng Chọn Home Hub, Gà Vàng 33, Giờ Vàng TV & Netflix Cinema
+          name: KenhLive iOS ${{ github.ref_name }} — 4 Nhà Đài Thể Thao, Scoreboard Real-Time & Rạp Phim Netflix 4K
           body_path: RELEASE_NOTES.md
           draft: false
           prerelease: false

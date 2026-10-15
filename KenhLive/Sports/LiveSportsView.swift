@@ -11,6 +11,7 @@ struct LiveSportsView: View {
     @State private var isLoading: Bool = true
     @State private var selectedGroupForPicker: LiveMatchGroup? = nil
     @State private var activeRoomForPlayer: LiveRoom? = nil
+    @State private var autoRefreshTask: Task<Void, Never>? = nil
 
     private let providerPills: [KLFilterItem<String>] = [
         KLFilterItem(id: "all", title: "Tất Cả"),
@@ -200,6 +201,11 @@ struct LiveSportsView: View {
             if socoliveMatches.isEmpty && gavang33Matches.isEmpty {
                 await loadMatches()
             }
+            startAutoRefresh()
+        }
+        .onDisappear {
+            autoRefreshTask?.cancel()
+            autoRefreshTask = nil
         }
         .sheet(item: $selectedGroupForPicker) { group in
             RoomPickerSheet(matchGroup: group) { room in
@@ -216,6 +222,7 @@ struct LiveSportsView: View {
     }
 
     private func handleMatchSelection(_ group: LiveMatchGroup) {
+        KLHaptics.medium()
         if group.rooms.count > 1 {
             selectedGroupForPicker = group
         } else {
@@ -231,6 +238,25 @@ struct LiveSportsView: View {
         gavang33Matches = res.gavang33
         giovangMatches = res.giovang
         isLoading = false
+    }
+
+    private func startAutoRefresh() {
+        autoRefreshTask?.cancel()
+        autoRefreshTask = Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 60 * 1_000_000_000)
+                guard !Task.isCancelled else { break }
+                let res = await SportsService.shared.fetchLiveMatches()
+                await MainActor.run {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        socoliveMatches = res.socolive
+                        colaMatches = res.cola
+                        gavang33Matches = res.gavang33
+                        giovangMatches = res.giovang
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -396,57 +422,147 @@ private struct SportsProviderRail: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(matches) { group in
-                        let top = group.topRoom
-                        Button {
+                        SportsMatchCardView(group: group, badgeColor: badgeColor) {
                             onTapMatch(group)
-                        } label: {
-                            VStack(alignment: .leading, spacing: 10) {
-                                HStack {
-                                    KLPillBadge(text: group.league, fg: KLTheme.accentCyan, bg: KLTheme.accentCyan.opacity(0.10), border: .clear)
-                                    Spacer()
-                                    Text("LIVE · \(DataNormalizer.formatViewers(group.totalViewers))")
-                                        .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                        .foregroundColor(KLTheme.liveRed)
-                                }
-
-                                Text(group.matchTitle)
-                                    .font(.system(size: 14.5, weight: .bold))
-                                    .foregroundColor(KLTheme.textPrimary)
-                                    .lineLimit(2)
-                                    .multilineTextAlignment(.leading)
-                                    .frame(height: 38, alignment: .topLeading)
-
-                                Divider()
-                                    .background(KLTheme.borderSubtle)
-
-                                HStack {
-                                    Text(top.blvName)
-                                        .font(.system(size: 11.5, weight: .semibold))
-                                        .foregroundColor(KLTheme.brandOrange)
-                                        .lineLimit(1)
-
-                                    Spacer()
-
-                                    Text(top.providerDisplayName)
-                                        .font(.system(size: 10, weight: .bold))
-                                        .foregroundColor(badgeColor)
-                                }
-                            }
-                            .padding(14)
-                            .frame(width: 252)
-                            .background(KLTheme.surfaceCard)
-                            .cornerRadius(14)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .stroke(KLTheme.borderSubtle, lineWidth: 0.8)
-                            )
                         }
-                        .buttonStyle(.plain)
                     }
                 }
                 .padding(.horizontal, 16)
             }
         }
+    }
+}
+
+// MARK: - Modern Stadium Scoreboard Match Card (Scoreboard + Real Team Logos)
+private struct SportsMatchCardView: View {
+    let group: LiveMatchGroup
+    let badgeColor: Color
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            let top = group.topRoom
+            VStack(alignment: .leading, spacing: 9) {
+                // 1. Top Header: League Pill + Live Status Pill
+                HStack(alignment: .center) {
+                    KLPillBadge(
+                        text: group.league.isEmpty ? "BÓNG ĐÁ" : group.league,
+                        fg: KLTheme.accentCyan,
+                        bg: KLTheme.accentCyan.opacity(0.12),
+                        border: .clear
+                    )
+
+                    Spacer()
+
+                    if group.isScheduled {
+                        Text("SẮP ĐÁ")
+                            .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                            .foregroundColor(KLTheme.textMuted)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2.5)
+                            .background(Color.white.opacity(0.08))
+                            .cornerRadius(4)
+                    } else {
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(KLTheme.liveRed)
+                                .frame(width: 5.5, height: 5.5)
+                            Text("LIVE · \(DataNormalizer.formatViewers(group.totalViewers))")
+                                .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                                .foregroundColor(KLTheme.liveRed)
+                        }
+                    }
+                }
+
+                // 2. Stadium Scoreboard: Home Logo + Name vs Score vs Away Name + Logo
+                HStack(alignment: .center, spacing: 8) {
+                    // Home Column
+                    HStack(spacing: 6) {
+                        TeamLogoView(url: group.homeLogoUrl, size: 30)
+                        Text(group.homeTeamName)
+                            .font(.system(size: 12.5, weight: .bold))
+                            .foregroundColor(KLTheme.textPrimary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    // Center Score Pill
+                    if let score = group.liveScore {
+                        Text(score)
+                            .font(.system(size: 13, weight: .black, design: .monospaced))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                LinearGradient(
+                                    colors: [Color(red: 0.98, green: 0.42, blue: 0.05), Color(red: 0.90, green: 0.22, blue: 0.02)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .cornerRadius(6)
+                            .shadow(color: Color(red: 0.98, green: 0.42, blue: 0.05).opacity(0.35), radius: 4, x: 0, y: 1)
+                    } else {
+                        Text("VS")
+                            .font(.system(size: 10.5, weight: .heavy, design: .monospaced))
+                            .foregroundColor(KLTheme.textSecondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(Color.white.opacity(0.08))
+                            .cornerRadius(5)
+                    }
+
+                    // Away Column
+                    HStack(spacing: 6) {
+                        Text(group.awayTeamName)
+                            .font(.system(size: 12.5, weight: .bold))
+                            .foregroundColor(KLTheme.textPrimary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+                            .multilineTextAlignment(.trailing)
+                        TeamLogoView(url: group.awayLogoUrl, size: 30)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+                .padding(.vertical, 3)
+
+                Divider()
+                    .background(KLTheme.borderSubtle)
+
+                // 3. Bottom Footer: BLV Name + Provider Badge
+                HStack(alignment: .center) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "mic.fill")
+                            .font(.system(size: 9))
+                            .foregroundColor(KLTheme.brandOrange)
+                        Text(top.blvName)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(KLTheme.brandOrange)
+                            .lineLimit(1)
+                    }
+
+                    Spacer()
+
+                    Text(top.providerDisplayName)
+                        .font(.system(size: 9.5, weight: .black, design: .rounded))
+                        .foregroundColor(badgeColor)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(badgeColor.opacity(0.14))
+                        .cornerRadius(4)
+                }
+            }
+            .padding(12)
+            .frame(width: 270)
+            .background(KLTheme.surfaceCard)
+            .cornerRadius(14)
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(KLTheme.borderSubtle, lineWidth: 0.8)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -458,45 +574,86 @@ private struct StadiumMatchCard: View {
         let top = group.topRoom
         VStack(spacing: 12) {
             HStack {
-                KLPillBadge(text: group.league, fg: KLTheme.accentCyan, bg: KLTheme.accentCyan.opacity(0.10), border: .clear)
+                KLPillBadge(text: group.league.isEmpty ? "BÓNG ĐÁ" : group.league, fg: KLTheme.accentCyan, bg: KLTheme.accentCyan.opacity(0.10), border: .clear)
                 KLPillBadge(text: top.providerDisplayName, fg: .white, bg: Color.white.opacity(0.12), border: .clear)
 
                 Spacer()
 
-                Text("ĐANG ĐÁ · \(DataNormalizer.formatViewers(group.totalViewers)) XEM")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-                    .foregroundColor(KLTheme.liveRed)
+                if group.isScheduled {
+                    Text("SẮP ĐÁ")
+                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .foregroundColor(KLTheme.textMuted)
+                } else {
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(KLTheme.liveRed)
+                            .frame(width: 6, height: 6)
+                        Text("LIVE · \(DataNormalizer.formatViewers(group.totalViewers))")
+                            .font(.system(size: 10, weight: .bold, design: .monospaced))
+                            .foregroundColor(KLTheme.liveRed)
+                    }
+                }
             }
 
-            HStack(alignment: .center, spacing: 12) {
-                Text(group.homeTeamName)
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(KLTheme.textPrimary)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                    .lineLimit(1)
+            // Scoreboard Row
+            HStack(alignment: .center, spacing: 10) {
+                HStack(spacing: 8) {
+                    TeamLogoView(url: group.homeLogoUrl, size: 34)
+                    Text(group.homeTeamName)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(KLTheme.textPrimary)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-                Text("VS")
-                    .font(.system(size: 12, weight: .black, design: .monospaced))
-                    .foregroundColor(KLTheme.brandOrange)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(KLTheme.bgDeep)
-                    .cornerRadius(6)
+                if let score = group.liveScore {
+                    Text(score)
+                        .font(.system(size: 14, weight: .black, design: .monospaced))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 4)
+                        .background(
+                            LinearGradient(
+                                colors: [Color(red: 0.98, green: 0.42, blue: 0.05), Color(red: 0.90, green: 0.22, blue: 0.02)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .cornerRadius(6)
+                } else {
+                    Text("VS")
+                        .font(.system(size: 11, weight: .black, design: .monospaced))
+                        .foregroundColor(KLTheme.brandOrange)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(KLTheme.bgDeep)
+                        .cornerRadius(6)
+                }
 
-                Text(group.awayTeamName)
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(KLTheme.textPrimary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .lineLimit(1)
+                HStack(spacing: 8) {
+                    Text(group.awayTeamName)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(KLTheme.textPrimary)
+                        .lineLimit(1)
+                        .multilineTextAlignment(.trailing)
+                    TeamLogoView(url: group.awayLogoUrl, size: 34)
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
             }
 
             Divider()
                 .background(KLTheme.borderSubtle)
 
             HStack {
-                Text(top.blvName)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundColor(KLTheme.brandOrange)
+                HStack(spacing: 4) {
+                    Image(systemName: "mic.fill")
+                        .font(.system(size: 9.5))
+                        .foregroundColor(KLTheme.brandOrange)
+                    Text(top.blvName)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(KLTheme.brandOrange)
+                        .lineLimit(1)
+                }
 
                 Spacer()
 
@@ -516,5 +673,30 @@ private struct StadiumMatchCard: View {
             RoundedRectangle(cornerRadius: 14)
                 .stroke(KLTheme.borderSubtle, lineWidth: 0.8)
         )
+    }
+}
+
+// MARK: - Reusable Team Logo View with Shield Placeholder
+struct TeamLogoView: View {
+    let url: String
+    var size: CGFloat = 30
+
+    var body: some View {
+        if !url.isEmpty, let imageURL = URL(string: url) {
+            AsyncImage(url: imageURL) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: size, height: size)
+                default:
+                    SportsShieldPlaceholder(size: size)
+                }
+            }
+            .frame(width: size, height: size)
+        } else {
+            SportsShieldPlaceholder(size: size)
+        }
     }
 }

@@ -1,24 +1,35 @@
-# 🚀 KENHLIVE iOS v1.4.3 (Build 123) — ĐẠI NÂNG CẤP RẠP PHIM NATIVE HLS 4K & GỠ BỎ ĐA MÀN HÌNH
+# 🚀 KENHLIVE iOS v1.5.0 (Build 128) — ĐỒNG BỘ LOGO ĐỘI BÓNG ESPN 500x500, TỈ SỐ REAL-TIME & TÌM KIẾM PHIM CHUẨN NETFLIX
 
-### 🎬 1. Đại Nâng Cấp Kho Phim Truyện (100% Native HLS `.m3u8` & Kho Dữ Liệu Khổng Lồ)
-- **Tích hợp Hạ Tầng Phim Trực Tiếp (Direct `.m3u8` CDN)**:
-  - Toàn bộ phim bộ, phim lẻ, hoạt hình/anime giờ đây phát trực tiếp bằng luồng **HLS `.m3u8` gốc trên trình phát AVPlayer của Apple** (không còn phải nhúng qua trình duyệt WebView chậm chạp).
-  - **Không một mẩu quảng cáo hay popup**, tốc độ tải tức thì, tua thanh thời gian siêu mượt, hỗ trợ đầy đủ **Picture-in-Picture (PiP)** vừa xem phim vừa nhắn tin và truyền **AirPlay** lên TV.
-- **Thanh Tìm Kiếm Phim Trực Tiếp Ngay Tại Rạp Phim**:
-  - Tích hợp thanh tìm kiếm tức thì ngay đầu tab **Kho Phim**: Gõ tên phim, diễn viên hoặc anime (*Conan, Khánh Dư Niên, Nữ Hoàng Nước Mắt, One Piece, Lật Mặt...*) là hiển thị ngay kết quả dạng lưới 3 cột sắc nét.
-- **Đa Máy Chủ Ngôn Ngữ (`Vietsub` · `Thuyết Minh` · `Lồng Tiếng`)**:
-  - Hỗ trợ chuyển đổi trực tiếp giữa bản **Vietsub** và bản **Thuyết Minh / Lồng Tiếng** ngay trong bảng chọn tập.
-- **Chia Nhóm Tập Phim Thông Minh Cho Phim Dài Tập**:
-  - Tự động phân đoạn tập theo nhóm (`Tập 1 - 30`, `31 - 60`, `61 - 90`... lên tới hơn 1.200 tập như *Thám Tử Lừng Danh Conan*), giúp chọn tập trong 1 chạm không cần cuộn dài.
-- **Mở Rộng 13 Danh Mục & Quốc Gia**:
-  - *Mới Cập Nhật · Phim Bộ Hot · Phim Lẻ Chiếu Rạp · Hoạt Hình & Anime · Hàn Quốc · Trung Quốc · Âu Mỹ Bom Tấn · Hành Động · Cổ Trang · Tình Cảm · Kinh Dị*.
-  - Hiển thị chi tiết diễn viên, thời lượng, quốc gia, điểm IMDb và đánh dấu tập đã xem.
+### 🛡️ 1. Đồng Bộ Logo Đội Bóng ESPN 500x500 & Huy Hiệu Khiên Thể Thao
+- **TeamLogoRegistry (Hạ Tầng Logo Đội Bóng Đa Nguồn)**:
+  - Tích hợp kho logo chính thức 500x500 PNG siêu nét từ **ESPN CDN** cho hơn 50 câu lạc bộ hàng đầu thế giới (*Man City, MU, Liverpool, Arsenal, Chelsea, Real Madrid, Barca, Bayern, Dortmund, PSG, Juventus, Inter Miami...*).
+  - Tự động bóc tách và đồng bộ logo từ 4 nhà đài thể thao (*ColaTV, Gà Vàng 33, Giờ Vàng TV, Socolive*).
+  - **Huy hiệu Khiên Thể Thao Cao Cấp (Shield Crest Placeholder)**: Tự động hiển thị khiên thể thao viền bạc sang trọng trên nền gradient obsidian khi trận đấu giải trẻ hoặc chưa tải kịp logo.
 
 ---
 
-### 🧹 2. Loại Bỏ Hoàn Toàn Tính Năng Chia Đôi Màn Hình (MultiView)
-- Gỡ bỏ hoàn toàn màn hình và các nút **Chia đôi màn hình (2 Màn)** trên thanh Header và Trang Chủ để giao diện gọn nhẹ, tập trung tối đa cho trải nghiệm xem Phim Truyện, Thể Thao và Truyền Hình.
-- Thay thế bằng nút mở nhanh **Lịch Thi Đấu** trên thanh Header và ô **Kho Phim Hot (Netflix 4K)** tại Cổng Chọn.
+### ⚽ 2. Thẻ Trận Đấu Stadium Scoreboard & Tỉ Số Trực Tiếp Real-Time
+- **Thiết kế Thẻ Trận Đấu Hiện Đại**:
+  - Logo đội nhà & đội khách hiển thị đối xứng hai bên.
+  - Tỉ số trực tiếp hiển thị bằng **Pill Neon Cam Nổi Bật** (`2 - 1`) cập nhật theo thời gian thực.
+  - Phân loại rõ ràng 4 nhà đài bằng huy hiệu màu sắc độc quyền:
+    - **COLA** (Cyan `#06B6D4`)
+    - **GÀ VÀNG 33** (Amber Gold `#F59E0B`)
+    - **GIỜ VÀNG TV** (Emerald Blue `#3B82F6`)
+    - **SOCOLIVE** (Emerald Green `#10B981`)
+- **Vòng lặp tự động cập nhật ngầm 60s**:
+  - Tự động làm mới tỉ số và các luồng phát mới mỗi 60 giây hoàn toàn ngầm trong nền, không làm gián đoạn vị trí cuộn của người dùng.
+- **Rung phản hồi xúc giác (Haptic Feedback)**: Cảm giác chạm mượt mà chuẩn native iOS khi chọn trận đấu và mở phòng phát.
+
+---
+
+### 🎬 3. Tìm Kiếm Phim & Anime Chuẩn Netflix Với Gợi Ý Bấm Nhanh
+- **Dãy Gợi Ý Xu Hướng Thịnh Hành (Trending Chips)**:
+  - Tích hợp sẵn các từ khóa hot nhất (*One Piece, Conan, Ao no Hako, Dan Da Dan, Doraemon, Dragon Ball, Lật Mặt, Tây Du Ký, Naruto, Solo Leveling...*).
+  - Bấm chọn bất kỳ chip nào để tìm kiếm và xem phim ngay lập tức trong tích tắc mà không cần gõ bàn phím.
+- **Lưới Ma Trận Poster Chuẩn Điện Ảnh 4K**:
+  - Hiển thị đầy đủ huy hiệu sao vàng IMDb (`★ 8.8`), độ phân giải (`4K` / `FHD`), số tập phát hành (`Tập 24`, `Trọn bộ`).
+  - Phát trực tiếp qua **AVPlayer Native HLS `.m3u8`**, hỗ trợ hoàn hảo **Picture-in-Picture (PiP)** và **AirPlay**.
 
 ---
 

@@ -21,16 +21,16 @@ final class SportsService {
         let (socoRooms, gavang33Rooms, giovangRooms, colaRooms) = await (socoTask, gavang33Task, giovangTask, colaTask)
 
         // 1. Socolive (Real Socolive Rooms from vnres.co)
-        let socoGroups = groupRooms(socoRooms)
+        let socoGroups = groupRooms(socoRooms).map { TeamLogoRegistry.shared.enrich(group: $0) }
 
         // 2. Gà Vàng 33 (Real Gà Vàng 33 API - 100% MatchStatus Live)
-        let gavang33Groups = groupRooms(gavang33Rooms.ifEmpty(createFallbackGavang33()))
+        let gavang33Groups = groupRooms(gavang33Rooms.ifEmpty(createFallbackGavang33())).map { TeamLogoRegistry.shared.enrich(group: $0) }
 
         // 3. ColaTV (Real Live ColaTV Streams from Feed)
-        let colaGroups = groupRooms(colaRooms.ifEmpty(createFallbackCola()))
+        let colaGroups = groupRooms(colaRooms.ifEmpty(createFallbackCola())).map { TeamLogoRegistry.shared.enrich(group: $0) }
 
         // 4. Giờ Vàng TV (Real Giờ Vàng API from keonhacaitp)
-        let giovangGroups = groupRooms(giovangRooms.ifEmpty(createFallbackGiovang()))
+        let giovangGroups = groupRooms(giovangRooms.ifEmpty(createFallbackGiovang())).map { TeamLogoRegistry.shared.enrich(group: $0) }
 
         return (socoGroups, colaGroups, gavang33Groups, giovangGroups)
     }
