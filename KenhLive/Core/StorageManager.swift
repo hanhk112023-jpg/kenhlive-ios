@@ -32,11 +32,15 @@ final class StorageManager: ObservableObject {
     func saveWatchProgress(_ progress: WatchProgress) {
         var list = watchHistory.filter { $0.filmSlug != progress.filmSlug }
         list.insert(progress, at: 0)
-        if list.count > 30 { list = Array(list.prefix(30)) }
+        if list.count > 40 { list = Array(list.prefix(40)) }
         watchHistory = list
         if let encoded = try? JSONEncoder().encode(list) {
             defaults.set(encoded, forKey: keyHistory)
         }
+    }
+
+    func getProgress(for filmSlug: String) -> WatchProgress? {
+        watchHistory.first { $0.filmSlug == filmSlug }
     }
 
     func toggleFavoriteFilm(slug: String) {

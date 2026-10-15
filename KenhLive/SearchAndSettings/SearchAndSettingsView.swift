@@ -5,7 +5,6 @@ struct SearchAndSettingsView: View {
     @State private var searchResults: [FilmItem] = []
     @State private var isSearching: Bool = false
     @State private var selectedFilm: FilmItem? = nil
-    @State private var activePlayback: PhimView.ActiveVodPlayback? = nil
 
     @AppStorage("kl_stream_quality") private var selectedQuality: String = "Tự động (FHD)"
     @State private var isCacheCleared: Bool = false
@@ -228,15 +227,13 @@ struct SearchAndSettingsView: View {
             }
         }
         .sheet(item: $selectedFilm) { film in
-            EpisodePickerSheet(film: film) { ep in
-                activePlayback = PhimView.ActiveVodPlayback(film: film, episode: ep)
-            }
+            EpisodePickerSheet(
+                film: film,
+                initialResumeProgress: StorageManager.shared.getProgress(for: film.slug)
+            )
         }
         .sheet(isPresented: $isShowingTelegramSheet) {
             TelegramFeedbackSheet()
-        }
-        .fullScreenCover(item: $activePlayback) { item in
-            VodWebPlayerView(film: item.film, episode: item.episode)
         }
     }
 

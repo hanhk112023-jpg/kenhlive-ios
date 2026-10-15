@@ -32,13 +32,7 @@ struct PhimView: View {
     ]
 
     @State private var selectedFilmForEpisodes: FilmItem? = nil
-    @State private var activePlayback: ActiveVodPlayback? = nil
-
-    struct ActiveVodPlayback: Identifiable {
-        let id = UUID()
-        let film: FilmItem
-        let episode: EpisodeItem
-    }
+    @State private var initialResumeProgressForSheet: WatchProgress? = nil
 
     private let filterPills: [KLFilterItem<String>] = [
         KLFilterItem(id: "tat-ca", title: "Trang Chủ Phim"),
@@ -197,12 +191,10 @@ struct PhimView: View {
             }
         }
         .sheet(item: $selectedFilmForEpisodes) { film in
-            EpisodePickerSheet(film: film) { ep in
-                activePlayback = ActiveVodPlayback(film: film, episode: ep)
-            }
-        }
-        .fullScreenCover(item: $activePlayback) { item in
-            VodWebPlayerView(film: item.film, episode: item.episode)
+            EpisodePickerSheet(
+                film: film,
+                initialResumeProgress: initialResumeProgressForSheet ?? storage.getProgress(for: film.slug)
+            )
         }
     }
 
@@ -278,15 +270,12 @@ struct PhimView: View {
                         isFavorite: storage.isFavoriteFilm(slug: hero.slug),
                         onPlayNow: {
                             KLHaptics.medium()
-                            Task {
-                                let detail = await PhimService.shared.fetchFilmDetail(slug: hero.slug)
-                                if let firstEp = detail.allEpisodes.first {
-                                    activePlayback = ActiveVodPlayback(film: hero, episode: firstEp)
-                                }
-                            }
+                            initialResumeProgressForSheet = storage.getProgress(for: hero.slug)
+                            selectedFilmForEpisodes = hero
                         },
                         onOpenEpisodes: {
                             KLHaptics.light()
+                            initialResumeProgressForSheet = storage.getProgress(for: hero.slug)
                             selectedFilmForEpisodes = hero
                         },
                         onToggleFavorite: {
@@ -315,13 +304,8 @@ struct PhimView: View {
                             thumbUrl: item.posterUrl,
                             posterUrl: item.posterUrl
                         )
-                        let ep = EpisodeItem(
-                            name: item.episodeName,
-                            slug: item.episodeSlug,
-                            embed: item.embedUrl,
-                            m3u8: item.m3u8Url
-                        )
-                        activePlayback = ActiveVodPlayback(film: film, episode: ep)
+                        initialResumeProgressForSheet = item
+                        selectedFilmForEpisodes = film
                     }
                 }
 
@@ -410,13 +394,8 @@ struct PhimView: View {
                         thumbUrl: item.posterUrl,
                         posterUrl: item.posterUrl
                     )
-                    let ep = EpisodeItem(
-                        name: item.episodeName,
-                        slug: item.episodeSlug,
-                        embed: item.embedUrl,
-                        m3u8: item.m3u8Url
-                    )
-                    activePlayback = ActiveVodPlayback(film: film, episode: ep)
+                    initialResumeProgressForSheet = item
+                    selectedFilmForEpisodes = film
                 }
             }
 
@@ -489,18 +468,32 @@ struct PhimView: View {
     private func loadCategory(_ slug: String) async {
         isLoading = true
         if slug == "tat-ca" {
-            let home = await PhimService.shared.fetchHomeSections()
-            sections = home
-            featuredFilms = Array((home.first?.films ?? []).prefix(10))
-            heroIndex = 0
-            await loadHeroSynopsis()
+            // Stage 1: Fast initial load (First 2 shelves ~200ms)
+            let initial = await PhimService.shared.fetchQuickInitialSections()
+            if !initial.isEmpty {
+                sections = initial
+                featuredFilms = Array((initial.first?.films ?? []).prefix(10))
+                heroIndex = 0
+                isLoading = false // Show screen immediately!
+            }
+
+            // Stage 2: Concurrently fetch full shelves and append
+            let full = await PhimService.shared.fetchHomeSections()
+            if !full.isEmpty {
+                sections = full
+                if featuredFilms.isEmpty {
+                    featuredFilms = Array((full.first?.films ?? []).prefix(10))
+                }
+            }
+            isLoading = false
+            Task { await loadHeroSynopsis() }
         } else if slug == "lich-su" {
-            // handled dynamically
+            isLoading = false
         } else {
             let list = await PhimService.shared.fetchCategoryFilms(slug: slug)
             categoryFilms = list
+            isLoading = false
         }
-        isLoading = false
     }
 
     private func loadHeroSynopsis() async {

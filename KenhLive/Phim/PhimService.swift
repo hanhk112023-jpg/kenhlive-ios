@@ -7,8 +7,23 @@ final class PhimService {
     private let nguoncApi = "https://phim.nguonc.com/api"
     private let imageCdnBase = "https://phimimg.com"
 
-    // MARK: - 1. Home Cinema Sections (8 Curated Cinema Rails with Direct HLS Streams)
-    func fetchHomeSections() async -> [PhimSection] {
+    // High-performance In-Memory Caches for Instant Loading (0ms Latency)
+    private var cachedHomeSections: [PhimSection]? = nil
+    private var cachedCategoryFilms: [String: [FilmItem]] = [:]
+    private var cachedFilmDetails: [String: FilmDetailResult] = [:]
+    private let cacheLock = NSLock()
+
+    // MARK: - 1. Home Cinema Sections (Instant Memory Cache + Progressive Stage)
+    func fetchHomeSections(forceRefresh: Bool = false) async -> [PhimSection] {
+        if !forceRefresh {
+            cacheLock.lock()
+            if let cached = cachedHomeSections, !cached.isEmpty {
+                cacheLock.unlock()
+                return cached
+            }
+            cacheLock.unlock()
+        }
+
         async let moiTask = fetchKKPhimList(endpoint: "danh-sach/phim-moi-cap-nhat?page=1")
         async let boTask = fetchKKPhimV1List(endpoint: "danh-sach/phim-bo?limit=24")
         async let leTask = fetchKKPhimV1List(endpoint: "danh-sach/phim-le?limit=24")
@@ -32,18 +47,75 @@ final class PhimService {
 
         if sections.isEmpty {
             // Fallback NguonC nếu KKPhim đang bảo trì
-            return await fetchNguonCHomeSections()
+            let fallback = await fetchNguonCHomeSections()
+            cacheLock.lock()
+            self.cachedHomeSections = fallback
+            cacheLock.unlock()
+            return fallback
         }
 
+        cacheLock.lock()
+        self.cachedHomeSections = sections
+        cacheLock.unlock()
+        return sections
+    }
+
+    // Fast Initial Rails for sub-second UI rendering
+    func fetchQuickInitialSections() async -> [PhimSection] {
+        cacheLock.lock()
+        if let cached = cachedHomeSections, !cached.isEmpty {
+            cacheLock.unlock()
+            return cached
+        }
+        cacheLock.unlock()
+
+        async let moiTask = fetchKKPhimList(endpoint: "danh-sach/phim-moi-cap-nhat?page=1")
+        async let boTask = fetchKKPhimV1List(endpoint: "danh-sach/phim-bo?limit=24")
+        let (moi, bo) = await (moiTask, boTask)
+
+        var sections: [PhimSection] = []
+        if !moi.isEmpty { sections.append(PhimSection(title: "Phim Mới Cập Nhật", subtitle: "Kho phim điện ảnh mới nhất hôm nay", films: moi)) }
+        if !bo.isEmpty { sections.append(PhimSection(title: "Phim Bộ Đặc Sắc", subtitle: "Trọn bộ Vietsub & Thuyết Minh FHD", films: bo)) }
+        return sections
+    }
+
+    // Load remaining shelves concurrently
+    func fetchRemainingSections() async -> [PhimSection] {
+        async let leTask = fetchKKPhimV1List(endpoint: "danh-sach/phim-le?limit=24")
+        async let animeTask = fetchKKPhimV1List(endpoint: "danh-sach/hoat-hinh?limit=24")
+        async let hanQuocTask = fetchKKPhimV1List(endpoint: "quoc-gia/han-quoc?limit=24")
+        async let trungQuocTask = fetchKKPhimV1List(endpoint: "quoc-gia/trung-quoc?limit=24")
+        async let auMyTask = fetchKKPhimV1List(endpoint: "quoc-gia/au-my?limit=24")
+        async let hanhDongTask = fetchKKPhimV1List(endpoint: "the-loai/hanh-dong?limit=24")
+
+        let (le, anime, hq, tq, am, hd) = await (leTask, animeTask, hanQuocTask, trungQuocTask, auMyTask, hanhDongTask)
+        var sections: [PhimSection] = []
+        if !le.isEmpty { sections.append(PhimSection(title: "Phim Lẻ Chiếu Rạp", subtitle: "Bom tấn Hollywood & Rạp chiếu Việt Nam", films: le)) }
+        if !anime.isEmpty { sections.append(PhimSection(title: "Hoạt Hình & Anime", subtitle: "Conan, One Piece, Ghibli trọn bộ", films: anime)) }
+        if !hq.isEmpty { sections.append(PhimSection(title: "Phim Hàn Quốc Hot", subtitle: "K-Drama lãng mạn & giật gân cuốn hút", films: hq)) }
+        if !tq.isEmpty { sections.append(PhimSection(title: "Phim Trung Quốc Cổ Trang", subtitle: "Tiên hiệp, kiếm hiệp & cung đấu đỉnh cao", films: tq)) }
+        if !am.isEmpty { sections.append(PhimSection(title: "Phim Âu Mỹ Bom Tấn", subtitle: "Điện ảnh Hollywood chất lượng 4K", films: am)) }
+        if !hd.isEmpty { sections.append(PhimSection(title: "Hành Động & Võ Thuật", subtitle: "Kịch tính, nghẹt thở & mãn nhãn", films: hd)) }
         return sections
     }
 
     // MARK: - 2. Category / Country / Genre Feed (Multi-Page / Large Batch)
     func fetchCategoryFilms(slug: String) async -> [FilmItem] {
+        cacheLock.lock()
+        if let cached = cachedCategoryFilms[slug], !cached.isEmpty {
+            cacheLock.unlock()
+            return cached
+        }
+        cacheLock.unlock()
+
         let endpoint: String
         switch slug {
         case "phim-moi":
-            return await fetchKKPhimList(endpoint: "danh-sach/phim-moi-cap-nhat?page=1")
+            let list = await fetchKKPhimList(endpoint: "danh-sach/phim-moi-cap-nhat?page=1")
+            cacheLock.lock()
+            cachedCategoryFilms[slug] = list
+            cacheLock.unlock()
+            return list
         case "phim-bo", "phim-le", "hoat-hinh", "tv-shows":
             endpoint = "danh-sach/\(slug)?limit=48"
         case "han-quoc", "trung-quoc", "au-my", "nhat-ban", "viet-nam", "thai-lan":
@@ -53,10 +125,19 @@ final class PhimService {
         }
 
         let list = await fetchKKPhimV1List(endpoint: endpoint)
-        if !list.isEmpty { return list }
+        if !list.isEmpty {
+            cacheLock.lock()
+            cachedCategoryFilms[slug] = list
+            cacheLock.unlock()
+            return list
+        }
 
         // Fallback NguonC
-        return await fetchNguonCCategoryFilms(slug: slug)
+        let fallback = await fetchNguonCCategoryFilms(slug: slug)
+        cacheLock.lock()
+        cachedCategoryFilms[slug] = fallback
+        cacheLock.unlock()
+        return fallback
     }
 
     // MARK: - 3. Instant Search API (Multi-result Realtime Search)
@@ -90,6 +171,13 @@ final class PhimService {
 
     // MARK: - 4. Film Detail & Episode Resolution (100% Direct .m3u8 Streams)
     func fetchFilmDetail(slug: String) async -> FilmDetailResult {
+        cacheLock.lock()
+        if let cached = cachedFilmDetails[slug] {
+            cacheLock.unlock()
+            return cached
+        }
+        cacheLock.unlock()
+
         guard let url = URL(string: "\(kkphimApi)/phim/\(slug)") else {
             return fallbackDetailResult(slug: slug)
         }
@@ -154,7 +242,7 @@ final class PhimService {
                 return await fetchNguonCDetail(slug: slug)
             }
 
-            return FilmDetailResult(
+            let res = FilmDetailResult(
                 description: rawDesc,
                 director: director,
                 casts: casts,
@@ -162,8 +250,16 @@ final class PhimService {
                 country: countryStr,
                 servers: servers
             )
+            cacheLock.lock()
+            cachedFilmDetails[slug] = res
+            cacheLock.unlock()
+            return res
         } catch {
-            return await fetchNguonCDetail(slug: slug)
+            let fallback = await fetchNguonCDetail(slug: slug)
+            cacheLock.lock()
+            cachedFilmDetails[slug] = fallback
+            cacheLock.unlock()
+            return fallback
         }
     }
 

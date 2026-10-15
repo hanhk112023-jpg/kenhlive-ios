@@ -10,6 +10,11 @@ struct HLSPlayerView: View {
     var directUrl: String? = nil
     var streamReferer: String? = nil
     var room: LiveRoom? = nil
+    var initialTimeSeconds: Double = 0
+    var isFullscreen: Bool = true
+    var onToggleFullscreen: (() -> Void)? = nil
+    var onClose: (() -> Void)? = nil
+    var onProgressUpdate: ((_ currentSec: Double, _ durationSec: Double) -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
 
@@ -264,9 +269,9 @@ struct HLSPlayerView: View {
                 }
             }
         }
-        .padding(.horizontal, 18)
-        .padding(.top, 48) // Safe area top offset
-        .padding(.bottom, 16)
+        .padding(.horizontal, 16)
+        .padding(.top, isFullscreen ? 48 : 12) // Safe area top offset when fullscreen
+        .padding(.bottom, 12)
     }
 
     // MARK: - Center Controls View
@@ -415,11 +420,27 @@ struct HLSPlayerView: View {
                         .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
+
+                // Fullscreen Expand / Collapse Toggle (if supported)
+                if let onToggle = onToggleFullscreen {
+                    Button {
+                        KLHaptics.medium()
+                        onToggle()
+                    } label: {
+                        Image(systemName: isFullscreen ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 34, height: 34)
+                            .background(Color.white.opacity(0.16))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 10)
-        .padding(.bottom, 36) // Safe area bottom offset
+        .padding(.horizontal, 18)
+        .padding(.top, 8)
+        .padding(.bottom, isFullscreen ? 36 : 10) // Safe area bottom offset
     }
 
     // MARK: - Playback Logic
@@ -484,6 +505,11 @@ struct HLSPlayerView: View {
             player?.replaceCurrentItem(with: item)
         }
 
+        if initialTimeSeconds > 0 {
+            let target = CMTime(seconds: initialTimeSeconds, preferredTimescale: 600)
+            player?.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero)
+        }
+
         player?.isMuted = isMuted
         player?.play()
         isPlaying = true
@@ -499,6 +525,7 @@ struct HLSPlayerView: View {
 
             if !sec.isNaN {
                 self.currentTime = sec
+                self.onProgressUpdate?(sec, dur)
             }
             if !dur.isNaN && dur > 0 && !dur.isInfinite {
                 self.duration = dur
@@ -598,9 +625,16 @@ struct HLSPlayerView: View {
             player?.removeTimeObserver(token)
             timeObserverToken = nil
         }
+        if currentTime > 0 {
+            onProgressUpdate?(currentTime, duration)
+        }
         player?.pause()
         player = nil
-        dismiss()
+        if let customClose = onClose {
+            customClose()
+        } else {
+            dismiss()
+        }
     }
 
     private func formatTime(_ seconds: Double) -> String {

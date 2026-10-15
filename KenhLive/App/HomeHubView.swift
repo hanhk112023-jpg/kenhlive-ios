@@ -9,7 +9,6 @@ struct HomeHubView: View {
     @State private var trendingFilms: [FilmItem] = []
     @State private var selectedMatchForPlayer: LiveRoom? = nil
     @State private var selectedFilmForEpisodes: FilmItem? = nil
-    @State private var activeVodPlayback: PhimView.ActiveVodPlayback? = nil
 
     var body: some View {
         ZStack {
@@ -315,12 +314,10 @@ struct HomeHubView: View {
             )
         }
         .sheet(item: $selectedFilmForEpisodes) { film in
-            EpisodePickerSheet(film: film) { ep in
-                activeVodPlayback = PhimView.ActiveVodPlayback(film: film, episode: ep)
-            }
-        }
-        .fullScreenCover(item: $activeVodPlayback) { item in
-            VodWebPlayerView(film: item.film, episode: item.episode)
+            EpisodePickerSheet(
+                film: film,
+                initialResumeProgress: StorageManager.shared.getProgress(for: film.slug)
+            )
         }
     }
 }
