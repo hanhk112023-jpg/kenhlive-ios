@@ -7,8 +7,9 @@ struct EpisodePickerSheet: View {
     var onSelectEpisode: ((EpisodeItem) -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
-    @ObservedObject private var storage = StorageManager.shared
+    private let storage = StorageManager.shared
 
+    @State private var isFavFilm: Bool = false
     @State private var detail: FilmDetailResult? = nil
     @State private var selectedServerIndex: Int = 0
     @State private var selectedChunkIndex: Int = 0
@@ -105,6 +106,7 @@ struct EpisodePickerSheet: View {
                                         saveProgress(episode: activeEp, currentSec: currentSec, durationSec: durationSec)
                                     }
                                 )
+                                .id("inline-\(activeEp.slug)")
                                 .frame(height: 220)
                                 .cornerRadius(12)
                                 .clipped()
@@ -366,6 +368,7 @@ struct EpisodePickerSheet: View {
             }
         }
         .task {
+            isFavFilm = storage.isFavoriteFilm(slug: film.slug)
             isLoading = true
             let d = await PhimService.shared.fetchFilmDetail(slug: film.slug)
             self.detail = d
@@ -405,6 +408,7 @@ struct EpisodePickerSheet: View {
                         saveProgress(episode: activeEp, currentSec: currentSec, durationSec: durationSec)
                     }
                 )
+                .id("fullscreen-\(activeEp.slug)")
             }
         }
     }
@@ -499,18 +503,18 @@ struct EpisodePickerSheet: View {
                     }
                     .disabled(allCurrentEpisodes.isEmpty)
 
-                    let isFav = storage.isFavoriteFilm(slug: film.slug)
                     Button {
                         KLHaptics.selection()
                         storage.toggleFavoriteFilm(slug: film.slug)
+                        isFavFilm.toggle()
                     } label: {
                         HStack(spacing: 4) {
-                            Image(systemName: isFav ? "checkmark" : "plus")
+                            Image(systemName: isFavFilm ? "checkmark" : "plus")
                                 .font(.system(size: 11, weight: .bold))
-                            Text(isFav ? "ĐÃ LƯU" : "DANH SÁCH")
+                            Text(isFavFilm ? "ĐÃ LƯU" : "DANH SÁCH")
                                 .font(.system(size: 11, weight: .bold))
                         }
-                        .foregroundColor(isFav ? KLTheme.imdbGold : .white)
+                        .foregroundColor(isFavFilm ? KLTheme.imdbGold : .white)
                         .padding(.horizontal, 11)
                         .padding(.vertical, 8)
                         .background(Color.white.opacity(0.10))

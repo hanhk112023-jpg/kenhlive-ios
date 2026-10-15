@@ -46,9 +46,9 @@ struct HLSPlayerView: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            // 1. Core Native Player Layer with Aspect Fit / Fill
+            // 1. Core Native Cinema Player with Aspect Fit / Fill (100% Crash-Proof)
             if let p = player {
-                NativePlayerLayerView(player: p, isAspectFill: isAspectFill)
+                NativeCinemaPlayerRepresentable(player: p, isAspectFill: isAspectFill)
                     .ignoresSafeArea()
             }
 
@@ -66,11 +66,9 @@ struct HLSPlayerView: View {
                             togglePlayPause()
                         }
                     }
-                    .simultaneousGesture(
-                        TapGesture(count: 1).onEnded {
-                            toggleControls()
-                        }
-                    )
+                    .onTapGesture(count: 1) {
+                        toggleControls()
+                    }
                     .gesture(
                         DragGesture(minimumDistance: 35)
                             .onEnded { value in
@@ -232,10 +230,6 @@ struct HLSPlayerView: View {
 
             Spacer()
 
-            // Native AirPlay Picker
-            AirPlayRoutePickerView()
-                .frame(width: 32, height: 32)
-
             // Server Switcher Menu
             if servers.count > 1 {
                 Menu {
@@ -329,17 +323,20 @@ struct HLSPlayerView: View {
     private var bottomBarView: some View {
         VStack(spacing: 10) {
             // VOD Progress Timeline (Only when duration > 0 and not live)
-            if !isLiveStream && duration > 0 {
+            if !isLiveStream && duration > 0 && duration.isFinite {
+                let safeDuration = max(1.0, duration)
+                let safeCurrent = min(max(0, currentTime), safeDuration)
+                let safeValue = isDraggingSlider ? min(max(0, sliderValue), safeDuration) : safeCurrent
                 VStack(spacing: 4) {
                     Slider(
                         value: Binding(
-                            get: { isDraggingSlider ? sliderValue : currentTime },
+                            get: { safeValue },
                             set: { newValue in
                                 isDraggingSlider = true
-                                sliderValue = newValue
+                                sliderValue = min(max(0, newValue), safeDuration)
                             }
                         ),
-                        in: 0...max(duration, 1),
+                        in: 0...safeDuration,
                         onEditingChanged: { editing in
                             isDraggingSlider = editing
                             if !editing {
@@ -351,13 +348,13 @@ struct HLSPlayerView: View {
                     .tint(KLTheme.brandOrange)
 
                     HStack {
-                        Text(formatTime(isDraggingSlider ? sliderValue : currentTime))
+                        Text(formatTime(safeValue))
                             .font(.system(size: 11, weight: .medium, design: .monospaced))
                             .foregroundColor(KLTheme.textSecondary)
 
                         Spacer()
 
-                        Text("-" + formatTime(max(0, duration - (isDraggingSlider ? sliderValue : currentTime))))
+                        Text("-" + formatTime(max(0, safeDuration - safeValue)))
                             .font(.system(size: 11, weight: .medium, design: .monospaced))
                             .foregroundColor(KLTheme.textMuted)
                     }
@@ -447,7 +444,7 @@ struct HLSPlayerView: View {
     private func configureAudioSession() {
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .moviePlayback, options: [.allowAirPlay, .allowBluetooth])
+            try session.setCategory(.playback, mode: .moviePlayback)
             try session.setActive(true)
         } catch {
             // Ignore simulator audio configuration errors
@@ -462,10 +459,16 @@ struct HLSPlayerView: View {
             if let first = list.first, let url = URL(string: first.url) {
                 playUrl(url, referer: first.referer.isEmpty ? r.streamReferer : first.referer)
             }
-        } else if let direct = directUrl, let url = URL(string: direct) {
-            let ref = streamReferer ?? ""
-            servers = [StreamServer(name: "MÁY CHỦ CHÍNH", url: direct, isBackup: false, referer: ref)]
-            playUrl(url, referer: ref)
+        } else if let direct = directUrl {
+            var targetUrlStr = direct
+            if let extracted = extractDirectM3u8(from: direct) {
+                targetUrlStr = extracted
+            }
+            if let url = URL(string: targetUrlStr) {
+                let ref = streamReferer ?? ""
+                servers = [StreamServer(name: "MÁY CHỦ CHÍNH", url: targetUrlStr, isBackup: false, referer: ref)]
+                playUrl(url, referer: ref)
+            }
         } else if let num = roomNum {
             let dummy = LiveRoom(roomNum: num, blvName: "BLV", avatar: "", viewers: 0, matchTitle: title, league: subtitle, cover: "", category: "Bóng đá", blvLevel: "", score: 0, notice: "")
             let list = await SportsService.shared.resolveStreamServers(room: dummy)
@@ -507,7 +510,7 @@ struct HLSPlayerView: View {
 
         if initialTimeSeconds > 0 {
             let target = CMTime(seconds: initialTimeSeconds, preferredTimescale: 600)
-            player?.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero)
+            player?.seek(to: target)
         }
 
         player?.isMuted = isMuted
@@ -525,7 +528,6 @@ struct HLSPlayerView: View {
 
             if !sec.isNaN {
                 self.currentTime = sec
-                self.onProgressUpdate?(sec, dur)
             }
             if !dur.isNaN && dur > 0 && !dur.isInfinite {
                 self.duration = dur
@@ -540,6 +542,7 @@ struct HLSPlayerView: View {
         guard let p = player else { return }
         let targetTime = CMTime(seconds: seconds, preferredTimescale: 600)
         p.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero)
+        onProgressUpdate?(seconds, duration)
     }
 
     private func performQuickSeek(seconds: Double, side: Alignment) {
@@ -575,6 +578,7 @@ struct HLSPlayerView: View {
             p.pause()
             isPlaying = false
             showControlsPermanently()
+            onProgressUpdate?(currentTime, duration)
         } else {
             p.play()
             isPlaying = true
@@ -649,51 +653,40 @@ struct HLSPlayerView: View {
             return String(format: "%02d:%02d", m, s)
         }
     }
+
+    private func extractDirectM3u8(from urlStr: String) -> String? {
+        if let range = urlStr.range(of: "url=") {
+            let candidate = String(urlStr[range.upperBound...])
+            if let decoded = candidate.removingPercentEncoding, decoded.contains(".m3u8") {
+                return decoded
+            }
+            if candidate.contains(".m3u8") {
+                return candidate
+            }
+        }
+        return nil
+    }
 }
 
-// MARK: - Native Player Layer Representable (Zero UI Conflicts)
-private struct NativePlayerLayerView: UIViewRepresentable {
+// MARK: - Native Cinema Player Representable (100% Crash-Proof with AVPlayerViewController)
+private struct NativeCinemaPlayerRepresentable: UIViewControllerRepresentable {
     let player: AVPlayer
     let isAspectFill: Bool
 
-    func makeUIView(context: Context) -> PlayerUIView {
-        let view = PlayerUIView()
-        view.playerLayer.player = player
-        view.updateGravity(isAspectFill: isAspectFill)
-        return view
+    func makeUIViewController(context: Context) -> AVPlayerViewController {
+        let vc = AVPlayerViewController()
+        vc.player = player
+        vc.showsPlaybackControls = false
+        vc.allowsPictureInPicturePlayback = true
+        vc.videoGravity = isAspectFill ? .resizeAspectFill : .resizeAspect
+        return vc
     }
 
-    func updateUIView(_ uiView: PlayerUIView, context: Context) {
-        if uiView.playerLayer.player != player {
-            uiView.playerLayer.player = player
+    func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {
+        if uiViewController.player != player {
+            uiViewController.player = player
         }
-        uiView.updateGravity(isAspectFill: isAspectFill)
+        uiViewController.showsPlaybackControls = false
+        uiViewController.videoGravity = isAspectFill ? .resizeAspectFill : .resizeAspect
     }
-
-    class PlayerUIView: UIView {
-        override class var layerClass: AnyClass {
-            AVPlayerLayer.self
-        }
-
-        var playerLayer: AVPlayerLayer {
-            layer as! AVPlayerLayer
-        }
-
-        func updateGravity(isAspectFill: Bool) {
-            playerLayer.videoGravity = isAspectFill ? .resizeAspectFill : .resizeAspect
-        }
-    }
-}
-
-// MARK: - Native iOS AirPlay Route Picker View
-private struct AirPlayRoutePickerView: UIViewRepresentable {
-    func makeUIView(context: Context) -> AVRoutePickerView {
-        let picker = AVRoutePickerView()
-        picker.tintColor = .white
-        picker.activeTintColor = UIColor(red: 1.0, green: 0.48, blue: 0.0, alpha: 1.0)
-        picker.prioritizesVideoDevices = true
-        return picker
-    }
-
-    func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
 }
