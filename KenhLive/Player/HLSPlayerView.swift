@@ -1,6 +1,8 @@
 import SwiftUI
+import AVFoundation
 import AVKit
 
+// MARK: - Native iOS Cinema Player View
 struct HLSPlayerView: View {
     let title: String
     let subtitle: String
@@ -10,80 +12,128 @@ struct HLSPlayerView: View {
     var room: LiveRoom? = nil
 
     @Environment(\.dismiss) private var dismiss
+
+    // Player Core State
+    @State private var player: AVPlayer? = nil
     @State private var servers: [StreamServer] = []
     @State private var currentServerIndex: Int = 0
-    @State private var player: AVPlayer? = nil
-    @State private var isShowingServerSheet: Bool = false
     @State private var isLoadingStream: Bool = true
+    @State private var isPlaying: Bool = true
+    @State private var isMuted: Bool = false
+    @State private var isAspectFill: Bool = false
+
+    // VOD Timeline State
+    @State private var isLiveStream: Bool = true
+    @State private var currentTime: Double = 0
+    @State private var duration: Double = 0
+    @State private var isDraggingSlider: Bool = false
+    @State private var sliderValue: Double = 0
+    @State private var timeObserverToken: Any? = nil
+
+    // OSD Overlay & Interaction
+    @State private var isControlsVisible: Bool = true
+    @State private var hideControlsTask: Task<Void, Never>? = nil
+    @State private var seekRippleText: String? = nil
+    @State private var seekRippleSide: Alignment = .center
+    @State private var seekRippleTask: Task<Void, Never>? = nil
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
+            // 1. Core Native Player Layer with Aspect Fit / Fill
             if let p = player {
-                CustomAVPlayerViewControllerRepresentable(player: p)
+                NativePlayerLayerView(player: p, isAspectFill: isAspectFill)
                     .ignoresSafeArea()
             }
 
-            // Top Bar Overlay
-            VStack {
-                HStack(alignment: .top) {
-                    Button {
-                        player?.pause()
-                        dismiss()
-                    } label: {
-                        Text("ĐÓNG")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 8)
-                            .background(Color.black.opacity(0.65))
-                            .cornerRadius(8)
-                    }
-
-                    Spacer()
-
-                    VStack(alignment: .trailing, spacing: 3) {
-                        Text(title)
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(.white)
-                            .lineLimit(1)
-
-                        Text(subtitle)
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(KLTheme.textSecondary)
-                    }
-
-                    if servers.count > 1 {
-                        Button {
-                            isShowingServerSheet = true
-                        } label: {
-                            Text("ĐỔI SERVER")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(KLTheme.brandOrange)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 8)
-                                .background(Color.black.opacity(0.65))
-                                .cornerRadius(8)
+            // 2. Gesture Surface (Single tap to toggle, Double tap to seek, Swipe to dismiss)
+            GeometryReader { geo in
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture(count: 2) { location in
+                        let width = geo.size.width
+                        if location.x < width * 0.42 {
+                            performQuickSeek(seconds: -10, side: .leading)
+                        } else if location.x > width * 0.58 {
+                            performQuickSeek(seconds: 10, side: .trailing)
+                        } else {
+                            togglePlayPause()
                         }
                     }
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 10)
+                    .simultaneousGesture(
+                        TapGesture(count: 1).onEnded {
+                            toggleControls()
+                        }
+                    )
+                    .gesture(
+                        DragGesture(minimumDistance: 35)
+                            .onEnded { value in
+                                // Swipe down to dismiss (Standard iOS Modal Gesture)
+                                if value.translation.height > 85 && abs(value.translation.width) < 120 {
+                                    closePlayer()
+                                }
+                            }
+                    )
+                    .gesture(
+                        MagnificationGesture()
+                            .onEnded { scale in
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                    isAspectFill = scale > 1.05
+                                }
+                            }
+                    )
+            }
+            .ignoresSafeArea()
 
-                Spacer()
+            // 3. Double-Tap Seek Ripple Feedback Overlay
+            if let ripple = seekRippleText {
+                HStack {
+                    if seekRippleSide == .trailing { Spacer() }
+
+                    VStack(spacing: 6) {
+                        Image(systemName: seekRippleSide == .leading ? "gobackward.10" : "goforward.10")
+                            .font(.system(size: 26, weight: .bold))
+                        Text(ripple)
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 22)
+                    .padding(.vertical, 16)
+                    .background(Color.black.opacity(0.72))
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(KLTheme.brandOrange.opacity(0.4), lineWidth: 1)
+                    )
+                    .padding(.horizontal, 40)
+                    .transition(.scale(scale: 0.85).combined(with: .opacity))
+
+                    if seekRippleSide == .leading { Spacer() }
+                }
+                .allowsHitTesting(false)
             }
 
+            // 4. Loading Indicator / Error View
             if isLoadingStream {
-                ProgressView()
-                    .tint(KLTheme.brandOrange)
-            } else if servers.isEmpty {
                 VStack(spacing: 12) {
+                    ProgressView()
+                        .tint(KLTheme.brandOrange)
+                        .scaleEffect(1.2)
+                    Text("Đang kết nối luồng phát...")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(KLTheme.textSecondary)
+                }
+                .padding(20)
+                .background(Color.black.opacity(0.75))
+                .cornerRadius(12)
+            } else if servers.isEmpty {
+                VStack(spacing: 14) {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.system(size: 36))
+                        .font(.system(size: 34))
                         .foregroundColor(KLTheme.brandOrange)
                     Text("Luồng phát chưa sẵn sàng hoặc đài tạm dừng")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: 13.5, weight: .semibold))
                         .foregroundColor(.white)
                     Button {
                         Task { await startPlayback() }
@@ -97,22 +147,289 @@ struct HLSPlayerView: View {
                             .cornerRadius(8)
                     }
                 }
+                .padding(24)
+                .background(Color.black.opacity(0.85))
+                .cornerRadius(14)
+            }
+
+            // 5. iOS Cinema On-Screen Display (OSD) Overlay
+            if isControlsVisible {
+                VStack(spacing: 0) {
+                    // Top Bar with Gradient Vignette Protection
+                    topBarView
+                        .background(
+                            LinearGradient(
+                                colors: [Color.black.opacity(0.85), Color.black.opacity(0.45), Color.clear],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+
+                    Spacer()
+
+                    // Center Transport Controls (Play / Pause & Seek 10s)
+                    centerControlsView
+
+                    Spacer()
+
+                    // Bottom Bar (Timeline or Live Badge + Aspect / Volume)
+                    bottomBarView
+                        .background(
+                            LinearGradient(
+                                colors: [Color.clear, Color.black.opacity(0.55), Color.black.opacity(0.90)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                }
+                .transition(.opacity)
+                .ignoresSafeArea(edges: [.top, .bottom])
             }
         }
         .task {
+            configureAudioSession()
             await startPlayback()
         }
         .onDisappear {
-            player?.pause()
-            player = nil
+            closePlayer()
         }
-        .confirmationDialog("Chọn Máy Chủ Phát", isPresented: $isShowingServerSheet, titleVisibility: .visible) {
-            ForEach(Array(servers.enumerated()), id: \.offset) { index, srv in
-                Button(srv.name) {
-                    switchServer(to: index)
+    }
+
+    // MARK: - Top Bar View
+    private var topBarView: some View {
+        HStack(alignment: .center, spacing: 12) {
+            // Dismiss Button (Standard iOS Glass Blur Button)
+            Button {
+                KLHaptics.light()
+                closePlayer()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(width: 36, height: 36)
+                    .background(Color.white.opacity(0.18))
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+
+            // Title & Subtitle
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: 14.5, weight: .bold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+
+                Text(subtitle)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(KLTheme.textSecondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            // Native AirPlay Picker
+            AirPlayRoutePickerView()
+                .frame(width: 32, height: 32)
+
+            // Server Switcher Menu
+            if servers.count > 1 {
+                Menu {
+                    ForEach(Array(servers.enumerated()), id: \.offset) { index, srv in
+                        Button {
+                            switchServer(to: index)
+                        } label: {
+                            HStack {
+                                Text(srv.name)
+                                if index == currentServerIndex {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "server.rack")
+                            .font(.system(size: 10))
+                        Text("Server \(currentServerIndex + 1)")
+                            .font(.system(size: 11, weight: .bold))
+                    }
+                    .foregroundColor(KLTheme.brandOrange)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color.black.opacity(0.65))
+                    .clipShape(Capsule())
+                    .overlay(
+                        Capsule().stroke(KLTheme.brandOrange.opacity(0.4), lineWidth: 0.8)
+                    )
                 }
             }
-            Button("Hủy", role: .cancel) { }
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 48) // Safe area top offset
+        .padding(.bottom, 16)
+    }
+
+    // MARK: - Center Controls View
+    private var centerControlsView: some View {
+        HStack(spacing: 36) {
+            // Seek Backward 10s
+            Button {
+                performQuickSeek(seconds: -10, side: .leading)
+            } label: {
+                Image(systemName: "gobackward.10")
+                    .font(.system(size: 26, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(width: 48, height: 48)
+                    .background(Color.black.opacity(0.55))
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+
+            // Play / Pause Button
+            Button {
+                togglePlayPause()
+            } label: {
+                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(width: 66, height: 66)
+                    .background(
+                        LinearGradient(
+                            colors: [KLTheme.brandOrange, Color(red: 0.95, green: 0.32, blue: 0.05)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .clipShape(Circle())
+                    .shadow(color: KLTheme.brandOrange.opacity(0.4), radius: 10, x: 0, y: 3)
+            }
+            .buttonStyle(.plain)
+
+            // Seek Forward 10s
+            Button {
+                performQuickSeek(seconds: 10, side: .trailing)
+            } label: {
+                Image(systemName: "goforward.10")
+                    .font(.system(size: 26, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(width: 48, height: 48)
+                    .background(Color.black.opacity(0.55))
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    // MARK: - Bottom Bar View
+    private var bottomBarView: some View {
+        VStack(spacing: 10) {
+            // VOD Progress Timeline (Only when duration > 0 and not live)
+            if !isLiveStream && duration > 0 {
+                VStack(spacing: 4) {
+                    Slider(
+                        value: Binding(
+                            get: { isDraggingSlider ? sliderValue : currentTime },
+                            set: { newValue in
+                                isDraggingSlider = true
+                                sliderValue = newValue
+                            }
+                        ),
+                        in: 0...max(duration, 1),
+                        onEditingChanged: { editing in
+                            isDraggingSlider = editing
+                            if !editing {
+                                seekToTime(sliderValue)
+                            }
+                            rescheduleAutoHide()
+                        }
+                    )
+                    .tint(KLTheme.brandOrange)
+
+                    HStack {
+                        Text(formatTime(isDraggingSlider ? sliderValue : currentTime))
+                            .font(.system(size: 11, weight: .medium, design: .monospaced))
+                            .foregroundColor(KLTheme.textSecondary)
+
+                        Spacer()
+
+                        Text("-" + formatTime(max(0, duration - (isDraggingSlider ? sliderValue : currentTime))))
+                            .font(.system(size: 11, weight: .medium, design: .monospaced))
+                            .foregroundColor(KLTheme.textMuted)
+                    }
+                }
+            }
+
+            // Bottom Actions Row: Live Badge + Aspect Ratio Toggle + Mute Toggle
+            HStack(alignment: .center, spacing: 14) {
+                if isLiveStream {
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(KLTheme.liveRed)
+                            .frame(width: 7, height: 7)
+                        Text("TRỰC TIẾP")
+                            .font(.system(size: 11, weight: .black, design: .rounded))
+                            .foregroundColor(KLTheme.liveRed)
+                    }
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 4.5)
+                    .background(KLTheme.liveRed.opacity(0.15))
+                    .cornerRadius(6)
+                }
+
+                Spacer()
+
+                // Aspect Ratio Toggle (Fit vs Fill)
+                Button {
+                    KLHaptics.selection()
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.8)) {
+                        isAspectFill.toggle()
+                    }
+                    rescheduleAutoHide()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: isAspectFill ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
+                            .font(.system(size: 11, weight: .bold))
+                        Text(isAspectFill ? "GỐC 16:9" : "TRÀN VIỀN")
+                            .font(.system(size: 10, weight: .heavy))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background(Color.white.opacity(0.16))
+                    .cornerRadius(7)
+                }
+                .buttonStyle(.plain)
+
+                // Mute / Unmute Toggle
+                Button {
+                    KLHaptics.light()
+                    isMuted.toggle()
+                    player?.isMuted = isMuted
+                    rescheduleAutoHide()
+                } label: {
+                    Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(isMuted ? KLTheme.liveRed : .white)
+                        .frame(width: 34, height: 34)
+                        .background(Color.white.opacity(0.16))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 10)
+        .padding(.bottom, 36) // Safe area bottom offset
+    }
+
+    // MARK: - Playback Logic
+    private func configureAudioSession() {
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .moviePlayback, options: [.allowAirPlay, .allowBluetooth])
+            try session.setActive(true)
+        } catch {
+            // Ignore simulator audio configuration errors
         }
     }
 
@@ -143,6 +460,7 @@ struct HLSPlayerView: View {
         guard index < servers.count, let url = URL(string: servers[index].url) else { return }
         currentServerIndex = index
         playUrl(url, referer: servers[index].referer)
+        rescheduleAutoHide()
     }
 
     private func playUrl(_ url: URL, referer: String) {
@@ -157,27 +475,191 @@ struct HLSPlayerView: View {
             "AVURLAssetHTTPHeaderFieldsKey": headers
         ])
         let item = AVPlayerItem(asset: asset)
+
         if player == nil {
-            player = AVPlayer(playerItem: item)
+            let p = AVPlayer(playerItem: item)
+            self.player = p
+            setupTimeObserver(for: p)
         } else {
             player?.replaceCurrentItem(with: item)
         }
+
+        player?.isMuted = isMuted
         player?.play()
+        isPlaying = true
+        scheduleAutoHide()
+    }
+
+    private func setupTimeObserver(for p: AVPlayer) {
+        let interval = CMTime(seconds: 0.5, preferredTimescale: 600)
+        timeObserverToken = p.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak p] time in
+            guard let currentItem = p?.currentItem else { return }
+            let sec = CMTimeGetSeconds(time)
+            let dur = CMTimeGetSeconds(currentItem.duration)
+
+            if !sec.isNaN {
+                self.currentTime = sec
+            }
+            if !dur.isNaN && dur > 0 && !dur.isInfinite {
+                self.duration = dur
+                self.isLiveStream = false
+            } else {
+                self.isLiveStream = true
+            }
+        }
+    }
+
+    private func seekToTime(_ seconds: Double) {
+        guard let p = player else { return }
+        let targetTime = CMTime(seconds: seconds, preferredTimescale: 600)
+        p.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero)
+    }
+
+    private func performQuickSeek(seconds: Double, side: Alignment) {
+        guard let p = player else { return }
+        KLHaptics.light()
+
+        let current = CMTimeGetSeconds(p.currentTime())
+        let target = max(0, current + seconds)
+        seekToTime(target)
+
+        // Show visual ripple
+        seekRippleText = seconds > 0 ? "+\(Int(seconds))s" : "\(Int(seconds))s"
+        seekRippleSide = side
+        seekRippleTask?.cancel()
+        seekRippleTask = Task {
+            try? await Task.sleep(nanoseconds: 750_000_000)
+            if !Task.isCancelled {
+                await MainActor.run {
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        seekRippleText = nil
+                    }
+                }
+            }
+        }
+
+        rescheduleAutoHide()
+    }
+
+    private func togglePlayPause() {
+        guard let p = player else { return }
+        KLHaptics.medium()
+        if isPlaying {
+            p.pause()
+            isPlaying = false
+            showControlsPermanently()
+        } else {
+            p.play()
+            isPlaying = true
+            rescheduleAutoHide()
+        }
+    }
+
+    private func toggleControls() {
+        withAnimation(.easeInOut(duration: 0.22)) {
+            isControlsVisible.toggle()
+        }
+        if isControlsVisible {
+            rescheduleAutoHide()
+        }
+    }
+
+    private func scheduleAutoHide() {
+        hideControlsTask?.cancel()
+        hideControlsTask = Task {
+            try? await Task.sleep(nanoseconds: 3_800_000_000)
+            if !Task.isCancelled {
+                await MainActor.run {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        isControlsVisible = false
+                    }
+                }
+            }
+        }
+    }
+
+    private func rescheduleAutoHide() {
+        if isPlaying {
+            scheduleAutoHide()
+        }
+    }
+
+    private func showControlsPermanently() {
+        hideControlsTask?.cancel()
+        withAnimation(.easeInOut(duration: 0.22)) {
+            isControlsVisible = true
+        }
+    }
+
+    private func closePlayer() {
+        hideControlsTask?.cancel()
+        seekRippleTask?.cancel()
+        if let token = timeObserverToken {
+            player?.removeTimeObserver(token)
+            timeObserverToken = nil
+        }
+        player?.pause()
+        player = nil
+        dismiss()
+    }
+
+    private func formatTime(_ seconds: Double) -> String {
+        guard !seconds.isNaN && !seconds.isInfinite else { return "00:00" }
+        let total = Int(seconds)
+        let m = total / 60
+        let s = total % 60
+        let h = total / 3600
+        if h > 0 {
+            return String(format: "%02d:%02d:%02d", h, m % 60, s)
+        } else {
+            return String(format: "%02d:%02d", m, s)
+        }
     }
 }
 
-private struct CustomAVPlayerViewControllerRepresentable: UIViewControllerRepresentable {
+// MARK: - Native Player Layer Representable (Zero UI Conflicts)
+private struct NativePlayerLayerView: UIViewRepresentable {
     let player: AVPlayer
+    let isAspectFill: Bool
 
-    func makeUIViewController(context: Context) -> AVPlayerViewController {
-        let vc = AVPlayerViewController()
-        vc.player = player
-        vc.allowsPictureInPicturePlayback = true
-        vc.showsPlaybackControls = true
-        return vc
+    func makeUIView(context: Context) -> PlayerUIView {
+        let view = PlayerUIView()
+        view.playerLayer.player = player
+        view.updateGravity(isAspectFill: isAspectFill)
+        return view
     }
 
-    func updateUIViewController(_ uiViewController: AVPlayerViewController, context: Context) {
-        uiViewController.player = player
+    func updateUIView(_ uiView: PlayerUIView, context: Context) {
+        if uiView.playerLayer.player != player {
+            uiView.playerLayer.player = player
+        }
+        uiView.updateGravity(isAspectFill: isAspectFill)
     }
+
+    class PlayerUIView: UIView {
+        override class var layerClass: AnyClass {
+            AVPlayerLayer.self
+        }
+
+        var playerLayer: AVPlayerLayer {
+            layer as! AVPlayerLayer
+        }
+
+        func updateGravity(isAspectFill: Bool) {
+            playerLayer.videoGravity = isAspectFill ? .resizeAspectFill : .resizeAspect
+        }
+    }
+}
+
+// MARK: - Native iOS AirPlay Route Picker View
+private struct AirPlayRoutePickerView: UIViewRepresentable {
+    func makeUIView(context: Context) -> AVRoutePickerView {
+        let picker = AVRoutePickerView()
+        picker.tintColor = .white
+        picker.activeTintColor = UIColor(red: 1.0, green: 0.48, blue: 0.0, alpha: 1.0)
+        picker.prioritizesVideoDevices = true
+        return picker
+    }
+
+    func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
 }

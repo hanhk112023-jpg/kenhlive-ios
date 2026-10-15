@@ -54,9 +54,13 @@ struct IptvView: View {
 
                 // Inline Top Preview Player
                 if let preview = previewChannel {
-                    InlinePreviewPlayerView(channel: preview) {
-                        activeChannelForPlayer = preview
-                    }
+                    InlinePreviewPlayerView(
+                        channel: preview,
+                        isFullscreenActive: activeChannelForPlayer != nil,
+                        onExpandFullscreen: {
+                            activeChannelForPlayer = preview
+                        }
+                    )
                     .frame(height: 195)
                     .cornerRadius(14)
                     .padding(.horizontal, 16)
@@ -165,15 +169,20 @@ struct IptvView: View {
                 directUrl: channel.streamUrl
             )
         }
+        .onDisappear {
+            previewChannel = nil
+        }
     }
 }
 
 // MARK: - Inline Preview Player
 private struct InlinePreviewPlayerView: View {
     let channel: IptvChannel
+    let isFullscreenActive: Bool
     let onExpandFullscreen: () -> Void
 
     @State private var player: AVPlayer? = nil
+    @State private var isMuted: Bool = true // Always muted by default on iOS preview
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
@@ -213,12 +222,47 @@ private struct InlinePreviewPlayerView: View {
                 )
             }
             .buttonStyle(.plain)
+
+            // Mute / Unmute Floating Toggle Button (Top Right)
+            VStack {
+                HStack {
+                    Spacer()
+                    Button {
+                        KLHaptics.light()
+                        isMuted.toggle()
+                        player?.isMuted = isMuted
+                    } label: {
+                        Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(8)
+                            .background(Color.black.opacity(0.65))
+                            .clipShape(Circle())
+                    }
+                    .padding(8)
+                }
+                Spacer()
+            }
         }
         .onAppear {
-            setupPlayer()
+            if !isFullscreenActive {
+                setupPlayer()
+            }
         }
         .onChange(of: channel) { _ in
-            setupPlayer()
+            if !isFullscreenActive {
+                setupPlayer()
+            }
+        }
+        .onChange(of: isFullscreenActive) { active in
+            if active {
+                // Instantly pause and silence preview when fullscreen is active!
+                player?.pause()
+            } else {
+                // Resume preview (remains muted) when fullscreen is dismissed
+                player?.isMuted = isMuted
+                player?.play()
+            }
         }
         .onDisappear {
             player?.pause()
@@ -231,9 +275,13 @@ private struct InlinePreviewPlayerView: View {
             let resolved = await IptvService.shared.resolveStreamUrl(channel: channel)
             if let url = URL(string: resolved) {
                 await MainActor.run {
-                    self.player = AVPlayer(url: url)
-                    self.player?.isMuted = false
-                    self.player?.play()
+                    self.player?.pause()
+                    let newPlayer = AVPlayer(url: url)
+                    newPlayer.isMuted = self.isMuted
+                    self.player = newPlayer
+                    if !self.isFullscreenActive {
+                        self.player?.play()
+                    }
                 }
             }
         }

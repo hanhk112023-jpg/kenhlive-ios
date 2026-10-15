@@ -1,35 +1,32 @@
-# 🚀 KENHLIVE iOS v1.5.0 (Build 128) — ĐỒNG BỘ LOGO ĐỘI BÓNG ESPN 500x500, TỈ SỐ REAL-TIME & TÌM KIẾM PHIM CHUẨN NETFLIX
+# 🚀 KENHLIVE iOS v1.5.1 (Build 129) — KHẮC PHỤC TRIỆT ĐỂ TIẾNG PREVIEW & RA MẮT TRÌNH XEM CINEMA NATIVE CHUẨN IOS
 
-### 🛡️ 1. Đồng Bộ Logo Đội Bóng ESPN 500x500 & Huy Hiệu Khiên Thể Thao
-- **TeamLogoRegistry (Hạ Tầng Logo Đội Bóng Đa Nguồn)**:
-  - Tích hợp kho logo chính thức 500x500 PNG siêu nét từ **ESPN CDN** cho hơn 50 câu lạc bộ hàng đầu thế giới (*Man City, MU, Liverpool, Arsenal, Chelsea, Real Madrid, Barca, Bayern, Dortmund, PSG, Juventus, Inter Miami...*).
-  - Tự động bóc tách và đồng bộ logo từ 4 nhà đài thể thao (*ColaTV, Gà Vàng 33, Giờ Vàng TV, Socolive*).
-  - **Huy hiệu Khiên Thể Thao Cao Cấp (Shield Crest Placeholder)**: Tự động hiển thị khiên thể thao viền bạc sang trọng trên nền gradient obsidian khi trận đấu giải trẻ hoặc chưa tải kịp logo.
-
----
-
-### ⚽ 2. Thẻ Trận Đấu Stadium Scoreboard & Tỉ Số Trực Tiếp Real-Time
-- **Thiết kế Thẻ Trận Đấu Hiện Đại**:
-  - Logo đội nhà & đội khách hiển thị đối xứng hai bên.
-  - Tỉ số trực tiếp hiển thị bằng **Pill Neon Cam Nổi Bật** (`2 - 1`) cập nhật theo thời gian thực.
-  - Phân loại rõ ràng 4 nhà đài bằng huy hiệu màu sắc độc quyền:
-    - **COLA** (Cyan `#06B6D4`)
-    - **GÀ VÀNG 33** (Amber Gold `#F59E0B`)
-    - **GIỜ VÀNG TV** (Emerald Blue `#3B82F6`)
-    - **SOCOLIVE** (Emerald Green `#10B981`)
-- **Vòng lặp tự động cập nhật ngầm 60s**:
-  - Tự động làm mới tỉ số và các luồng phát mới mỗi 60 giây hoàn toàn ngầm trong nền, không làm gián đoạn vị trí cuộn của người dùng.
-- **Rung phản hồi xúc giác (Haptic Feedback)**: Cảm giác chạm mượt mà chuẩn native iOS khi chọn trận đấu và mở phòng phát.
+### 🔇 1. Khắc Phục Triệt Để Lỗi Trùng Tiếng Xem Trước Tại Tab Truyền Hình
+- **Tắt tiếng mặc định (Default Muted) cho Preview**: Khung xem trước kênh truyền hình giờ đây tự động tắt tiếng (`isMuted = true`) chuẩn trải nghiệm iOS (như YouTube/App Store), không còn bất ngờ phát tiếng khi người dùng duyệt danh sách kênh.
+- **Nút bật/tắt tiếng nhanh**: Bổ sung nút loa tròn tiện lợi ở góc phải khung xem trước để người dùng chủ động nghe thử nếu muốn.
+- **Tự động ngắt tiếng & tạm dừng ngay lập tức**:
+  - Khi người dùng bấm vào xem bất kỳ kênh nào toàn màn hình (`activeChannelForPlayer != nil`), trình xem trước sẽ **ngay lập tức tạm dừng và tắt tiếng 100%**, loại bỏ hoàn toàn hiện tượng vang/chồng chéo 2 luồng âm thanh cùng lúc.
+  - Khi chuyển sang tab khác hoặc đóng ứng dụng, trình xem trước tự động dọn dẹp bộ nhớ và giải phóng tài nguyên.
 
 ---
 
-### 🎬 3. Tìm Kiếm Phim & Anime Chuẩn Netflix Với Gợi Ý Bấm Nhanh
-- **Dãy Gợi Ý Xu Hướng Thịnh Hành (Trending Chips)**:
-  - Tích hợp sẵn các từ khóa hot nhất (*One Piece, Conan, Ao no Hako, Dan Da Dan, Doraemon, Dragon Ball, Lật Mặt, Tây Du Ký, Naruto, Solo Leveling...*).
-  - Bấm chọn bất kỳ chip nào để tìm kiếm và xem phim ngay lập tức trong tích tắc mà không cần gõ bàn phím.
-- **Lưới Ma Trận Poster Chuẩn Điện Ảnh 4K**:
-  - Hiển thị đầy đủ huy hiệu sao vàng IMDb (`★ 8.8`), độ phân giải (`4K` / `FHD`), số tập phát hành (`Tập 24`, `Trọn bộ`).
-  - Phát trực tiếp qua **AVPlayer Native HLS `.m3u8`**, hỗ trợ hoàn hảo **Picture-in-Picture (PiP)** và **AirPlay**.
+### 🎬 2. Tái Cấu Trúc Toàn Diện Trình Xem Video Cinema Native Cho iOS
+- **Loại bỏ xung đột giao diện**: Gỡ bỏ hoàn toàn thanh top bar đen tĩnh che khuất video, chuyển sang kiến trúc OSD (On-Screen Display) tự động ẩn sau 3.8 giây.
+- **Thao tác chạm & cử chỉ chuẩn iOS (Cinema Gestures)**:
+  - **Chạm 1 lần**: Ẩn/hiện bộ điều khiển OSD mượt mà.
+  - **Chạm 2 lần (Double Tap)**:
+    - Chạm nửa bên trái: Tua lùi 10s (`<< 10s`) kèm hiệu ứng ripple phát sáng và rung phản hồi `KLHaptics`.
+    - Chạm nửa bên phải: Tua tới 10s (`10s >>`) kèm hiệu ứng ripple phát sáng.
+  - **Kéo vuốt xuống (Swipe down to dismiss)**: Kéo nhẹ ngón tay từ trên xuống dưới để đóng trình phát ngay lập tức, đúng chuẩn tương tác iOS.
+  - **Thu phóng hai ngón tay (Pinch to Zoom)**: Thu phóng giữa tỉ lệ **Gốc 16:9** (không bị crop) và **Tràn viền (Aspect Fill)** lấp đầy màn hình iPhone tai thỏ / Dynamic Island.
+- **Bộ điều khiển trung tâm & Thanh thời gian (Scrubber)**:
+  - Nút Play/Pause lớn nổi bật ở giữa với hiệu ứng kính mờ glassmorphism.
+  - Đối với Phim VOD: Thanh kéo thời gian trực quan, hiển thị chi tiết thời lượng đã xem và thời gian còn lại.
+  - Đối với Thể Thao & Truyền Hình: Huy hiệu `● TRỰC TIẾP` đỏ rực rỡ, nút chuyển đổi tỉ lệ màn hình và nút tắt/bật âm thanh.
+- **Menu Đổi Server Chuẩn Native iOS**:
+  - Tích hợp menu xổ xuống của iOS kèm dấu tích `✓` trên server đang phát, thao tác chuyển server mượt mà không dừng luồng.
+- **Hỗ trợ AirPlay & Âm Thanh Chế Độ Im Lặng**:
+  - Tích hợp sẵn nút phát **AirPlay** lên Apple TV / Smart TV.
+  - Cấu hình chuẩn `AVAudioSession .playback` giúp video vẫn phát tiếng đầy đủ ngay cả khi iPhone đang gạt nút Rung / Im Lặng.
 
 ---
 
