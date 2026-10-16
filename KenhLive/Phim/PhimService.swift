@@ -55,6 +55,14 @@ final class PhimService {
         }
 
         cacheLock.lock()
+        if !moi.isEmpty { self.cachedCategoryFilms["phim-moi"] = moi }
+        if !bo.isEmpty { self.cachedCategoryFilms["phim-bo"] = bo }
+        if !le.isEmpty { self.cachedCategoryFilms["phim-le"] = le }
+        if !anime.isEmpty { self.cachedCategoryFilms["hoat-hinh"] = anime }
+        if !hq.isEmpty { self.cachedCategoryFilms["han-quoc"] = hq }
+        if !tq.isEmpty { self.cachedCategoryFilms["trung-quoc"] = tq }
+        if !am.isEmpty { self.cachedCategoryFilms["au-my"] = am }
+        if !hd.isEmpty { self.cachedCategoryFilms["hanh-dong"] = hd }
         self.cachedHomeSections = sections
         cacheLock.unlock()
         return sections
@@ -76,6 +84,12 @@ final class PhimService {
         var sections: [PhimSection] = []
         if !moi.isEmpty { sections.append(PhimSection(title: "Phim Mới Cập Nhật", subtitle: "Kho phim điện ảnh mới nhất hôm nay", films: moi)) }
         if !bo.isEmpty { sections.append(PhimSection(title: "Phim Bộ Đặc Sắc", subtitle: "Trọn bộ Vietsub & Thuyết Minh FHD", films: bo)) }
+
+        cacheLock.lock()
+        if !moi.isEmpty { self.cachedCategoryFilms["phim-moi"] = moi }
+        if !bo.isEmpty { self.cachedCategoryFilms["phim-bo"] = bo }
+        cacheLock.unlock()
+
         return sections
     }
 
@@ -96,7 +110,23 @@ final class PhimService {
         if !tq.isEmpty { sections.append(PhimSection(title: "Phim Trung Quốc Cổ Trang", subtitle: "Tiên hiệp, kiếm hiệp & cung đấu đỉnh cao", films: tq)) }
         if !am.isEmpty { sections.append(PhimSection(title: "Phim Âu Mỹ Bom Tấn", subtitle: "Điện ảnh Hollywood chất lượng 4K", films: am)) }
         if !hd.isEmpty { sections.append(PhimSection(title: "Hành Động & Võ Thuật", subtitle: "Kịch tính, nghẹt thở & mãn nhãn", films: hd)) }
+
+        cacheLock.lock()
+        if !le.isEmpty { self.cachedCategoryFilms["phim-le"] = le }
+        if !anime.isEmpty { self.cachedCategoryFilms["hoat-hinh"] = anime }
+        if !hq.isEmpty { self.cachedCategoryFilms["han-quoc"] = hq }
+        if !tq.isEmpty { self.cachedCategoryFilms["trung-quoc"] = tq }
+        if !am.isEmpty { self.cachedCategoryFilms["au-my"] = am }
+        if !hd.isEmpty { self.cachedCategoryFilms["hanh-dong"] = hd }
+        cacheLock.unlock()
+
         return sections
+    }
+
+    func getCachedCategory(slug: String) -> [FilmItem]? {
+        cacheLock.lock()
+        defer { cacheLock.unlock() }
+        return cachedCategoryFilms[slug]
     }
 
     // MARK: - 2. Category / Country / Genre Feed (Multi-Page / Large Batch)

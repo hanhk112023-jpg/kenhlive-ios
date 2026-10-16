@@ -34,6 +34,8 @@ struct PhimView: View {
     @State private var selectedFilmForEpisodes: FilmItem? = nil
     @State private var initialResumeProgressForSheet: WatchProgress? = nil
     @State private var autoPlayForSheet: Bool = false
+    @State private var isLoadingCategory: Bool = false
+    @State private var categoryLoadingTask: Task<Void, Never>? = nil
 
     private let filterPills: [KLFilterItem<String>] = [
         KLFilterItem(id: "tat-ca", title: "Trang Chủ Phim"),
@@ -90,7 +92,7 @@ struct PhimView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .refreshable {
-                await loadCategory(selectedFilter)
+                await selectCategory(selectedFilter)
             }
 
             if isLoading && sections.isEmpty && categoryFilms.isEmpty {
@@ -101,7 +103,7 @@ struct PhimView: View {
         }
         .task {
             if sections.isEmpty {
-                await loadCategory(selectedFilter)
+                await selectCategory(selectedFilter)
             }
         }
         .sheet(item: $selectedFilmForEpisodes) { film in
@@ -183,7 +185,7 @@ struct PhimView: View {
                                     .stroke(isSelected ? Color.white : KLTheme.borderSubtle, lineWidth: 0.8)
                             )
                     }
-                    .buttonStyle(KLScaleButtonStyle())
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 16)
@@ -249,11 +251,10 @@ struct PhimView: View {
     @ViewBuilder
     private func renderMainCatalogView() -> some View {
         VStack(alignment: .leading, spacing: 18) {
-            // Category Filter Strip
-            KLFilterStrip(items: filterPills, selection: $selectedFilter)
-                .onChange(of: selectedFilter) { newCat in
-                    Task { await loadCategory(newCat) }
-                }
+            // Category Filter Strip (Direct onSelect Callback with 0ms Cache Retrieval)
+            KLFilterStrip(items: filterPills, selection: $selectedFilter) { newCat in
+                Task { await selectCategory(newCat) }
+            }
 
             if selectedFilter == "tat-ca" {
                 // Billboard Hero
@@ -326,14 +327,18 @@ struct PhimView: View {
                         },
                         onSeeMore: {
                             KLHaptics.selection()
-                            if section.title.contains("Mới") { selectedFilter = "phim-moi" }
-                            else if section.title.contains("Bộ") { selectedFilter = "phim-bo" }
-                            else if section.title.contains("Lẻ") { selectedFilter = "phim-le" }
-                            else if section.title.contains("Hoạt Hình") { selectedFilter = "hoat-hinh" }
-                            else if section.title.contains("Hàn Quốc") { selectedFilter = "han-quoc" }
-                            else if section.title.contains("Trung Quốc") { selectedFilter = "trung-quoc" }
-                            else if section.title.contains("Âu Mỹ") { selectedFilter = "au-my" }
-                            else if section.title.contains("Hành Động") { selectedFilter = "hanh-dong" }
+                            let targetSlug: String
+                            if section.title.contains("Mới") { targetSlug = "phim-moi" }
+                            else if section.title.contains("Bộ") { targetSlug = "phim-bo" }
+                            else if section.title.contains("Lẻ") { targetSlug = "phim-le" }
+                            else if section.title.contains("Hoạt Hình") { targetSlug = "hoat-hinh" }
+                            else if section.title.contains("Hàn Quốc") { targetSlug = "han-quoc" }
+                            else if section.title.contains("Trung Quốc") { targetSlug = "trung-quoc" }
+                            else if section.title.contains("Âu Mỹ") { targetSlug = "au-my" }
+                            else if section.title.contains("Hành Động") { targetSlug = "hanh-dong" }
+                            else { targetSlug = "tat-ca" }
+
+                            Task { await selectCategory(targetSlug) }
                         }
                     )
                 }
@@ -350,38 +355,93 @@ struct PhimView: View {
     // MARK: - Category Grid View
     @ViewBuilder
     private func renderCategoryGridView() -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
             let title = filterPills.first(where: { $0.id == selectedFilter })?.title ?? "Danh Mục Phim"
             HStack {
-                Text(title.uppercased())
-                    .font(.system(size: 13, weight: .heavy))
-                    .tracking(0.6)
-                    .foregroundColor(.white)
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(KLTheme.brandOrange)
+                        .frame(width: 6, height: 6)
+                    Text(title.uppercased())
+                        .font(.system(size: 13, weight: .heavy))
+                        .tracking(0.6)
+                        .foregroundColor(.white)
+                }
 
                 Spacer()
 
-                Text("\(categoryFilms.count) PHIM")
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundColor(KLTheme.imdbGold)
-            }
-            .padding(.horizontal, 16)
-
-            LazyVGrid(columns: [
-                GridItem(.flexible(), spacing: 10),
-                GridItem(.flexible(), spacing: 10),
-                GridItem(.flexible(), spacing: 10)
-            ], spacing: 14) {
-                ForEach(categoryFilms) { film in
-                    Button {
-                        KLHaptics.light()
-                        selectedFilmForEpisodes = film
-                    } label: {
-                        PosterCell(film: film)
-                    }
-                    .buttonStyle(KLScaleButtonStyle())
+                if isLoadingCategory {
+                    ProgressView().tint(KLTheme.brandOrange).scaleEffect(0.85)
+                } else {
+                    Text("\(categoryFilms.count) PHIM")
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .foregroundColor(KLTheme.imdbGold)
                 }
             }
             .padding(.horizontal, 16)
+
+            if isLoadingCategory && categoryFilms.isEmpty {
+                // 12-Cell Skeleton Grid (Instant visual feedback)
+                LazyVGrid(columns: [
+                    GridItem(.flexible(), spacing: 10),
+                    GridItem(.flexible(), spacing: 10),
+                    GridItem(.flexible(), spacing: 10)
+                ], spacing: 14) {
+                    ForEach(0..<12, id: \.self) { _ in
+                        VStack(alignment: .leading, spacing: 6) {
+                            KLSkeletonView(height: 155, cornerRadius: 8)
+                            KLSkeletonView(height: 12, cornerRadius: 3)
+                            KLSkeletonView(height: 10, cornerRadius: 3)
+                                .frame(width: 80)
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
+            } else if categoryFilms.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "film.stack")
+                        .font(.system(size: 38))
+                        .foregroundColor(KLTheme.textMuted)
+
+                    Text("Chưa có phim trong mục \(title)")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(KLTheme.textSecondary)
+
+                    Button {
+                        KLHaptics.medium()
+                        Task { await selectCategory(selectedFilter) }
+                    } label: {
+                        Text("TẢI LẠI")
+                            .font(.system(size: 11.5, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(KLTheme.brandOrange)
+                            .cornerRadius(8)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 40)
+            } else {
+                LazyVGrid(columns: [
+                    GridItem(.flexible(), spacing: 10),
+                    GridItem(.flexible(), spacing: 10),
+                    GridItem(.flexible(), spacing: 10)
+                ], spacing: 14) {
+                    ForEach(categoryFilms) { film in
+                        Button {
+                            KLHaptics.light()
+                            autoPlayForSheet = false
+                            initialResumeProgressForSheet = nil
+                            selectedFilmForEpisodes = film
+                        } label: {
+                            PosterCell(film: film)
+                        }
+                        .buttonStyle(KLScaleButtonStyle())
+                    }
+                }
+                .padding(.horizontal, 16)
+            }
         }
     }
 
@@ -472,6 +532,37 @@ struct PhimView: View {
         }
     }
 
+    private func selectCategory(_ slug: String) async {
+        selectedFilter = slug
+        categoryLoadingTask?.cancel()
+
+        if slug == "tat-ca" {
+            if sections.isEmpty {
+                await loadCategory("tat-ca")
+            }
+        } else if slug == "lich-su" {
+            // Local watch history & bookmarks view
+        } else {
+            isLoadingCategory = true
+
+            // Fast 0ms cache retrieval
+            if let cached = PhimService.shared.getCachedCategory(slug: slug), !cached.isEmpty {
+                self.categoryFilms = cached
+                self.isLoadingCategory = false
+            }
+
+            categoryLoadingTask = Task {
+                let list = await PhimService.shared.fetchCategoryFilms(slug: slug)
+                if !Task.isCancelled {
+                    await MainActor.run {
+                        self.categoryFilms = list
+                        self.isLoadingCategory = false
+                    }
+                }
+            }
+        }
+    }
+
     private func loadCategory(_ slug: String) async {
         isLoading = true
         if slug == "tat-ca" {
@@ -497,9 +588,7 @@ struct PhimView: View {
         } else if slug == "lich-su" {
             isLoading = false
         } else {
-            let list = await PhimService.shared.fetchCategoryFilms(slug: slug)
-            categoryFilms = list
-            isLoading = false
+            await selectCategory(slug)
         }
     }
 

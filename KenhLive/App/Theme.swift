@@ -249,6 +249,7 @@ struct KLFilterItem<T: Hashable>: Identifiable, Hashable {
 struct KLFilterStrip<T: Hashable>: View {
     let items: [KLFilterItem<T>]
     @Binding var selection: T
+    var onSelect: ((T) -> Void)? = nil
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -260,6 +261,7 @@ struct KLFilterStrip<T: Hashable>: View {
                         withAnimation(.spring(response: 0.28, dampingFraction: 0.8)) {
                             selection = item.id
                         }
+                        onSelect?(item.id)
                     } label: {
                         HStack(spacing: 5) {
                             if let icon = item.icon {
@@ -292,7 +294,7 @@ struct KLFilterStrip<T: Hashable>: View {
                                 .stroke(isSelected ? KLTheme.brandOrange : KLTheme.borderSubtle, lineWidth: 1)
                         )
                     }
-                    .buttonStyle(KLScaleButtonStyle())
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 16)

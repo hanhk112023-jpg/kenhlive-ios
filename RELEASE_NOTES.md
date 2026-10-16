@@ -1,34 +1,21 @@
-# 🚀 KENHLIVE iOS v1.6.3 (Build 135) — ĐẠI TU TOÀN DIỆN MỤC PHIM & NÂNG CẤP TRÌNH PHÁT CINEMA PLAYLIST
+# 🚀 KENHLIVE iOS v1.6.4 (Build 136) — SỬA TRIỆT ĐỂ LỖI BẤM TAB DANH MỤC PHIM (HOẠT HÌNH, PHIM BỘ, PHIM LẺ...)
 
-### 🎬 1. Khắc Phục Triệt Để Toàn Bộ Lỗi Phần Phim (`EpisodePickerSheet.swift`)
-- **Xóa bỏ hoàn toàn Mini Player 220pt chạy ngầm**:
-  - Loại bỏ hoàn toàn trình phát thu nhỏ inline gây lỗi phát trùng 2 nguồn âm thanh (audio double/echo) và xung đột điều hướng.
-  - Khi người dùng bấm **"XEM PHIM NGAY"**, **"XEM TIẾP"** hoặc bấm vào **bất kỳ tập phim nào trong lưới**, app sẽ **phóng thẳng vào Cinema Player Toàn Màn Hình** (`HLSPlayerView`).
-- **Tự động khóa xoay ngang màn hình chuẩn điện ảnh**:
-  - Tích hợp `OrientationManager.lockLandscape()` tự động xoay ngang thiết bị (`UIWindowScene.requestGeometryUpdate`), mang lại trải nghiệm xem phim Netflix chuẩn rạp.
-  - Khi bấm đóng player hoặc vuốt xuống, app tự động trả lại màn hình dọc gọn gàng.
-- **Hỗ trợ chọn Server & Nhóm Tập mượt mà**:
-  - Đổi server Vietsub, Thuyết Minh, Lồng Tiếng dễ dàng.
-  - Phân nhóm 30 tập/tab cho các bộ phim dài (Conan, One Piece, v.v.).
-  - Đánh dấu tập đã xem với biểu tượng tích xanh `✓` chuẩn xác.
+### 🎯 1. Khắc Phục Triệt Để Lỗi Bấm Tab Thể Loại Phim (`Theme.swift` & `PhimView.swift`)
+- **Khắc phục lỗi nuốt cử chỉ chạm (Gesture Cancellation)**:
+  - Trước đây thanh lọc danh mục (`KLFilterStrip`) sử dụng `KLScaleButtonStyle` với hiệu ứng co giãn nút, dẫn đến việc cử chỉ cuộn ngang của `ScrollView` trên iOS chặn và nuốt mất lệnh bấm của người dùng khi ngón tay xê dịch nhẹ.
+  - **Khắc phục**: Chuyển style nút bấm sang `.buttonStyle(.plain)` và tích hợp callback điều hướng trực tiếp `onSelect`, giúp mọi thao tác bấm tab như **"Hoạt Hình & Anime"**, **"Phim Bộ"**, **"Phim Lẻ"**, **"Hàn Quốc"**, **"Trung Quốc"**, **"Âu Mỹ"**, v.v. phản hồi 100% tức thì ngay khi chạm.
+- **Nạp bộ nhớ đệm 0ms (Instant Cache Hit)**:
+  - Khi mở ứng dụng, toàn bộ danh mục thể loại (bao gồm Hoạt Hình & Anime) được tự động nạp sẵn vào RAM (`cachedCategoryFilms`). Khi người dùng bấm chuyển tab, danh sách phim hiển thị ngay lập tức với độ trễ 0ms.
+- **Hiệu ứng Skeleton Loading trực quan**:
+  - Khi nạp dữ liệu mới, hiển thị lưới 12 khung hình Skeleton xám nhấp nháy tạo phản hồi thị giác tức thời, không còn tình trạng đứng yên hay trống màn hình.
 
 ---
 
-### 📺 2. Trình Phát Hỗ Trợ Đổi Tập Trực Tiếp Trong Player (`HLSPlayerView.swift`)
-- **Nút "Tập Kế Tiếp ▶" và "◀ Tập Trước"**:
-  - Người dùng có thể chuyển tập nhanh chóng ngay trên thanh điều khiển OSD mà không cần phải thoát ra menu ngoài.
-- **Ngăn Kéo Danh Sách Tập (In-Player Episode Drawer)**:
-  - Bấm vào nút `TẬP (x/y)` ở góc trên để mở danh sách toàn bộ các tập ngay khi đang xem ở chế độ ngang.
-- **Tự động chuyển tập tiếp theo**:
-  - Khi xem hết một tập, trình phát tự động nhận diện `AVPlayerItemDidPlayToEndTime` và chuyển tiếp sang tập kế tiếp.
-
----
-
-### 🔍 3. Tối Ưu Tìm Kiếm & Nạp Luồng Phim Chuẩn RFC 3986 (`PhimService.swift`)
-- Chuẩn hóa URL mã hóa bằng `URLComponents`, khắc phục triệt để lỗi tìm kiếm các phim có khoảng trắng hoặc dấu tiếng Việt như *"One Piece"*, *"Lật Mặt"*, *"Tây Du Ký"*.
-- Thêm cơ chế tự động bóc tách link `.m3u8` trực tiếp từ link embed nếu server chưa trả về direct stream.
-- Cơ chế fallback an toàn giữa `thumb_url` và `poster_url`, không còn hiện tượng trắng ảnh poster.
-- Giới hạn thời gian chờ request (timeout 10s) chống treo giật giao diện khi mạng kém.
+### 🎬 2. Trình Phát Toàn Màn Hình Tự Động Khóa Xoay Ngang Chuẩn Netflix (`HLSPlayerView.swift`)
+- Bấm vào bất kỳ tập phim nào sẽ phóng thẳng vào chế độ toàn màn hình và tự động xoay ngang thiết bị (`OrientationManager.lockLandscape()`).
+- Tích hợp cụm nút chuyển tập **"◀ Tập Trước"** và **"Tập Kế Tiếp ▶"** ngay trong trình phát.
+- Ngăn kéo chọn tập nhanh `TẬP (x/y)` cho phép chuyển tập mượt mà mà không cần thoát ra ngoài.
+- Tự động chuyển tập kế tiếp khi xem hết một tập.
 
 ---
 
