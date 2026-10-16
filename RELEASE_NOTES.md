@@ -1,3 +1,40 @@
+# 🚀 KENHLIVE iOS v1.6.5 (Build 137) — GIAO DIỆN CINEMA NETFLIX CHUẨN ĐIỆN ẢNH THEO MẪU THIẾT KẾ MỚI
+
+### 🌟 1. Billboard Hero Tràn Viền Chuẩn Cinematic (410pt)
+- **Banner lớn nổi bật**: Áp dụng hiệu ứng chuyển dốc bóng mờ điện ảnh đa tầng (`Multi-Layer Cinema Scrim Gradient`), hình ảnh phim bao phủ toàn bộ phần đỉnh màn hình.
+- **Typography & Huy hiệu thông tin**:
+  - Tiêu đề phim chữ đậm bo tròn chuẩn rạp chiếu phim (`size: 26, weight: heavy`).
+  - Phụ đề tên gốc tiếng Anh thanh lịch.
+  - Hàng huy hiệu viên thuốc: **Năm phát hành**, **Huy hiệu vàng IMDb**, và **Huy hiệu 4K (PĐ-TM)**.
+- **Nút bấm "Xem chi tiết"**: Nút con nhộng màu trắng sang trọng mở ngay bảng danh sách tập phim và thông tin phát.
+- **Cụm 7 chấm phân trang (Carousel Dots)**: Tự động cuộn và cho phép vuốt chạm chuyển đổi giữa các tác phẩm điện ảnh hot nhất.
+
+---
+
+### 🎨 2. Khối Bộ Sưu Tập Vũ Trụ "Bạn đang quan tâm gì?"
+- Thiết kế thẻ ngang bo góc 18pt với gradient rực rỡ riêng biệt:
+  - **Marvel** (Tím huyền bí · 32 phim)
+  - **IMDb Top 100 Movies** (Cam đỏ · 52 phim)
+  - **DC Comic** (Xanh cobalt · 39 phim)
+  - **Hoạt Hình & Anime** (Xanh ngọc · 48 phim)
+  - **Chiếu Rạp Bom Tấn** (Hổ phách · 48 phim)
+  - **K-Drama Hot** (Hồng neon · 48 phim)
+  - **Cổ Trang Trung Quốc** (Đỏ rượu vang · 48 phim)
+- Nút mũi tên tròn `>` cho phép truy cập nhanh toàn bộ kho phim.
+
+---
+
+### 🏆 3. Kệ Xếp Hạng "Top tuần" (Weekly Leaderboard)
+- **Số thứ tự khổng lồ (#1, #2, #3...)**: Phông chữ siêu đậm bóng đổ chìm phong cách bảng xếp hạng điện ảnh quốc tế.
+- **Poster dọc tỷ lệ vàng 2:3**: Tích hợp thời lượng phim (⏱ 120), nhãn chất lượng Full HD / 4K, năm phát hành, điểm đánh giá sao và huy hiệu vàng IMDb.
+
+---
+
+### 🎬 4. Các Kệ Phim Chuyên Mục & Hệ Thống Đã Kiểm Chứng
+- Duy trì 100% tính năng cốt lõi: Tự động khóa xoay ngang chuẩn Netflix, không trùng âm thanh, chuyển tập tức thì trực tiếp trên player, cache 0ms cho tất cả danh mục thể loại.
+
+---
+
 # 🚀 KENHLIVE iOS v1.6.4 (Build 136) — SỬA TRIỆT ĐỂ LỖI BẤM TAB DANH MỤC PHIM (HOẠT HÌNH, PHIM BỘ, PHIM LẺ...)
 
 ### 🎯 1. Khắc Phục Triệt Để Lỗi Bấm Tab Thể Loại Phim (`Theme.swift` & `PhimView.swift`)
