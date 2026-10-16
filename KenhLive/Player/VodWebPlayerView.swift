@@ -5,13 +5,30 @@ struct VodWebPlayerView: View {
     let film: FilmItem
     let episode: EpisodeItem
 
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\\.dismiss) private var dismiss
     @State private var startTime: Date = Date()
 
     private var directHlsUrl: String {
         if !episode.m3u8.isEmpty { return episode.m3u8 }
+        if let direct = extractDirectM3u8(from: episode.embed) {
+            return direct
+        }
         if episode.embed.contains(".m3u8") { return episode.embed }
         return ""
+    }
+
+    private func extractDirectM3u8(from urlString: String) -> String? {
+        if urlString.hasPrefix("http") && urlString.contains(".m3u8") && !urlString.contains("?url=") {
+            return urlString
+        }
+        guard let url = URL(string: urlString),
+              let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return nil }
+        if let queryItem = components.queryItems?.first(where: { $0.name == "url" }),
+           let unwrapped = queryItem.value,
+           unwrapped.contains(".m3u8") {
+            return unwrapped
+        }
+        return nil
     }
 
     var body: some View {
@@ -21,7 +38,7 @@ struct VodWebPlayerView: View {
             if !directHlsUrl.isEmpty {
                 HLSPlayerView(
                     title: film.name,
-                    subtitle: "\(film.quality) · \(episode.name)",
+                    subtitle: "\\(film.quality) · \\(episode.name)",
                     roomNum: nil,
                     directUrl: directHlsUrl
                 )
@@ -33,17 +50,23 @@ struct VodWebPlayerView: View {
                 VStack {
                     HStack(alignment: .top) {
                         Button {
+                            KLHaptics.light()
                             saveProgress()
                             dismiss()
                         } label: {
-                            Text("ĐÓNG")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
-                                .background(Color.black.opacity(0.70))
-                                .cornerRadius(8)
+                            HStack(spacing: 4) {
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 11, weight: .bold))
+                                Text("ĐÓNG")
+                                    .font(.system(size: 11.5, weight: .bold))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(Color.black.opacity(0.75))
+                            .cornerRadius(8)
                         }
+                        .buttonStyle(KLScaleButtonStyle())
 
                         Spacer()
 

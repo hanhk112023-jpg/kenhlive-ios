@@ -4,7 +4,7 @@ import CoreImage
 import CoreImage.CIFilterBuiltins
 
 struct TelegramFeedbackSheet: View {
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\\.dismiss) private var dismiss
     @State private var copiedNotice: Bool = false
 
     private let telegramUrlString = "https://t.me/T990512S"
@@ -33,25 +33,31 @@ struct TelegramFeedbackSheet: View {
                                         endPoint: .bottomTrailing
                                     )
                                 )
-                                .frame(width: 64, height: 64)
+                                .frame(width: 60, height: 60)
 
                             Text("TG")
-                                .font(.system(size: 24, weight: .black, design: .rounded))
+                                .font(.system(size: 22, weight: .black, design: .rounded))
                                 .foregroundColor(.white)
                         }
                         .padding(.top, 4)
 
-                        Text("THÔNG BÁO BẢN CẬP NHẬT")
-                            .font(.system(size: 11, weight: .black, design: .rounded))
-                            .tracking(1.8)
-                            .foregroundColor(KLTheme.brandOrange)
+                        HStack(spacing: 5) {
+                            Text("BẢN PHÁT HÀNH CHÍNH THỨC")
+                                .font(.system(size: 10, weight: .black, design: .rounded))
+                                .tracking(1.6)
+                                .foregroundColor(KLTheme.brandOrange)
 
-                        Text("KenhLive v1.4.3 (Rạp Phim HLS 4K)")
-                            .font(.system(size: 22, weight: .heavy))
+                            Circle()
+                                .fill(KLTheme.brandOrange)
+                                .frame(width: 5, height: 5)
+                        }
+
+                        Text("KenhLive v1.6.0 (Build 132)")
+                            .font(.system(size: 22, weight: .heavy, design: .rounded))
                             .foregroundColor(.white)
 
-                        Text("Kênh tiếp nhận báo lỗi, yêu cầu thêm giải đấu & hỗ trợ kỹ thuật trực tiếp từ đội ngũ phát triển.")
-                            .font(.system(size: 13, weight: .regular))
+                        Text("Liquid Glass Cinema, Tìm Kiếm Toàn Năng, Scoreboard Real-Time & Trình Phát AVPlayer Metal 100% Crash-Proof.")
+                            .font(.system(size: 12.5, weight: .regular))
                             .foregroundColor(KLTheme.textSecondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 16)
@@ -59,46 +65,41 @@ struct TelegramFeedbackSheet: View {
 
                     // 3. What's New Feature List
                     VStack(alignment: .leading, spacing: 14) {
-                        Text("ĐIỂM NÂNG CẤP NỔI BẬT")
-                            .font(.system(size: 11, weight: .black, design: .rounded))
+                        Text("ĐIỂM NÂNG CẤP NỔI BẬT V1.6.0")
+                            .font(.system(size: 10.5, weight: .black, design: .rounded))
                             .tracking(1.2)
-                            .foregroundColor(KLTheme.textMuted)
+                            .foregroundColor(KLTheme.brandOrange)
+
+                        FeatureItemRow(
+                            badge: "CINEMA UI",
+                            badgeColor: KLTheme.brandOrange,
+                            title: "Liquid Glass Design HIG",
+                            desc: "Nền OLED Deep Black #06070B, hiệu ứng kính mờ đa tầng Liquid Glass, haptic feedback và thanh tìm kiếm đồng bộ."
+                        )
 
                         FeatureItemRow(
                             badge: "THỂ THAO",
-                            badgeColor: KLTheme.socoEmerald,
-                            title: "Gà Vàng 33 & Giờ Vàng TV",
-                            desc: "Bổ sung API chính thức từ Gà Vàng 33 và máy chủ VCDN Cloud Giờ Vàng TV, độc lập 100% với Socolive & ColaTV."
+                            badgeColor: KLTheme.liveRed,
+                            title: "4 Đài Độc Lập & Real-Time Scores",
+                            desc: "Socolive, ColaTV, Gà Vàng 33 & Giờ Vàng TV. Logo CLB ESPN 500x500 CDN, tỉ số tự động và EPG 7 ngày."
                         )
 
                         FeatureItemRow(
-                            badge: "NETFLIX",
-                            badgeColor: KLTheme.netflixRed,
-                            title: "Kho Phim Chuẩn Netflix Cinema",
-                            desc: "Billboard Hero 360pt, nhãn 98% Phù Hợp, Top 10 thịnh hành, tỷ lệ poster 2:3 chuẩn rạp và thanh xem dở đỏ rực."
-                        )
-
-                        FeatureItemRow(
-                            badge: "TRANG CHỦ",
-                            badgeColor: KLTheme.brandOrange,
-                            title: "Cổng Chọn Trung Tâm (Home Hub)",
-                            desc: "Thiết kế đại sảnh chọn 3 phân khu: Thể Thao, Kênh TV, Phim Truyện cùng cụm tiện ích đa màn và lịch thi đấu."
-                        )
-
-                        FeatureItemRow(
-                            badge: "HIỆU NĂNG",
+                            badge: "TÌM KIẾM",
                             badgeColor: KLTheme.accentCyan,
-                            title: "Siêu Mượt & Chống Lỗi SSL",
-                            desc: "Lọc bỏ hoàn toàn các luồng phát lỗi cert SSL, tối ưu Haptics cảm ứng xúc giác trên iOS."
+                            title: "Universal Cross-Content Search",
+                            desc: "Tìm kiếm đồng thời cả Trận Đấu Trực Tiếp, Kênh TV và Kho Phim VOD trong 1 thanh tìm kiếm duy nhất."
+                        )
+
+                        FeatureItemRow(
+                            badge: "TRÌNH PHÁT",
+                            badgeColor: KLTheme.netflixRed,
+                            title: "AVPlayerViewController Metal 100%",
+                            desc: "Loại bỏ hoàn toàn lỗi CALayer cast crash, safe seek timeline, cử chỉ tua ±10s, pinch zoom và Picture-in-Picture."
                         )
                     }
                     .padding(16)
-                    .background(KLTheme.surfaceCard)
-                    .cornerRadius(16)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(KLTheme.borderSubtle, lineWidth: 0.8)
-                    )
+                    .klGlassCard(cornerRadius: 16)
                     .padding(.horizontal, 16)
 
                     // 4. Native QR Code Card
@@ -108,30 +109,25 @@ struct TelegramFeedbackSheet: View {
                                 .interpolation(.none)
                                 .resizable()
                                 .scaledToFit()
-                                .frame(width: 140, height: 140)
-                                .padding(12)
+                                .frame(width: 130, height: 130)
+                                .padding(10)
                                 .background(Color.white)
-                                .cornerRadius(14)
+                                .cornerRadius(12)
                         }
 
-                        VStack(spacing: 4) {
-                            Text("Quét mã QR hoặc truy cập Telegram")
-                                .font(.system(size: 13, weight: .semibold))
+                        VStack(spacing: 3) {
+                            Text("Quét mã QR hoặc truy cập nhóm hỗ trợ")
+                                .font(.system(size: 12.5, weight: .semibold))
                                 .foregroundColor(.white)
 
                             Text(telegramHandle)
-                                .font(.system(size: 15, weight: .black, design: .monospaced))
+                                .font(.system(size: 14.5, weight: .black, design: .monospaced))
                                 .foregroundColor(KLTheme.telegramBlue)
                         }
                     }
                     .padding(16)
                     .frame(maxWidth: .infinity)
-                    .background(KLTheme.surfaceCard)
-                    .cornerRadius(16)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(KLTheme.borderSubtle, lineWidth: 0.8)
-                    )
+                    .klGlassCard(cornerRadius: 16)
                     .padding(.horizontal, 16)
 
                     // 5. Actions
@@ -145,8 +141,10 @@ struct TelegramFeedbackSheet: View {
                             }
                         } label: {
                             HStack(spacing: 8) {
+                                Image(systemName: "paperplane.fill")
+                                    .font(.system(size: 13, weight: .bold))
                                 Text("MỞ TELEGRAM @T990512S")
-                                    .font(.system(size: 13.5, weight: .bold))
+                                    .font(.system(size: 13, weight: .bold))
                                     .tracking(0.5)
                             }
                             .foregroundColor(.white)
@@ -171,7 +169,7 @@ struct TelegramFeedbackSheet: View {
                                     .foregroundColor(copiedNotice ? .green : KLTheme.textSecondary)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
-                                    .background(KLTheme.surfaceCard)
+                                    .background(Color.white.opacity(0.06))
                                     .cornerRadius(10)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 10)
@@ -208,7 +206,6 @@ struct TelegramFeedbackSheet: View {
         filter.message = Data(string.utf8)
 
         if let outputImage = filter.outputImage {
-            // Scale up the CIImage so it is sharp
             let transform = CGAffineTransform(scaleX: 8, y: 8)
             let scaledImage = outputImage.transformed(by: transform)
             if let cgImage = context.createCGImage(scaledImage, from: scaledImage.extent) {
@@ -232,11 +229,11 @@ private struct FeatureItemRow: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.system(size: 13.5, weight: .bold))
                     .foregroundColor(.white)
 
                 Text(desc)
-                    .font(.system(size: 12, weight: .regular))
+                    .font(.system(size: 11.5, weight: .regular))
                     .foregroundColor(KLTheme.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }

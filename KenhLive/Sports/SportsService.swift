@@ -100,14 +100,14 @@ final class SportsService {
     }
 
     // MARK: - 7-Day Schedule EPG
-    func fetchSchedule() async -> [ScheduleItem] {
+    func fetchSchedule(for date: Date = Date()) async -> [ScheduleItem] {
         let fmt = DateFormatter()
         fmt.dateFormat = "yyyyMMdd"
         fmt.timeZone = TimeZone(identifier: "Asia/Ho_Chi_Minh")
-        let todayStr = fmt.string(from: Date())
+        let dateStr = fmt.string(from: date)
         let now = Int64(Date().timeIntervalSince1970)
 
-        let urlStr = "\(socoApiBase)/match/matches_\(todayStr).json?callback=matches&v=\(now)&_=\(now)"
+        let urlStr = "\(socoApiBase)/match/matches_\(dateStr).json?callback=matches&v=\(now)&_=\(now)"
         if let url = URL(string: urlStr) {
             var req = URLRequest(url: url)
             req.setValue("https://vnres.co/", forHTTPHeaderField: "Referer")
@@ -122,7 +122,21 @@ final class SportsService {
                 timeFmt.dateFormat = "HH:mm"
                 timeFmt.timeZone = TimeZone(identifier: "Asia/Ho_Chi_Minh")
 
-                return matchesList.prefix(40).compactMap { m -> ScheduleItem? in
+                let isToday = Calendar.current.isDateInToday(date)
+                let isTomorrow = Calendar.current.isDateInTomorrow(date)
+                let dayLabel: String
+                if isToday {
+                    dayLabel = "Hôm nay"
+                } else if isTomorrow {
+                    dayLabel = "Ngày mai"
+                } else {
+                    let dFmt = DateFormatter()
+                    dFmt.dateFormat = "dd/MM"
+                    dFmt.timeZone = TimeZone(identifier: "Asia/Ho_Chi_Minh")
+                    dayLabel = dFmt.string(from: date)
+                }
+
+                return matchesList.compactMap { m -> ScheduleItem? in
                     let host = m["hostName"] as? String ?? ""
                     let guest = m["guestName"] as? String ?? ""
                     guard !host.isEmpty || !guest.isEmpty else { return nil }
@@ -130,7 +144,7 @@ final class SportsService {
                     let league = (m["subCateName"] as? String ?? "BÓNG ĐÁ").uppercased()
                     let timeMs = (m["matchTime"] as? Int64) ?? 0
                     let matchDate = Date(timeIntervalSince1970: TimeInterval(timeMs / 1000))
-                    let timeStr = "\(timeFmt.string(from: matchDate)) · Hôm nay"
+                    let timeStr = "\(timeFmt.string(from: matchDate)) · \(dayLabel)"
 
                     let hostIcon = m["hostIcon"] as? String ?? ""
                     let guestIcon = m["guestIcon"] as? String ?? ""

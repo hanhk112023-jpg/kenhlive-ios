@@ -3,7 +3,7 @@ import SwiftUI
 struct RoomPickerSheet: View {
     let matchGroup: LiveMatchGroup
     let onSelectRoom: (LiveRoom) -> Void
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\\.dismiss) private var dismiss
 
     var body: some View {
         ZStack {
@@ -14,95 +14,133 @@ struct RoomPickerSheet: View {
                 VStack(spacing: 4) {
                     RoundedRectangle(cornerRadius: 2.5)
                         .fill(Color.white.opacity(0.2))
-                        .frame(width: 36, height: 5)
+                        .frame(width: 36, height: 4.5)
                         .padding(.top, 10)
-                        .padding(.bottom, 12)
+                        .padding(.bottom, 10)
 
                     Text(matchGroup.league.uppercased())
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .tracking(1.0)
+                        .font(.system(size: 10.5, weight: .black, design: .rounded))
+                        .tracking(1.4)
                         .foregroundColor(KLTheme.brandOrange)
 
                     Text(matchGroup.matchTitle)
                         .font(.system(size: 17, weight: .bold))
-                        .foregroundColor(KLTheme.textPrimary)
+                        .foregroundColor(.white)
                         .multilineTextAlignment(.center)
+                        .lineLimit(2)
                         .padding(.horizontal, 20)
 
-                    Text("\(matchGroup.rooms.count) PHÒNG TRỰC TIẾP · \(DataNormalizer.formatViewers(matchGroup.totalViewers)) NGƯỜI XEM")
-                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    Text("\\(matchGroup.rooms.count) PHÒNG BÌNH LUẬN TRỰC TIẾP · \\(DataNormalizer.formatViewers(matchGroup.totalViewers)) NGƯỜI XEM")
+                        .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
                         .foregroundColor(KLTheme.textMuted)
                         .padding(.top, 2)
                 }
-                .padding(.bottom, 16)
+                .padding(.bottom, 14)
 
                 Divider()
                     .background(KLTheme.borderSubtle)
 
                 // List of Commentator Rooms
-                ScrollView {
+                ScrollView(showsIndicators: false) {
                     LazyVStack(spacing: 10) {
                         ForEach(matchGroup.rooms) { room in
                             Button {
+                                KLHaptics.selection()
                                 dismiss()
                                 onSelectRoom(room)
                             } label: {
-                                HStack(spacing: 14) {
-                                    VStack(alignment: .leading, spacing: 5) {
-                                        HStack(spacing: 8) {
-                                            Text(room.blvName.uppercased())
-                                                .font(.system(size: 15, weight: .heavy))
-                                                .foregroundColor(KLTheme.textPrimary)
+                                HStack(spacing: 12) {
+                                    // Avatar / Initial Icon
+                                    ZStack {
+                                        Circle()
+                                            .fill(
+                                                LinearGradient(
+                                                    colors: [roomProviderColor(room.provider), roomProviderColor(room.provider).opacity(0.6)],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                )
+                                            )
+                                            .frame(width: 42, height: 42)
 
-                                            KLPillBadge(text: room.providerDisplayName, fg: .white, bg: providerColor(room.provider), border: .clear)
-
-                                            if !room.blvLevel.isEmpty {
-                                                KLPillBadge(text: room.blvLevel, fg: KLTheme.brandOrange, bg: KLTheme.brandOrange.opacity(0.12), border: KLTheme.brandOrange.opacity(0.25))
+                                        if !room.avatar.isEmpty, let imgUrl = URL(string: room.avatar) {
+                                            AsyncImage(url: imgUrl) { phase in
+                                                if let img = phase.image {
+                                                    img.resizable().scaledToFill()
+                                                } else {
+                                                    Image(systemName: "mic.fill").font(.system(size: 16)).foregroundColor(.white)
+                                                }
                                             }
+                                            .frame(width: 42, height: 42)
+                                            .clipShape(Circle())
+                                        } else {
+                                            Image(systemName: "mic.fill")
+                                                .font(.system(size: 16, weight: .bold))
+                                                .foregroundColor(.white)
+                                        }
+                                    }
 
-                                            KLPillBadge(text: "LIVE", fg: .white, bg: KLTheme.liveRed, border: .clear)
+                                    // Room Details
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        HStack(spacing: 6) {
+                                            Text(room.blvName.uppercased())
+                                                .font(.system(size: 14.5, weight: .heavy))
+                                                .foregroundColor(.white)
+
+                                            KLLivePulseBadge(text: "LIVE", color: KLTheme.liveRed)
                                         }
 
-                                        Text(room.notice)
-                                            .font(.system(size: 12, weight: .regular))
-                                            .foregroundColor(KLTheme.textSecondary)
-                                            .lineLimit(1)
+                                        HStack(spacing: 6) {
+                                            Text(room.providerDisplayName)
+                                                .font(.system(size: 9, weight: .heavy, design: .rounded))
+                                                .foregroundColor(.white)
+                                                .padding(.horizontal, 5)
+                                                .padding(.vertical, 2)
+                                                .background(roomProviderColor(room.provider))
+                                                .cornerRadius(4)
+
+                                            if !room.blvLevel.isEmpty {
+                                                Text(room.blvLevel)
+                                                    .font(.system(size: 9, weight: .bold))
+                                                    .foregroundColor(KLTheme.brandOrange)
+                                                    .padding(.horizontal, 5)
+                                                    .padding(.vertical, 2)
+                                                    .background(KLTheme.brandOrange.opacity(0.12))
+                                                    .cornerRadius(4)
+                                            }
+
+                                            Text(room.notice)
+                                                .font(.system(size: 11, weight: .regular))
+                                                .foregroundColor(KLTheme.textSecondary)
+                                                .lineLimit(1)
+                                        }
                                     }
 
                                     Spacer()
 
-                                    VStack(alignment: .trailing, spacing: 3) {
+                                    // Viewers & Play Button
+                                    VStack(alignment: .trailing, spacing: 2) {
                                         Text(room.formattedViewers)
-                                            .font(.system(size: 14, weight: .bold, design: .rounded))
-                                            .foregroundColor(KLTheme.textPrimary)
+                                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                                            .foregroundColor(.white)
 
-                                        Text("XEM")
-                                            .font(.system(size: 9.5, weight: .semibold, design: .monospaced))
-                                            .foregroundColor(KLTheme.textMuted)
+                                        HStack(spacing: 4) {
+                                            Text("VÀO XEM")
+                                                .font(.system(size: 9, weight: .bold))
+                                                .foregroundColor(KLTheme.brandOrange)
+                                            Image(systemName: "play.circle.fill")
+                                                .font(.system(size: 14))
+                                                .foregroundColor(KLTheme.brandOrange)
+                                        }
                                     }
-
-                                    Text("CHỌN")
-                                        .font(.system(size: 12, weight: .bold))
-                                        .tracking(0.5)
-                                        .foregroundColor(KLTheme.brandOrange)
-                                        .padding(.horizontal, 14)
-                                        .padding(.vertical, 8)
-                                        .background(KLTheme.brandOrange.opacity(0.12))
-                                        .cornerRadius(8)
                                 }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 14)
-                                .background(KLTheme.surfaceCard)
-                                .cornerRadius(12)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(KLTheme.borderSubtle, lineWidth: 0.8)
-                                )
+                                .padding(12)
+                                .klGlassCard(cornerRadius: 12)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(KLScaleButtonStyle())
                         }
                     }
-                    .padding(16)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
                 }
             }
         }
@@ -110,12 +148,12 @@ struct RoomPickerSheet: View {
         .presentationDragIndicator(.visible)
     }
 
-    private func providerColor(_ p: String) -> Color {
+    private func roomProviderColor(_ p: String) -> Color {
         switch p.lowercased() {
-        case "gavang", "gavang33": return Color(red: 0.96, green: 0.62, blue: 0.04)
-        case "colatv", "cola": return KLTheme.brandOrange
-        case "giovang", "khandai": return Color(red: 0.23, green: 0.51, blue: 0.96)
-        default: return Color(red: 0.06, green: 0.72, blue: 0.50)
+        case "gavang", "gavang33": return Color(red: 0.95, green: 0.65, blue: 0.12)
+        case "colatv", "cola": return Color(red: 0.18, green: 0.55, blue: 0.96)
+        case "giovang", "khandai": return Color(red: 0.92, green: 0.30, blue: 0.24)
+        default: return KLTheme.brandOrange
         }
     }
 }
