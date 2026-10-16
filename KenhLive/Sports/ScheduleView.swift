@@ -7,7 +7,7 @@ struct ScheduleView: View {
     @State private var activeRoomForPlayer: LiveRoom? = nil
     @State private var searchQuery: String = ""
 
-    @Environment(\\.dismiss) private var dismiss
+    @Environment(\.dismiss) private var dismiss
 
     // Generate dynamic 7 days relative to current date in GMT+7
     private var dayTabs: [(id: Int, title: String, date: Date)] {

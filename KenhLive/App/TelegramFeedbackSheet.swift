@@ -4,7 +4,7 @@ import CoreImage
 import CoreImage.CIFilterBuiltins
 
 struct TelegramFeedbackSheet: View {
-    @Environment(\\.dismiss) private var dismiss
+    @Environment(\.dismiss) private var dismiss
     @State private var copiedNotice: Bool = false
 
     private let telegramUrlString = "https://t.me/T990512S"

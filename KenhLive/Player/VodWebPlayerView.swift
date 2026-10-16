@@ -5,7 +5,7 @@ struct VodWebPlayerView: View {
     let film: FilmItem
     let episode: EpisodeItem
 
-    @Environment(\\.dismiss) private var dismiss
+    @Environment(\.dismiss) private var dismiss
     @State private var startTime: Date = Date()
 
     private var directHlsUrl: String {

@@ -343,3 +343,20 @@ struct KLGlassSearchBar: View {
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 }
+
+
+// MARK: - Modern Skeleton Loading Placeholder
+struct KLSkeletonView: View {
+    var height: CGFloat = 80
+    var cornerRadius: CGFloat = 12
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+            .fill(Color.white.opacity(0.06))
+            .frame(height: height)
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(KLTheme.borderSubtle, lineWidth: 0.8)
+            )
+    }
+}
