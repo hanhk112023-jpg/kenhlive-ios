@@ -52,11 +52,11 @@ struct TelegramFeedbackSheet: View {
                                 .frame(width: 5, height: 5)
                         }
 
-                        Text("KenhLive v1.6.0 (Build 132)")
+                        Text("KenhLive v1.6.2 (Build 134)")
                             .font(.system(size: 22, weight: .heavy, design: .rounded))
                             .foregroundColor(.white)
 
-                        Text("Liquid Glass Cinema, Tìm Kiếm Toàn Năng, Scoreboard Real-Time & Trình Phát AVPlayer Metal 100% Crash-Proof.")
+                        Text("Liquid Glass Cinema, Tự Động Khóa Xoay Ngang Khi Xem, Scoreboard Real-Time & Trình Phát AVPlayer Metal 100% Crash-Proof.")
                             .font(.system(size: 12.5, weight: .regular))
                             .foregroundColor(KLTheme.textSecondary)
                             .multilineTextAlignment(.center)
@@ -65,7 +65,7 @@ struct TelegramFeedbackSheet: View {
 
                     // 3. What's New Feature List
                     VStack(alignment: .leading, spacing: 14) {
-                        Text("ĐIỂM NÂNG CẤP NỔI BẬT V1.6.0")
+                        Text("ĐIỂM NÂNG CẤP NỔI BẬT V1.6.2")
                             .font(.system(size: 10.5, weight: .black, design: .rounded))
                             .tracking(1.2)
                             .foregroundColor(KLTheme.brandOrange)

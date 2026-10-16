@@ -21,7 +21,7 @@ final class TeamLogoRegistry {
         // Loại bỏ ngoặc vuông, ngoặc tròn, vs, gạch ngang
         n = n.replacingOccurrences(of: "\\[.*?\\]", with: " ", options: .regularExpression)
         n = n.replacingOccurrences(of: "\\(.*?\\)", with: " ", options: .regularExpression)
-        n = n.replacingOccurrences(of: "vs\\.?", with: " ", options: .regularExpression)
+        n = n.replacingOccurrences(of: "vs\.?", with: " ", options: .regularExpression)
         n = n.replacingOccurrences(of: "-", with: " ")
         // Chỉ giữ chữ cái tiếng Việt và số
         n = n.replacingOccurrences(of: "[^a-zA-Z0-9\\u00C0-\\u1EF9 ]", with: "", options: .regularExpression)

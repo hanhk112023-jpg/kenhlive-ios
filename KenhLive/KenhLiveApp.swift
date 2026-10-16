@@ -4,6 +4,8 @@ import AVFoundation
 
 @main
 struct KenhLiveApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
     init() {
         configureAudioSession()
         configureNavigationAppearance()

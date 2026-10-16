@@ -1,34 +1,29 @@
-# 🚀 KENHLIVE iOS v1.6.1 (Build 133) — ĐỘT PHÁ LỊCH THI ĐẤU EPG 7 NGÀY & NÂNG CẤP PHÒNG BÌNH LUẬN LIQUID GLASS
+# 🚀 KENHLIVE iOS v1.6.2 (Build 134) — TỰ ĐỘNG KHÓA XOAY NGANG KHI XEM & LÀM LẠI TOÀN DIỆN TRÌNH PHÁT CINEMA
 
-### 💎 1. Đột Phá Lịch Thi Đấu EPG 7 Ngày Tự Động (`ScheduleView.swift` & `SportsService.swift`)
-- **Tích hợp lịch động theo thời gian thực (GMT+7)**:
-  - Tự động tính toán 7 ngày kế tiếp (Hôm nay, Ngày mai, và các ngày trong tuần tiếp theo).
-  - Tải dữ liệu lịch thi đấu thực tế từ API nhà đài thể thao cho bất kỳ ngày nào được chọn.
-  - Bộ nhớ đệm thông minh (`scheduleCache: [Int: [ScheduleItem]]`) chuyển đổi giữa các ngày tức thì không cần tải lại.
-  - Ô tìm kiếm trận đấu, câu lạc bộ hoặc giải đấu tức thì trên lịch thi đấu.
-  - Nhấn 1 chạm vào trận đang đá để khởi chạy ngay trình phát Native Cinema Player.
-
----
-
-### 🎙️ 2. Nâng Cấp Bảng Chọn Phòng Bình Luận Liquid Glass (`RoomPickerSheet.swift`)
-- **Thiết kế Liquid Glass Neo-Dark Cinema**:
-  - Avatar đại diện BLV với viền phát sáng thương hiệu (Socolive, ColaTV, Gà Vàng 33, Giờ Vàng TV).
-  - Nhịp đèn trực tiếp `KLLivePulseBadge` và số lượng khán giả đang theo dõi.
-  - Phản hồi xúc giác cơ học `KLHaptics.selection()` khi chọn phòng.
+### 🔄 1. Tự Động Khóa Xoay Ngang Màn Hình Khi Xem (`OrientationManager.swift` & `HLSPlayerView.swift`)
+- **Tự động chuyển xoay ngang (Landscape Auto-Lock)**:
+  - Khi người dùng nhấn xem trận đấu, kênh TV hay tập phim ở chế độ toàn màn hình, ứng dụng tự động xoay ngang thiết bị (`UIInterfaceOrientationMask.landscape`) qua `UIWindowScene.requestGeometryUpdate` chuẩn iOS 16+.
+  - Khi đóng trình phát (nhấn nút X hoặc vuốt xuống), màn hình lập tức tự động xoay dọc trở lại (`UIInterfaceOrientationMask.portrait`) mượt mà, không cần người dùng phải xoay tay hay mở Control Center.
+- **Nút chuyển đổi hướng xoay trên thanh điều khiển OSD**:
+  - Tích hợp nút **"XOAY DỌC" / "XOAY NGANG"** ngay góc phải thanh OSD với phản hồi xúc giác rung nhẹ (`KLHaptics.selection()`), cho phép người dùng tùy ý chuyển đổi nhanh chóng.
 
 ---
 
-### 🎬 3. Bóc Tách Luồng Direct M3U8 Siêu Tốc (`VodWebPlayerView.swift`)
-- **Tự động trích xuất luồng `.m3u8` trực tiếp**:
-  - Tự động bóc tách link HLS từ các URL nhúng iframe (`embed?url=...`), ưu tiên 100% trình phát Native `AVPlayerViewController` Metal thay vì mở qua webview.
-  - Lưu tiến trình xem dở chuẩn xác theo giây.
+### 🛡️ 2. Làm Lại Trình Phát Cinema AVPlayer Metal 100% Crash-Proof (`HLSPlayerView.swift`)
+- **Tối ưu vùng an toàn (Safe Area Insets)**:
+  - Tự động bù lề ngang (`36pt`) cho Dynamic Island và tai thỏ camera trên các dòng iPhone mới nhất, đảm bảo nút Đóng (X), tên trận đấu, menu chọn Server và các nút chức năng không bao giờ bị che khuất.
+- **Safe Seek mượt mà**:
+  - Chuẩn hóa lệnh tua `player.seek(to: targetTime)` tương thích hoàn toàn với AVFoundation.
+  - Cử chỉ chạm 2 lần tua ±10s hiển thị ripple hiệu ứng nổi bật.
+  - Chạm 1 lần ẩn/hiện OSD thông minh sau 3.8s.
+  - Cử chỉ chụm mở 2 ngón (Pinch-to-zoom) chuyển đổi tức thì giữa tỉ lệ chuẩn 16:9 và chế độ Tràn Viền.
 
 ---
 
-### 🛡️ 4. Trình Phát Cinema AVPlayer Metal 100% Crash-Proof (`HLSPlayerView.swift`)
-- Kế thừa `AVPlayerViewController` với `showsPlaybackControls = false`, hoàn toàn loại bỏ lỗi ép kiểu `CALayer` gây sập ứng dụng.
-- Kẹp biên an toàn cho thanh tua thời gian `0...safeDuration` với `duration.isFinite`.
-- Cử chỉ chạm kép tua ±10s, pinch zoom fit/fill, vuốt xuống đóng mượt mà.
+### 📅 3. Lịch Thi Đấu EPG 7 Ngày Tự Động (`ScheduleView.swift` & `SportsService.swift`)
+- Tự động tính toán 7 ngày kế tiếp (Hôm nay, Ngày mai, và các ngày trong tuần tiếp theo).
+- Tải dữ liệu lịch thi đấu thực tế từ API nhà đài thể thao cho bất kỳ ngày nào được chọn.
+- Bộ nhớ đệm thông minh (`scheduleCache`) chuyển đổi giữa các ngày tức thì.
 
 ---
 

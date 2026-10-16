@@ -2,7 +2,7 @@ import SwiftUI
 import AVFoundation
 import AVKit
 
-// MARK: - Native iOS Cinema Player View
+// MARK: - Native iOS Cinema Player View (Auto Landscape Lock & 100% Crash-Proof)
 struct HLSPlayerView: View {
     let title: String
     let subtitle: String
@@ -26,6 +26,9 @@ struct HLSPlayerView: View {
     @State private var isPlaying: Bool = true
     @State private var isMuted: Bool = false
     @State private var isAspectFill: Bool = false
+
+    // Screen Orientation State
+    @State private var isOrientationLockedLandscape: Bool = true
 
     // VOD Timeline State
     @State private var isLiveStream: Bool = true
@@ -58,9 +61,9 @@ struct HLSPlayerView: View {
                     .contentShape(Rectangle())
                     .onTapGesture(count: 2) { location in
                         let width = geo.size.width
-                        if location.x < width * 0.42 {
+                        if location.x < width * 0.40 {
                             performQuickSeek(seconds: -10, side: .leading)
-                        } else if location.x > width * 0.58 {
+                        } else if location.x > width * 0.60 {
                             performQuickSeek(seconds: 10, side: .trailing)
                         } else {
                             togglePlayPause()
@@ -73,7 +76,7 @@ struct HLSPlayerView: View {
                         DragGesture(minimumDistance: 35)
                             .onEnded { value in
                                 // Swipe down to dismiss (Standard iOS Modal Gesture)
-                                if value.translation.height > 85 && abs(value.translation.width) < 120 {
+                                if value.translation.height > 85 && abs(value.translation.width) < 140 {
                                     closePlayer()
                                 }
                             }
@@ -189,11 +192,20 @@ struct HLSPlayerView: View {
                 .ignoresSafeArea(edges: [.top, .bottom])
             }
         }
+        .onAppear {
+            if isFullscreen {
+                OrientationManager.lockLandscape()
+                isOrientationLockedLandscape = true
+            }
+        }
         .task {
             configureAudioSession()
             await startPlayback()
         }
         .onDisappear {
+            if isFullscreen {
+                OrientationManager.lockPortrait()
+            }
             closePlayer()
         }
     }
@@ -249,7 +261,7 @@ struct HLSPlayerView: View {
                     HStack(spacing: 5) {
                         Image(systemName: "server.rack")
                             .font(.system(size: 10))
-                        Text("Server \(currentServerIndex + 1)")
+                        Text("Server \\(currentServerIndex + 1)")
                             .font(.system(size: 11, weight: .bold))
                     }
                     .foregroundColor(KLTheme.brandOrange)
@@ -262,9 +274,37 @@ struct HLSPlayerView: View {
                     )
                 }
             }
+
+            // Orientation Lock Toggle Button (Switches Landscape vs Portrait)
+            if isFullscreen {
+                Button {
+                    KLHaptics.selection()
+                    if isOrientationLockedLandscape {
+                        OrientationManager.lockPortrait()
+                        isOrientationLockedLandscape = false
+                    } else {
+                        OrientationManager.lockLandscape()
+                        isOrientationLockedLandscape = true
+                    }
+                    rescheduleAutoHide()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: isOrientationLockedLandscape ? "lock.rotation" : "rotate.right")
+                            .font(.system(size: 11, weight: .bold))
+                        Text(isOrientationLockedLandscape ? "DỌC" : "NGANG")
+                            .font(.system(size: 9.5, weight: .heavy))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5.5)
+                    .background(Color.white.opacity(0.18))
+                    .cornerRadius(7)
+                }
+                .buttonStyle(.plain)
+            }
         }
-        .padding(.horizontal, 16)
-        .padding(.top, isFullscreen ? 48 : 12) // Safe area top offset when fullscreen
+        .padding(.horizontal, isFullscreen ? 36 : 16) // Safe area clearance in landscape
+        .padding(.top, isFullscreen ? 16 : 12)
         .padding(.bottom, 12)
     }
 
@@ -435,9 +475,9 @@ struct HLSPlayerView: View {
                 }
             }
         }
-        .padding(.horizontal, 18)
+        .padding(.horizontal, isFullscreen ? 36 : 18) // Safe area clearance in landscape
         .padding(.top, 8)
-        .padding(.bottom, isFullscreen ? 36 : 10) // Safe area bottom offset
+        .padding(.bottom, isFullscreen ? 24 : 10) // Safe area bottom offset
     }
 
     // MARK: - Playback Logic
@@ -541,7 +581,7 @@ struct HLSPlayerView: View {
     private func seekToTime(_ seconds: Double) {
         guard let p = player else { return }
         let targetTime = CMTime(seconds: seconds, preferredTimescale: 600)
-        p.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero)
+        p.seek(to: targetTime)
         onProgressUpdate?(seconds, duration)
     }
 
@@ -554,7 +594,7 @@ struct HLSPlayerView: View {
         seekToTime(target)
 
         // Show visual ripple
-        seekRippleText = seconds > 0 ? "+\(Int(seconds))s" : "\(Int(seconds))s"
+        seekRippleText = seconds > 0 ? "+\\(Int(seconds))s" : "\\(Int(seconds))s"
         seekRippleSide = side
         seekRippleTask?.cancel()
         seekRippleTask = Task {
@@ -634,6 +674,9 @@ struct HLSPlayerView: View {
         }
         player?.pause()
         player = nil
+        if isFullscreen {
+            OrientationManager.lockPortrait()
+        }
         if let customClose = onClose {
             customClose()
         } else {
