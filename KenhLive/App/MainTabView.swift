@@ -7,6 +7,12 @@ enum KLTab: Int, CaseIterable, Identifiable {
     case library = 2    // "Thư viện"
     case profile = 3    // "Hồ sơ"
 
+    // Backward-compatibility aliases for legacy portals
+    static let live = KLTab.search
+    static let iptv = KLTab.library
+    static let phim = KLTab.home
+    static let settings = KLTab.profile
+
     var id: Int { rawValue }
 
     var title: String {
