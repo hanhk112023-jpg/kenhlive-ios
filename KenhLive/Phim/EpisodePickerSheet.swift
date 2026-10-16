@@ -358,20 +358,10 @@ struct EpisodePickerSheet: View {
     private func renderPosterHeader() -> some View {
         HStack(alignment: .top, spacing: 14) {
             // Poster Thumbnail (2:3)
-            AsyncImage(url: URL(string: film.posterUrl.isEmpty ? film.thumbUrl : film.posterUrl)) { phase in
-                if let image = phase.image {
-                    image
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } else {
-                    ZStack {
-                        KLTheme.surfaceCard
-                        Image(systemName: "film")
-                            .font(.system(size: 24))
-                            .foregroundColor(KLTheme.textMuted)
-                    }
-                }
-            }
+            KLAsyncImage(
+                url: film.posterUrl.isEmpty ? film.thumbUrl : film.posterUrl,
+                contentMode: .fill
+            )
             .frame(width: 96, height: 142)
             .cornerRadius(10)
             .overlay(

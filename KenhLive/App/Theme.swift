@@ -362,3 +362,106 @@ struct KLSkeletonView: View {
             )
     }
 }
+
+// MARK: - High-Performance In-Memory RAM Image Cache & Instant Loader
+final class KLImageCache {
+    static let shared = KLImageCache()
+    private let cache = NSCache<NSString, UIImage>()
+
+    private init() {
+        cache.countLimit = 350
+        cache.totalCostLimit = 150 * 1024 * 1024 // 150 MB RAM
+    }
+
+    func get(for urlString: String) -> UIImage? {
+        cache.object(forKey: urlString as NSString)
+    }
+
+    func set(_ image: UIImage, for urlString: String) {
+        let cost = Int(image.size.width * image.size.height * 4)
+        cache.setObject(image, forKey: urlString as NSString, cost: cost)
+    }
+}
+
+final class KLImageLoader: ObservableObject {
+    @Published var image: UIImage? = nil
+    @Published var isLoading: Bool = false
+    private var currentUrl: String = ""
+    private var downloadTask: Task<Void, Never>? = nil
+
+    func load(urlString: String) {
+        guard !urlString.isEmpty else { return }
+        if let cached = KLImageCache.shared.get(for: urlString) {
+            self.image = cached
+            self.isLoading = false
+            return
+        }
+
+        guard urlString != currentUrl else { return }
+        currentUrl = urlString
+        isLoading = true
+
+        downloadTask?.cancel()
+        downloadTask = Task(priority: .userInitiated) {
+            guard let url = URL(string: urlString) else {
+                await MainActor.run { self.isLoading = false }
+                return
+            }
+
+            var req = URLRequest(url: url)
+            req.timeoutInterval = 12
+            req.cachePolicy = .returnCacheDataElseLoad
+
+            do {
+                let (data, _) = try await URLSession.shared.data(for: req)
+                guard !Task.isCancelled, let downloaded = UIImage(data: data) else {
+                    await MainActor.run { self.isLoading = false }
+                    return
+                }
+                KLImageCache.shared.set(downloaded, for: urlString)
+                await MainActor.run {
+                    self.image = downloaded
+                    self.isLoading = false
+                }
+            } catch {
+                if !Task.isCancelled {
+                    await MainActor.run { self.isLoading = false }
+                }
+            }
+        }
+    }
+
+    func cancel() {
+        downloadTask?.cancel()
+    }
+}
+
+struct KLAsyncImage: View {
+    let url: String
+    var contentMode: ContentMode = .fill
+
+    @StateObject private var loader = KLImageLoader()
+
+    var body: some View {
+        ZStack {
+            if let img = loader.image {
+                Image(uiImage: img)
+                    .resizable()
+                    .aspectRatio(contentMode: contentMode)
+            } else if loader.isLoading {
+                ZStack {
+                    Color(red: 0.14, green: 0.14, blue: 0.18)
+                    ProgressView().tint(KLTheme.brandOrange).scaleEffect(0.7)
+                }
+            } else {
+                Color(red: 0.14, green: 0.14, blue: 0.18)
+            }
+        }
+        .onAppear {
+            loader.load(urlString: url)
+        }
+        .onDisappear {
+            loader.cancel()
+        }
+    }
+}

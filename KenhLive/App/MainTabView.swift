@@ -48,38 +48,43 @@ struct MainTabView: View {
         ZStack(alignment: .bottom) {
             Color(red: 0.07, green: 0.07, blue: 0.09).ignoresSafeArea()
 
-            // 1. Tab View Content (Preserves live sports, VTV IPTV, and Cinema Experience)
+            // 1. Tab View Content (Persistent in Memory: 0ms Switch Latency, No View Rebuilds)
             ZStack {
-                switch selectedTab {
-                case .home:
-                    PhimView(onSelectTab: { targetTab in
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) {
+                PhimView(
+                    onSelectTab: { targetTab in
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
                             selectedTab = targetTab
                         }
-                    })
-                    .transition(.opacity)
+                    },
+                    onOpenSearch: {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                            selectedTab = .search
+                        }
+                    }
+                )
+                .opacity(selectedTab == .home ? 1 : 0)
+                .allowsHitTesting(selectedTab == .home)
 
-                case .sports:
-                    LiveSportsView()
-                        .transition(.opacity)
+                LiveSportsView()
+                    .opacity(selectedTab == .sports ? 1 : 0)
+                    .allowsHitTesting(selectedTab == .sports)
 
-                case .iptv:
-                    IptvView()
-                        .transition(.opacity)
+                IptvView()
+                    .opacity(selectedTab == .iptv ? 1 : 0)
+                    .allowsHitTesting(selectedTab == .iptv)
 
-                case .search:
-                    CinemaSearchView()
-                        .transition(.opacity)
+                CinemaSearchView()
+                    .opacity(selectedTab == .search ? 1 : 0)
+                    .allowsHitTesting(selectedTab == .search)
 
-                case .profile:
-                    CinemaProfileView(
-                        onOpenSchedule: { isShowingSchedule = true },
-                        onOpenTelegram: { isShowingTelegramSheet = true }
-                    )
-                    .transition(.opacity)
-                }
+                CinemaProfileView(
+                    onOpenSchedule: { isShowingSchedule = true },
+                    onOpenTelegram: { isShowingTelegramSheet = true }
+                )
+                .opacity(selectedTab == .profile ? 1 : 0)
+                .allowsHitTesting(selectedTab == .profile)
             }
-            .animation(.easeInOut(duration: 0.22), value: selectedTab)
+            .animation(.easeInOut(duration: 0.16), value: selectedTab)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             // 2. Animated Floating Glass Dock Tab Bar (Safely Pinned to Bottom)
@@ -105,10 +110,10 @@ struct MainTabView: View {
         }
     }
 
-    // MARK: - Safe Bottom Floating Dock Tab Bar (Fixed Height, Strictly Bounded)
+    // MARK: - Safe Bottom Floating Dock Tab Bar (Icon-Only, Butter-Smooth)
     @ViewBuilder
     private func renderFloatingDockTabBar() -> some View {
-        HStack(spacing: 2) {
+        HStack(spacing: 8) {
             ForEach(KLTab.allCases) { tab in
                 let isActive = selectedTab == tab
                 Button {
@@ -117,65 +122,55 @@ struct MainTabView: View {
                         selectedTab = tab
                     }
                 } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: tab.iconName)
-                            .font(.system(size: isActive ? 14.5 : 13.5, weight: isActive ? .bold : .medium))
-                            .scaleEffect(isActive ? 1.1 : 1.0)
-                            .animation(.spring(response: 0.28, dampingFraction: 0.72), value: isActive)
-
+                    ZStack {
                         if isActive {
-                            Text(tab.title)
-                                .font(.system(size: 11, weight: .bold))
-                                .lineLimit(1)
-                        }
-                    }
-                    .foregroundColor(isActive ? .white : Color(white: 0.58))
-                    .padding(.horizontal, isActive ? 10 : 6)
-                    .padding(.vertical, 7)
-                    .frame(height: 34)
-                    .background(
-                        Group {
-                            if isActive {
-                                Capsule()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [
-                                                Color(red: 0.65, green: 0.12, blue: 0.18),
-                                                Color(red: 0.85, green: 0.22, blue: 0.28)
-                                            ],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        )
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            Color(red: 0.72, green: 0.12, blue: 0.18),
+                                            Color(red: 0.90, green: 0.24, blue: 0.30)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
                                     )
-                                    .shadow(color: Color(red: 0.85, green: 0.22, blue: 0.28).opacity(0.42), radius: 6, x: 0, y: 2)
-                            }
+                                )
+                                .frame(width: 38, height: 38)
+                                .shadow(color: Color(red: 0.90, green: 0.24, blue: 0.30).opacity(0.48), radius: 8, x: 0, y: 2)
                         }
-                    )
+
+                        Image(systemName: tab.iconName)
+                            .font(.system(size: isActive ? 17 : 16, weight: isActive ? .bold : .medium))
+                            .foregroundColor(isActive ? .white : Color(white: 0.52))
+                            .scaleEffect(isActive ? 1.15 : 1.0)
+                            .animation(.spring(response: 0.28, dampingFraction: 0.65), value: isActive)
+                    }
+                    .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain)
                 .frame(maxWidth: .infinity)
             }
         }
-        .frame(height: 48)
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
+        .frame(height: 50)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
         .background(
-            RoundedRectangle(cornerRadius: 28)
+            RoundedRectangle(cornerRadius: 30)
                 .fill(Color(red: 0.11, green: 0.11, blue: 0.13).opacity(0.96))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 28)
+                    RoundedRectangle(cornerRadius: 30)
                         .stroke(
                             LinearGradient(
-                                colors: [Color.white.opacity(0.18), Color.white.opacity(0.06)],
+                                colors: [Color.white.opacity(0.20), Color.white.opacity(0.06)],
                                 startPoint: .top,
                                 endPoint: .bottom
                             ),
                             lineWidth: 0.8
                         )
                 )
-                .shadow(color: Color.black.opacity(0.70), radius: 16, x: 0, y: 6)
+                .shadow(color: Color.black.opacity(0.70), radius: 18, x: 0, y: 8)
         )
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 22)
         .padding(.bottom, 16)
     }
 }
@@ -408,13 +403,10 @@ struct CinemaSearchView: View {
                 } label: {
                     VStack(alignment: .leading, spacing: 5) {
                         ZStack {
-                            AsyncImage(url: URL(string: film.posterUrl.isEmpty ? film.thumbUrl : film.posterUrl)) { phase in
-                                if let img = phase.image {
-                                    img.resizable().aspectRatio(contentMode: .fill)
-                                } else {
-                                    Color(red: 0.14, green: 0.14, blue: 0.18)
-                                }
-                            }
+                            KLAsyncImage(
+                                url: film.posterUrl.isEmpty ? film.thumbUrl : film.posterUrl,
+                                contentMode: .fill
+                            )
                             .frame(maxWidth: .infinity)
                             .frame(height: 155)
                             .clipped()

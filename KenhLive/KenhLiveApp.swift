@@ -9,6 +9,7 @@ struct KenhLiveApp: App {
     init() {
         configureAudioSession()
         configureNavigationAppearance()
+        configureImageAndNetworkCache()
     }
 
     var body: some Scene {
@@ -16,6 +17,16 @@ struct KenhLiveApp: App {
             MainTabView()
                 .preferredColorScheme(.dark)
         }
+    }
+
+    private func configureImageAndNetworkCache() {
+        let memoryCap = 150 * 1024 * 1024 // 150 MB RAM
+        let diskCap = 600 * 1024 * 1024   // 600 MB Disk
+        URLCache.shared = URLCache(
+            memoryCapacity: memoryCap,
+            diskCapacity: diskCap,
+            diskPath: "kl_network_image_cache"
+        )
     }
 
     private func configureAudioSession() {

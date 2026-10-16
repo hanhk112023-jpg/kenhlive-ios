@@ -25,6 +25,7 @@ struct PhimView: View {
     @State private var autoPlayForSheet: Bool = false
 
     var onSelectTab: ((KLTab) -> Void)? = nil
+    var onOpenSearch: (() -> Void)? = nil
 
     private let filterPills: [KLFilterItem<String>] = [
         KLFilterItem(id: "tat-ca", title: "Trang Chủ Phim"),
@@ -135,6 +136,33 @@ struct PhimView: View {
                 await loadHomeSections()
             }
 
+            // Top-Right Floating Search Button (Góc phải trên cùng trang chủ)
+            VStack {
+                HStack {
+                    Spacer()
+                    Button {
+                        KLHaptics.selection()
+                        onOpenSearch?()
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 38, height: 38)
+                            .background(Color.black.opacity(0.55))
+                            .clipShape(Circle())
+                            .overlay(
+                                Circle().stroke(Color.white.opacity(0.28), lineWidth: 0.8)
+                            )
+                            .shadow(color: Color.black.opacity(0.65), radius: 8, x: 0, y: 3)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.trailing, 16)
+                    .padding(.top, 50)
+                }
+                Spacer()
+            }
+            .ignoresSafeArea()
+
             if isLoading && sections.isEmpty && categoryFilms.isEmpty {
                 ProgressView()
                     .tint(KLTheme.brandOrange)
@@ -160,16 +188,11 @@ struct PhimView: View {
     private func renderHeroCarouselBanner() -> some View {
         if let hero = currentHero {
             ZStack(alignment: .bottom) {
-                // Background Poster Art with Cinematic Gradient Overlay
-                AsyncImage(url: URL(string: hero.posterUrl.isEmpty ? hero.thumbUrl : hero.posterUrl)) { phase in
-                    if let img = phase.image {
-                        img
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    } else {
-                        Color(red: 0.12, green: 0.10, blue: 0.15)
-                    }
-                }
+                // Background Poster Art with High-Speed Instant RAM Cache
+                KLAsyncImage(
+                    url: hero.posterUrl.isEmpty ? hero.thumbUrl : hero.posterUrl,
+                    contentMode: .fill
+                )
                 .frame(maxWidth: .infinity)
                 .frame(height: 480)
                 .clipped()
@@ -469,15 +492,10 @@ struct PhimView: View {
                                 // Poster Art with Badges & Large Rank Number
                                 ZStack(alignment: .bottomLeading) {
                                     // Poster Image
-                                    AsyncImage(url: URL(string: film.posterUrl.isEmpty ? film.thumbUrl : film.posterUrl)) { phase in
-                                        if let img = phase.image {
-                                            img
-                                                .resizable()
-                                                .aspectRatio(contentMode: .fill)
-                                        } else {
-                                            Color(red: 0.14, green: 0.14, blue: 0.18)
-                                        }
-                                    }
+                                    KLAsyncImage(
+                                        url: film.posterUrl.isEmpty ? film.thumbUrl : film.posterUrl,
+                                        contentMode: .fill
+                                    )
                                     .frame(width: 155, height: 225)
                                     .clipped()
 
@@ -646,15 +664,10 @@ struct PhimView: View {
                             } label: {
                                 VStack(alignment: .leading, spacing: 6) {
                                     ZStack(alignment: .bottomLeading) {
-                                        AsyncImage(url: URL(string: film.posterUrl.isEmpty ? film.thumbUrl : film.posterUrl)) { phase in
-                                            if let img = phase.image {
-                                                img
-                                                    .resizable()
-                                                    .aspectRatio(contentMode: .fill)
-                                            } else {
-                                                Color(red: 0.14, green: 0.14, blue: 0.18)
-                                            }
-                                        }
+                                        KLAsyncImage(
+                                            url: film.posterUrl.isEmpty ? film.thumbUrl : film.posterUrl,
+                                            contentMode: .fill
+                                        )
                                         .frame(width: 135, height: 195)
                                         .clipped()
 
@@ -1059,15 +1072,10 @@ private struct PosterCell: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 5) {
             ZStack {
-                AsyncImage(url: URL(string: film.posterUrl.isEmpty ? film.thumbUrl : film.posterUrl)) { phase in
-                    if let img = phase.image {
-                        img
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    } else {
-                        KLTheme.surfaceCard
-                    }
-                }
+                KLAsyncImage(
+                    url: film.posterUrl.isEmpty ? film.thumbUrl : film.posterUrl,
+                    contentMode: .fill
+                )
                 .frame(maxWidth: .infinity)
                 .frame(height: 155)
                 .clipped()
