@@ -1,16 +1,17 @@
 import SwiftUI
 
-// MARK: - Cinema Netflix / Liquid Glass Tab Navigation
+// MARK: - Cinema Netflix / Liquid Glass 5-Tab Navigation
 enum KLTab: Int, CaseIterable, Identifiable {
-    case home = 0       // "Trang chủ"
-    case search = 1     // "Tìm kiếm"
-    case library = 2    // "Thư viện"
-    case profile = 3    // "Hồ sơ"
+    case home = 0       // "Trang chủ" (Kho Phim Cinema)
+    case sports = 1     // "Thể thao" (Socolive, ColaTV, Gà Vàng, Giờ Vàng)
+    case iptv = 2       // "Truyền hình" (VTV1-6, K+ Sport, HTV)
+    case search = 3     // "Tìm kiếm" (Universal Search)
+    case profile = 4    // "Cá nhân" (Tiếp tục xem, Lịch đá, Báo lỗi, Cài đặt)
 
-    // Backward-compatibility aliases for legacy portals
-    static let live = KLTab.search
-    static let iptv = KLTab.library
+    // Backward-compatibility aliases for legacy portals & services
+    static let live = KLTab.sports
     static let phim = KLTab.home
+    static let library = KLTab.profile
     static let settings = KLTab.profile
 
     var id: Int { rawValue }
@@ -18,17 +19,19 @@ enum KLTab: Int, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .home: return "Trang chủ"
+        case .sports: return "Thể thao"
+        case .iptv: return "Truyền hình"
         case .search: return "Tìm kiếm"
-        case .library: return "Thư viện"
-        case .profile: return "Hồ sơ"
+        case .profile: return "Cá nhân"
         }
     }
 
     var iconName: String {
         switch self {
         case .home: return "house.fill"
+        case .sports: return "sportscourt.fill"
+        case .iptv: return "tv.fill"
         case .search: return "magnifyingglass"
-        case .library: return "play.rectangle.on.rectangle"
         case .profile: return "person.fill"
         }
     }
@@ -36,6 +39,7 @@ enum KLTab: Int, CaseIterable, Identifiable {
 
 struct MainTabView: View {
     @State private var selectedTab: KLTab = .home
+    @Namespace private var tabNamespace
     @State private var isShowingTelegramSheet: Bool = false
     @State private var isShowingSchedule: Bool = false
     @AppStorage("seen_notice_v140") private var seenNoticeV140: Bool = false
@@ -44,27 +48,41 @@ struct MainTabView: View {
         ZStack(alignment: .bottom) {
             Color(red: 0.07, green: 0.07, blue: 0.09).ignoresSafeArea()
 
-            // 1. Tab View Content (Full Bleed to edges)
-            Group {
+            // 1. Tab View Content (Preserves live sports, VTV IPTV, and Cinema Experience)
+            ZStack {
                 switch selectedTab {
                 case .home:
-                    PhimView()
+                    PhimView(onSelectTab: { targetTab in
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) {
+                            selectedTab = targetTab
+                        }
+                    })
+                    .transition(.opacity)
+
+                case .sports:
+                    LiveSportsView()
+                        .transition(.opacity)
+
+                case .iptv:
+                    IptvView()
+                        .transition(.opacity)
+
                 case .search:
                     CinemaSearchView()
-                case .library:
-                    CinemaLibraryView(onSwitchToSearch: {
-                        selectedTab = .search
-                    })
+                        .transition(.opacity)
+
                 case .profile:
                     CinemaProfileView(
                         onOpenSchedule: { isShowingSchedule = true },
                         onOpenTelegram: { isShowingTelegramSheet = true }
                     )
+                    .transition(.opacity)
                 }
             }
+            .animation(.easeInOut(duration: 0.22), value: selectedTab)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            // 2. Modern Floating Dock Tab Bar (Matching Reference Screenshot)
+            // 2. Animated Floating Glass Dock Tab Bar with Sliding Capsule Effect
             renderFloatingDockTabBar()
         }
         .edgesIgnoringSafeArea(.all)
@@ -84,67 +102,87 @@ struct MainTabView: View {
         }
     }
 
-    // MARK: - Floating Dock Tab Bar
+    // MARK: - Animated Floating Dock Tab Bar with Sliding Indicator Effect
     @ViewBuilder
     private func renderFloatingDockTabBar() -> some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 3) {
             ForEach(KLTab.allCases) { tab in
                 let isActive = selectedTab == tab
                 Button {
                     KLHaptics.selection()
-                    withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) {
                         selectedTab = tab
                     }
                 } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: tab.iconName)
-                            .font(.system(size: 16, weight: isActive ? .bold : .medium))
-
+                    ZStack {
+                        // Smooth Sliding Capsule Pill via matchedGeometryEffect
                         if isActive {
-                            Text(tab.title)
-                                .font(.system(size: 12.5, weight: .bold))
-                                .lineLimit(1)
+                            Capsule()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            Color(red: 0.62, green: 0.12, blue: 0.18),
+                                            Color(red: 0.85, green: 0.22, blue: 0.28)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .matchedGeometryEffect(id: "ACTIVE_TAB_PILL", in: tabNamespace)
+                                .shadow(color: Color(red: 0.85, green: 0.22, blue: 0.28).opacity(0.42), radius: 8, x: 0, y: 3)
                         }
-                    }
-                    .foregroundColor(
-                        isActive
-                            ? Color(red: 0.95, green: 0.35, blue: 0.38)
-                            : Color(white: 0.58)
-                    )
-                    .padding(.horizontal, isActive ? 14 : 10)
-                    .padding(.vertical, 8.5)
-                    .background(
-                        Group {
+
+                        HStack(spacing: 4) {
+                            Image(systemName: tab.iconName)
+                                .font(.system(size: isActive ? 15 : 14, weight: isActive ? .bold : .medium))
+                                .scaleEffect(isActive ? 1.15 : 1.0)
+                                .animation(.spring(response: 0.35, dampingFraction: 0.62), value: isActive)
+
                             if isActive {
-                                Capsule()
-                                    .fill(Color(red: 0.48, green: 0.12, blue: 0.15))
-                            } else {
-                                Color.clear
+                                Text(tab.title)
+                                    .font(.system(size: 11, weight: .bold))
+                                    .lineLimit(1)
+                                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
                             }
                         }
-                    )
+                        .foregroundColor(
+                            isActive
+                                ? Color.white
+                                : Color(white: 0.58)
+                        )
+                        .padding(.horizontal, isActive ? 10 : 6)
+                        .padding(.vertical, 8)
+                    }
+                    .frame(minHeight: 38)
                 }
                 .buttonStyle(.plain)
                 .frame(maxWidth: .infinity)
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 5)
         .background(
             RoundedRectangle(cornerRadius: 32)
                 .fill(Color(red: 0.11, green: 0.11, blue: 0.13).opacity(0.96))
                 .overlay(
                     RoundedRectangle(cornerRadius: 32)
-                        .stroke(Color.white.opacity(0.10), lineWidth: 0.8)
+                        .stroke(
+                            LinearGradient(
+                                colors: [Color.white.opacity(0.20), Color.white.opacity(0.06)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            ),
+                            lineWidth: 0.8
+                        )
                 )
-                .shadow(color: Color.black.opacity(0.65), radius: 18, x: 0, y: 8)
+                .shadow(color: Color.black.opacity(0.68), radius: 18, x: 0, y: 8)
         )
-        .padding(.horizontal, 18)
+        .padding(.horizontal, 12)
         .padding(.bottom, 22)
     }
 }
 
-// MARK: - Dedicated Cinema Search View (Tab 2: "Tìm kiếm")
+// MARK: - Dedicated Cinema Search View (Tab 3: "Tìm kiếm")
 struct CinemaSearchView: View {
     @ObservedObject private var storage = StorageManager.shared
     @State private var searchKeyword: String = ""
@@ -365,30 +403,65 @@ struct CinemaSearchView: View {
     }
 }
 
-// MARK: - Dedicated Cinema Library View (Tab 3: "Thư viện")
-struct CinemaLibraryView: View {
+// MARK: - Dedicated Cinema Profile View (Tab 4: "Cá nhân")
+struct CinemaProfileView: View {
+    let onOpenSchedule: () -> Void
+    let onOpenTelegram: () -> Void
+
     @ObservedObject private var storage = StorageManager.shared
-    let onSwitchToSearch: () -> Void
     @State private var selectedFilm: FilmItem? = nil
+    @AppStorage("kl_stream_quality") private var selectedQuality: String = "Tự động (FHD)"
+    @State private var pingResults: [String: String] = [:]
+    @State private var isTestingPing: Bool = false
+    @State private var isCacheCleared: Bool = false
 
     var body: some View {
         ZStack {
             Color(red: 0.07, green: 0.07, blue: 0.09).ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 24) {
-                    // Header
-                    Text("Thư Viện")
-                        .font(.system(size: 26, weight: .heavy, design: .rounded))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 54)
+                VStack(alignment: .leading, spacing: 20) {
+                    // Header Profile Card
+                    HStack(spacing: 14) {
+                        ZStack {
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color(red: 0.62, green: 0.12, blue: 0.18), Color(red: 0.85, green: 0.22, blue: 0.27)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(width: 58, height: 58)
+
+                            Image(systemName: "person.fill")
+                                .font(.system(size: 26))
+                                .foregroundColor(.white)
+                        }
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("KenhLive Member")
+                                .font(.system(size: 18, weight: .heavy, design: .rounded))
+                                .foregroundColor(.white)
+
+                            Text("VIP Cinema, Sports & VTV Access")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(Color(red: 0.96, green: 0.77, blue: 0.10))
+                        }
+
+                        Spacer()
+                    }
+                    .padding(16)
+                    .background(Color(red: 0.12, green: 0.12, blue: 0.16))
+                    .cornerRadius(18)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 54)
 
                     // Continue Watching Rail
                     if !storage.watchHistory.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 10) {
                             Text("TIẾP TỤC XEM")
-                                .font(.system(size: 12, weight: .heavy))
+                                .font(.system(size: 11.5, weight: .heavy))
                                 .tracking(0.6)
                                 .foregroundColor(KLTheme.textMuted)
                                 .padding(.horizontal, 16)
@@ -441,105 +514,6 @@ struct CinemaLibraryView: View {
                             }
                         }
                     }
-
-                    // Bookmarked Films
-                    let favSlugs = storage.favoriteFilmSlugs
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("PHIM ĐÃ LƯU (\(favSlugs.count))")
-                            .font(.system(size: 12, weight: .heavy))
-                            .tracking(0.6)
-                            .foregroundColor(KLTheme.textMuted)
-                            .padding(.horizontal, 16)
-
-                        if favSlugs.isEmpty {
-                            VStack(spacing: 10) {
-                                Image(systemName: "bookmark")
-                                    .font(.system(size: 32))
-                                    .foregroundColor(Color.white.opacity(0.3))
-                                Text("Chưa có phim nào được lưu vào thư viện")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundColor(KLTheme.textMuted)
-
-                                Button(action: onSwitchToSearch) {
-                                    Text("KHÁM PHÁ NGAY")
-                                        .font(.system(size: 11.5, weight: .bold))
-                                        .foregroundColor(.white)
-                                        .padding(.horizontal, 16)
-                                        .padding(.vertical, 8)
-                                        .background(KLTheme.brandOrange)
-                                        .cornerRadius(8)
-                                }
-                                .padding(.top, 4)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 30)
-                        }
-                    }
-
-                    Spacer(minLength: 120)
-                }
-            }
-        }
-        .sheet(item: $selectedFilm) { film in
-            EpisodePickerSheet(
-                film: film,
-                initialResumeProgress: storage.getProgress(for: film.slug)
-            )
-        }
-    }
-}
-
-// MARK: - Dedicated Cinema Profile View (Tab 4: "Hồ sơ")
-struct CinemaProfileView: View {
-    let onOpenSchedule: () -> Void
-    let onOpenTelegram: () -> Void
-
-    @AppStorage("kl_stream_quality") private var selectedQuality: String = "Tự động (FHD)"
-    @State private var pingResults: [String: String] = [:]
-    @State private var isTestingPing: Bool = false
-    @State private var isCacheCleared: Bool = false
-
-    var body: some View {
-        ZStack {
-            Color(red: 0.07, green: 0.07, blue: 0.09).ignoresSafeArea()
-
-            ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 20) {
-                    // Header Profile Card
-                    HStack(spacing: 14) {
-                        ZStack {
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color(red: 0.48, green: 0.12, blue: 0.15), Color(red: 0.85, green: 0.22, blue: 0.27)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: 58, height: 58)
-
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 26))
-                                .foregroundColor(.white)
-                        }
-
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("KenhLive Member")
-                                .font(.system(size: 18, weight: .heavy, design: .rounded))
-                                .foregroundColor(.white)
-
-                            Text("VIP Cinema & Sports Access")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(Color(red: 0.96, green: 0.77, blue: 0.10))
-                        }
-
-                        Spacer()
-                    }
-                    .padding(16)
-                    .background(Color(red: 0.12, green: 0.12, blue: 0.16))
-                    .cornerRadius(18)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 54)
 
                     // Quick Utilities
                     VStack(spacing: 12) {
@@ -625,10 +599,10 @@ struct CinemaProfileView: View {
 
                     // App Version Footer
                     VStack(spacing: 4) {
-                        Text("KenhLive Cinema iOS")
+                        Text("KenhLive Cinema & Sports iOS")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(Color.white.opacity(0.6))
-                        Text("Phiên bản v1.6.5 (Build 137)")
+                        Text("Phiên bản v1.6.7 (Build 139)")
                             .font(.system(size: 11, weight: .regular))
                             .foregroundColor(Color.white.opacity(0.3))
                     }
@@ -638,6 +612,12 @@ struct CinemaProfileView: View {
                     Spacer(minLength: 120)
                 }
             }
+        }
+        .sheet(item: $selectedFilm) { film in
+            EpisodePickerSheet(
+                film: film,
+                initialResumeProgress: storage.getProgress(for: film.slug)
+            )
         }
     }
 }

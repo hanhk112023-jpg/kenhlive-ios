@@ -1,3 +1,20 @@
+# 🚀 KENHLIVE iOS v1.6.7 (Build 139) — KHÔI PHỤC ĐẦY ĐỦ THỂ THAO & VTV TRUYỀN HÌNH + HIỆU ỨNG TRƯỢT VIÊN THUỐC ĐỘNG (MATCHEDGEOMETRY)
+
+### ⚽ 1. Khôi Phục Đầy Đủ Thể Thao Live & VTV Truyền Hình Vào Thanh Điều Hướng Đáy (5 Tab)
+- **Thanh Dock 5 Tab Hoàn Chỉnh**:
+  1. 🏠 **Trang chủ**: Rạp phim Netflix Cinema tràn viền chuẩn Cinematic theo ảnh mẫu (Hero Banner 480pt, "Bạn đang quan tâm gì?", "Top tuần" #1 #2 #3...).
+  2. ⚽ **Thể thao**: Trực tiếp bóng đá 4 nhà đài (**Socolive, ColaTV, Gà Vàng 33, Giờ Vàng TV**), bảng tỷ số thời gian thực, bình luận viên, logo CLB ESPN 500x500.
+  3. 📺 **Truyền hình**: Đầy đủ các kênh VTV Quốc Gia (**VTV1, VTV2, VTV3, VTV5, VTV6, VTV Cần Thơ**), K+ Sport, HTV, Thể thao TV với trình phát tức thì.
+  4. 🔍 **Tìm kiếm**: Tìm kiếm toàn diện (Phim rạp, Trận đấu bóng đá, Kênh TV) với bộ lọc phạm vi.
+  5. 👤 **Cá nhân**: Quản lý "Tiếp tục xem", Lịch thi đấu 7 ngày ("LỊCH ĐÁ"), Báo lỗi Telegram, Kiểm tra tốc độ CDN.
+- **Lối tắt nhanh trong Trang Chủ**: Bổ sung ngay thẻ "Thể Thao Live" và "Truyền Hình VTV" vào hàng "Bạn đang quan tâm gì?", bấm vào lập tức chuyển mượt mà sang nhà đài hoặc kênh mong muốn.
+
+### ✨ 2. Hiệu Ứng Trượt Viên Thuốc Động Sang Trọng (Dynamic Tab Sliding Capsule)
+- Tích hợp công nghệ `.matchedGeometryEffect` trong SwiftUI: Viên thuốc màu đỏ rượu vang (`#7A1F26`) không còn biến mất/xuất hiện đột ngột mà **trượt lướt và co giãn vật lý cực mượt (Spring Animation)** từ tab này sang tab khác khi bạn chạm.
+- Hiệu ứng nảy biểu tượng (`scaleEffect 1.15`) và phản hồi rung xúc giác `KLHaptics.selection()` tinh tế trên từng thao tác chạm.
+
+---
+
 # 🚀 KENHLIVE iOS v1.6.6 (Build 138) — HOÀN THIỆN ĐỒNG BỘ TOÀN BỘ GIAO DIỆN THEO MẪU THIẾT KẾ (DOCK BAR 4 TAB & FULL BLEED STATUS BAR)
 
 ### 🌟 1. Banner Tràn Viền Tuyệt Đối (Edge-to-Edge Status Bar)

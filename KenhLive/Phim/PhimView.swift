@@ -24,6 +24,8 @@ struct PhimView: View {
     @State private var initialResumeProgressForSheet: WatchProgress? = nil
     @State private var autoPlayForSheet: Bool = false
 
+    var onSelectTab: ((KLTab) -> Void)? = nil
+
     private let filterPills: [KLFilterItem<String>] = [
         KLFilterItem(id: "tat-ca", title: "Trang Chủ Phim"),
         KLFilterItem(id: "lich-su", title: "Đã Lưu & Xem Gần Đây"),
@@ -42,6 +44,20 @@ struct PhimView: View {
 
     // Featured Curated Collection Cards ("Bạn đang quan tâm gì?")
     private let curatedCollections: [CuratedCollection] = [
+        CuratedCollection(
+            title: "Thể Thao Live",
+            countText: "4 Nhà Đài",
+            gradient: [Color(red: 0.95, green: 0.35, blue: 0.12), Color(red: 0.98, green: 0.55, blue: 0.15)],
+            categorySlug: "sports",
+            searchKeyword: ""
+        ),
+        CuratedCollection(
+            title: "Truyền Hình VTV",
+            countText: "VTV, K+, HTV",
+            gradient: [Color(red: 0.12, green: 0.45, blue: 0.85), Color(red: 0.25, green: 0.65, blue: 0.95)],
+            categorySlug: "iptv",
+            searchKeyword: ""
+        ),
         CuratedCollection(
             title: "Marvel",
             countText: "32 phim",
@@ -367,7 +383,13 @@ struct PhimView: View {
                     ForEach(curatedCollections) { col in
                         Button {
                             KLHaptics.medium()
-                            Task { await selectCategory(col.categorySlug) }
+                            if col.categorySlug == "sports" {
+                                onSelectTab?(.sports)
+                            } else if col.categorySlug == "iptv" {
+                                onSelectTab?(.iptv)
+                            } else {
+                                Task { await selectCategory(col.categorySlug) }
+                            }
                         } label: {
                             VStack(alignment: .leading) {
                                 Text(col.title)

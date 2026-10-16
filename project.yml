@@ -7,8 +7,8 @@ options:
 
 settings:
   base:
-    MARKETING_VERSION: "1.6.6"
-    CURRENT_PROJECT_VERSION: "138"
+    MARKETING_VERSION: "1.6.7"
+    CURRENT_PROJECT_VERSION: "139"
     SWIFT_VERSION: "5.9"
     TARGETED_DEVICE_FAMILY: "1,2"
     INFOPLIST_FILE: KenhLive/Info.plist
