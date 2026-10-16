@@ -418,9 +418,10 @@ final class KLImageLoader: ObservableObject {
                     await MainActor.run { self.isLoading = false }
                     return
                 }
-                KLImageCache.shared.set(downloaded, for: urlString)
+                let displayImage = await downloaded.byPreparingForDisplay() ?? downloaded
+                KLImageCache.shared.set(displayImage, for: urlString)
                 await MainActor.run {
-                    self.image = downloaded
+                    self.image = displayImage
                     self.isLoading = false
                 }
             } catch {
@@ -460,8 +461,139 @@ struct KLAsyncImage: View {
         .onAppear {
             loader.load(urlString: url)
         }
+        .onChange(of: url) { newUrl in
+            loader.load(urlString: newUrl)
+        }
         .onDisappear {
             loader.cancel()
         }
+    }
+}
+
+// MARK: - Cinema Widescreen Continue Watching Film Card
+struct KLWatchHistoryCard: View {
+    let item: WatchProgress
+    let onPlay: () -> Void
+    var onDelete: (() -> Void)? = nil
+
+    var body: some View {
+        Button(action: onPlay) {
+            VStack(alignment: .leading, spacing: 8) {
+                // 1. Poster Art (16:9 Cinema Widescreen)
+                ZStack(alignment: .bottom) {
+                    KLAsyncImage(
+                        url: item.posterUrl,
+                        contentMode: .fill
+                    )
+                    .frame(width: 175, height: 108)
+                    .clipped()
+
+                    // Subtle Dark Gradient Overlay
+                    LinearGradient(
+                        colors: [.clear, Color.black.opacity(0.35), Color.black.opacity(0.88)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+
+                    // Centered Frosted Play Icon
+                    Circle()
+                        .fill(Color.black.opacity(0.55))
+                        .frame(width: 36, height: 36)
+                        .overlay(
+                            Circle().stroke(Color.white.opacity(0.35), lineWidth: 0.8)
+                        )
+                        .overlay(
+                            Image(systemName: "play.fill")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(.white)
+                                .offset(x: 1.5)
+                        )
+                        .shadow(color: Color.black.opacity(0.6), radius: 6, x: 0, y: 2)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+
+                    // Top Bar (Badge Episode on Left, Delete 'xmark' on Right if provided)
+                    VStack {
+                        HStack {
+                            Text(item.episodeName.isEmpty ? "Đang xem" : item.episodeName)
+                                .font(.system(size: 9.5, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 3)
+                                .background(Color.black.opacity(0.70))
+                                .clipShape(Capsule())
+
+                            Spacer()
+
+                            if let onDelete = onDelete {
+                                Button(action: onDelete) {
+                                    Image(systemName: "xmark")
+                                        .font(.system(size: 9, weight: .bold))
+                                        .foregroundColor(.white.opacity(0.85))
+                                        .frame(width: 22, height: 22)
+                                        .background(Color.black.opacity(0.75))
+                                        .clipShape(Circle())
+                                }
+                                .buttonStyle(.plain)
+                            } else {
+                                Text("\(Int(item.progressPercent * 100))%")
+                                    .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 3)
+                                    .background(Color(red: 0.85, green: 0.22, blue: 0.28).opacity(0.9))
+                                    .clipShape(Capsule())
+                            }
+                        }
+                        Spacer()
+                    }
+                    .padding(6)
+
+                    // Bottom Crimson Progress Bar
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Rectangle()
+                                .fill(Color.white.opacity(0.25))
+                                .frame(height: 3.5)
+
+                            Rectangle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color(red: 0.85, green: 0.22, blue: 0.28), Color(red: 1.0, green: 0.38, blue: 0.44)],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .frame(width: geo.size.width * max(0.06, min(1.0, item.progressPercent)), height: 3.5)
+                        }
+                    }
+                    .frame(height: 3.5)
+                }
+                .frame(width: 175, height: 108)
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.white.opacity(0.12), lineWidth: 0.8)
+                )
+
+                // 2. Movie Title & Subtitle Info
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(item.filmName)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .font(.system(size: 10))
+                        Text(item.episodeName.isEmpty ? "Xem tiếp" : item.episodeName)
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .foregroundColor(KLTheme.textMuted)
+                    .lineLimit(1)
+                }
+                .frame(width: 175, alignment: .leading)
+            }
+        }
+        .buttonStyle(.plain)
     }
 }

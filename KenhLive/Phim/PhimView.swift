@@ -329,12 +329,7 @@ struct PhimView: View {
             // Section A: "Bạn đang quan tâm gì?" (Featured Gradient Collection Cards)
             renderCuratedCollectionsSection()
 
-            // Section B: "Top tuần" (Trending Weekly Leaderboard with Large Numerals 1, 2, 3...)
-            if let topWeekSection = sections.first {
-                renderWeeklyLeaderboardSection(topWeekSection)
-            }
-
-            // Section C: Continue Watching Rail (if history exists)
+            // Section B: Continue Watching Rail with Cinematic Film Cards (if history exists)
             if !storage.watchHistory.isEmpty {
                 ContinueWatchingRail(items: storage.watchHistory) { item in
                     KLHaptics.medium()
@@ -351,6 +346,11 @@ struct PhimView: View {
                     initialResumeProgressForSheet = item
                     selectedFilmForEpisodes = film
                 }
+            }
+
+            // Section C: "Top tuần" (Trending Weekly Leaderboard with Large Numerals 1, 2, 3...)
+            if let topWeekSection = sections.first {
+                renderWeeklyLeaderboardSection(topWeekSection)
             }
 
             // Section D: Remaining Curated Cinema Shelves ("Drama xứ kim chi", "Phim Lẻ", "Hoạt Hình"...)
@@ -976,6 +976,18 @@ struct PhimView: View {
             }
         } else if slug == "lich-su" {
             // Local watch history & bookmarks view
+            self.categoryFilms = storage.watchHistory.map { item in
+                FilmItem(
+                    name: item.filmName,
+                    slug: item.filmSlug,
+                    originalName: item.episodeName,
+                    thumbUrl: item.posterUrl,
+                    posterUrl: item.posterUrl,
+                    quality: "HD",
+                    year: ""
+                )
+            }
+            self.isLoadingCategory = false
         } else {
             isLoadingCategory = true
 
@@ -1144,62 +1156,21 @@ private struct ContinueWatchingRail: View {
     let onTap: (WatchProgress) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 11) {
+        VStack(alignment: .leading, spacing: 12) {
             KLSectionHeader(
                 title: "Tiếp Tục Xem",
                 subtitle: "Khôi phục ngay tập phim đang xem dở",
                 trailingText: "\(items.count) PHIM",
-                accentColor: KLTheme.brandOrange
+                accentColor: Color(red: 0.90, green: 0.22, blue: 0.28)
             )
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
+                HStack(spacing: 14) {
                     ForEach(items) { item in
-                        Button {
-                            onTap(item)
-                        } label: {
-                            VStack(alignment: .leading, spacing: 8) {
-                                HStack {
-                                    Text("▶ TIẾP TỤC")
-                                        .font(.system(size: 9.5, weight: .black))
-                                        .foregroundColor(KLTheme.brandOrange)
-                                    Spacer()
-                                    Text("\(Int(item.progressPercent * 100))%")
-                                        .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                        .foregroundColor(KLTheme.textSecondary)
-                                }
-
-                                Text(item.filmName)
-                                    .font(.system(size: 13.5, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .lineLimit(1)
-
-                                Text(item.episodeName)
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundColor(KLTheme.textSecondary)
-
-                                GeometryReader { geo in
-                                    ZStack(alignment: .leading) {
-                                        Capsule()
-                                            .fill(Color.white.opacity(0.16))
-                                            .frame(height: 4)
-                                        Capsule()
-                                            .fill(KLTheme.brandOrange)
-                                            .frame(width: geo.size.width * max(0.08, item.progressPercent), height: 4)
-                                    }
-                                }
-                                .frame(height: 4)
-                            }
-                            .padding(14)
-                            .frame(width: 220)
-                            .background(KLTheme.surfaceCard)
-                            .cornerRadius(12)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(KLTheme.borderSubtle, lineWidth: 0.8)
-                            )
-                        }
-                        .buttonStyle(KLScaleButtonStyle())
+                        KLWatchHistoryCard(
+                            item: item,
+                            onPlay: { onTap(item) }
+                        )
                     }
                 }
                 .padding(.horizontal, 16)

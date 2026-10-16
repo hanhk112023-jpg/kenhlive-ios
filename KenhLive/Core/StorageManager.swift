@@ -73,4 +73,11 @@ final class StorageManager: ObservableObject {
         watchHistory = []
         defaults.removeObject(forKey: keyHistory)
     }
+
+    func removeWatchProgress(filmSlug: String) {
+        watchHistory.removeAll { $0.filmSlug == filmSlug }
+        if let encoded = try? JSONEncoder().encode(watchHistory) {
+            defaults.set(encoded, forKey: keyHistory)
+        }
+    }
 }

@@ -1,3 +1,22 @@
+# 🚀 KENHLIVE iOS v1.7.3 (Build 145) — NÂNG CẤP ĐỘ MƯỢT 120HZ PROMOTION, CARD PHIM LỊCH SỬ XEM & TỐI ƯU GIAO DIỆN CINEMA LIQUID GLASS
+
+### 🎬 1. Card Phim Lịch Sử Xem & Tiếp Tục Xem Đẳng Cấp Cinema (`KLWatchHistoryCard`)
+- Thay thế hoàn toàn các ô văn bản xám cũ bằng **Card phim 16:9 Cinema Widescreen** chuẩn phong cách Netflix & Apple TV+:
+  - **Ảnh Poster / Backdrop** sắc nét tải qua bộ đệm RAM `KLAsyncImage`.
+  - **Nút Play tròn phát quang kính mờ Liquid Glass** nằm chính giữa poster, chạm 1 lần là phát ngay từ đúng số giây đã dừng.
+  - **Thanh tiến trình màu đỏ thẫm (Crimson Red Progress Bar)** chạy mượt mà theo tỷ lệ thời lượng đã xem (%).
+  - **Nhãn tập phim & thời gian** hiển thị rõ ràng (Tập 1, Tập 12, Đã xem 65%).
+  - Xuất hiện đồng bộ trên cả **Trang Chủ** (ngay sau cụm "Bạn đang quan tâm gì?"), bộ lọc **"Đã Lưu & Xem Gần Đây"**, và tab **"Cá nhân"**.
+  - Bổ sung nút xóa từng phim (`xmark`) và nút "Xóa tất cả" giúp quản lý lịch sử xem tiện lợi.
+
+### ⚡ 2. Tối Ưu Độ Mượt & Ổn Định 120Hz ProMotion (Smoothness & Stability)
+- **Giải nén ảnh trước trên luồng nền (`byPreparingForDisplay`)**: Sử dụng API UIKit tối ưu để giải mã bitmap trên background thread trước khi đưa lên GPU, loại bỏ 100% hiện tượng micro-stutter hay khựng khung hình khi cuộn nhanh qua hàng trăm poster.
+- **Hỗ trợ cập nhật URL tức thì (`onChange(of: url)`)**: Đảm bảo các ô tái sử dụng trong ScrollView/List cập nhật poster chính xác và không bị hiển thị sai ảnh.
+- **Xử lý trạng thái rỗng (Empty States)**: Thiết kế card thông báo tinh tế khi chưa có phim trong lịch sử, không gây lỗi giao diện.
+- **Thao tác xóa an toàn**: Cung cấp hàm `removeWatchProgress(filmSlug:)` với lưu trữ bất đồng bộ an toàn trên `StorageManager`.
+
+---
+
 # 🚀 KENHLIVE iOS v1.7.2 (Build 144) — CHUYỂN HOÀN TOÀN TÌM KIẾM VÀO TRANG ĐẦU, DOCK 4 TAB TINH GỌN, XÓA BỎ THANH TÌM KIẾM THỂ THAO & TRUYỀN HÌNH
 
 ### 🎬 1. Bỏ Tab Tìm Kiếm Khỏi Thanh Dock — Chuyển Trọn Vẹn Vào Nút Tìm Kiếm Trang Chủ

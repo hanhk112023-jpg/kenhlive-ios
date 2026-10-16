@@ -582,57 +582,91 @@ struct CinemaProfileView: View {
                     .padding(.horizontal, 16)
                     .padding(.top, 54)
 
-                    // Continue Watching Rail
-                    if !storage.watchHistory.isEmpty {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("TIẾP TỤC XEM")
-                                .font(.system(size: 11.5, weight: .heavy))
-                                .tracking(0.6)
-                                .foregroundColor(KLTheme.textMuted)
-                                .padding(.horizontal, 16)
+                    // Continue Watching & History Section with Cinematic Film Cards
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("LỊCH SỬ XEM & TIẾP TỤC")
+                                    .font(.system(size: 13, weight: .heavy, design: .rounded))
+                                    .foregroundColor(.white)
+                                Text(storage.watchHistory.isEmpty ? "Tự động lưu tiến độ phim đang theo dõi" : "\(storage.watchHistory.count) bộ phim đã lưu tiến độ")
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundColor(KLTheme.textMuted)
+                            }
 
+                            Spacer()
+
+                            if !storage.watchHistory.isEmpty {
+                                Button {
+                                    KLHaptics.selection()
+                                    withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                                        storage.clearWatchHistory()
+                                    }
+                                } label: {
+                                    Text("Xóa tất cả")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(Color(red: 0.88, green: 0.25, blue: 0.30))
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(Color(red: 0.88, green: 0.25, blue: 0.30).opacity(0.12))
+                                        .clipShape(Capsule())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+
+                        if storage.watchHistory.isEmpty {
+                            // Elegant Empty State Card
+                            HStack(spacing: 12) {
+                                Image(systemName: "film.stack")
+                                    .font(.system(size: 26))
+                                    .foregroundColor(KLTheme.textMuted)
+
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text("Chưa có phim trong lịch sử xem")
+                                        .font(.system(size: 13, weight: .bold))
+                                        .foregroundColor(.white)
+                                    Text("Khám phá kho phim điện ảnh & anime tại Trang chủ để tiếp tục xem mọi lúc.")
+                                        .font(.system(size: 11, weight: .regular))
+                                        .foregroundColor(KLTheme.textMuted)
+                                        .lineLimit(2)
+                                }
+                            }
+                            .padding(16)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color(red: 0.11, green: 0.11, blue: 0.14))
+                            .cornerRadius(14)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .stroke(Color.white.opacity(0.08), lineWidth: 0.8)
+                            )
+                            .padding(.horizontal, 16)
+                        } else {
                             ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 12) {
+                                HStack(spacing: 14) {
                                     ForEach(storage.watchHistory) { item in
-                                        Button {
-                                            KLHaptics.medium()
-                                            let film = FilmItem(
-                                                name: item.filmName,
-                                                slug: item.filmSlug,
-                                                originalName: "",
-                                                thumbUrl: item.posterUrl,
-                                                posterUrl: item.posterUrl,
-                                                quality: "HD",
-                                                year: ""
-                                            )
-                                            selectedFilm = film
-                                        } label: {
-                                            VStack(alignment: .leading, spacing: 6) {
-                                                HStack {
-                                                    Text("▶ XEM TIẾP")
-                                                        .font(.system(size: 9.5, weight: .black))
-                                                        .foregroundColor(KLTheme.brandOrange)
-                                                    Spacer()
-                                                    Text("\(Int(item.progressPercent * 100))%")
-                                                        .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                                        .foregroundColor(KLTheme.textSecondary)
+                                        KLWatchHistoryCard(
+                                            item: item,
+                                            onPlay: {
+                                                KLHaptics.medium()
+                                                let film = FilmItem(
+                                                    name: item.filmName,
+                                                    slug: item.filmSlug,
+                                                    originalName: "",
+                                                    thumbUrl: item.posterUrl,
+                                                    posterUrl: item.posterUrl,
+                                                    quality: "HD",
+                                                    year: ""
+                                                )
+                                                selectedFilm = film
+                                            },
+                                            onDelete: {
+                                                withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                                                    storage.removeWatchProgress(filmSlug: item.filmSlug)
                                                 }
-
-                                                Text(item.filmName)
-                                                    .font(.system(size: 13, weight: .bold))
-                                                    .foregroundColor(.white)
-                                                    .lineLimit(1)
-
-                                                Text(item.episodeName)
-                                                    .font(.system(size: 11, weight: .medium))
-                                                    .foregroundColor(KLTheme.textSecondary)
                                             }
-                                            .padding(14)
-                                            .frame(width: 200)
-                                            .background(Color(red: 0.12, green: 0.12, blue: 0.16))
-                                            .cornerRadius(14)
-                                        }
-                                        .buttonStyle(.plain)
+                                        )
                                     }
                                 }
                                 .padding(.horizontal, 16)
@@ -724,10 +758,10 @@ struct CinemaProfileView: View {
 
                     // App Version Footer
                     VStack(spacing: 4) {
-                        Text("KenhLive Cinema & Sports iOS")
+                        Text("KenhLive Cinema, Sports & VTV iOS")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(Color.white.opacity(0.6))
-                        Text("Phiên bản v1.6.7 (Build 139)")
+                        Text("Phiên bản v1.7.3 (Build 145)")
                             .font(.system(size: 11, weight: .regular))
                             .foregroundColor(Color.white.opacity(0.3))
                     }
