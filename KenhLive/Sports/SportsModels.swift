@@ -37,6 +37,15 @@ struct LiveRoom: Identifiable, Codable, Hashable {
     }
 }
 
+struct LiveScoreDetail: Hashable {
+    let scoreA: String
+    let scoreB: String
+
+    var formatted: String {
+        "\(scoreA) - \(scoreB)"
+    }
+}
+
 struct LiveMatchGroup: Identifiable, Hashable {
     var id: String { matchKey }
     let matchKey: String
@@ -48,6 +57,10 @@ struct LiveMatchGroup: Identifiable, Hashable {
         rooms.first ?? LiveRoom(roomNum: "", blvName: "BLV", avatar: "", viewers: 0, matchTitle: matchTitle, league: league, cover: "", category: "", blvLevel: "", score: 0, notice: "")
     }
 
+    var blvName: String {
+        topRoom.blvName
+    }
+
     var totalViewers: Int {
         rooms.reduce(0) { $0 + $1.viewers }
     }
@@ -56,7 +69,7 @@ struct LiveMatchGroup: Identifiable, Hashable {
         let top = topRoom
         if !top.homeTeam.isEmpty { return top.homeTeam }
         var title = matchTitle
-        if let score = liveScore {
+        if let score = liveScoreText {
             title = title.replacingOccurrences(of: score, with: "vs")
         }
         title = title.replacingOccurrences(of: "[SẮP ĐÁ]", with: "")
@@ -69,7 +82,7 @@ struct LiveMatchGroup: Identifiable, Hashable {
         let top = topRoom
         if !top.awayTeam.isEmpty { return top.awayTeam }
         var title = matchTitle
-        if let score = liveScore {
+        if let score = liveScoreText {
             title = title.replacingOccurrences(of: score, with: "vs")
         }
         title = title.replacingOccurrences(of: "[SẮP ĐÁ]", with: "")
@@ -88,7 +101,7 @@ struct LiveMatchGroup: Identifiable, Hashable {
         return !top.awayLogo.isEmpty ? top.awayLogo : (TeamLogoRegistry.shared.findLogo(for: awayTeamName) ?? "")
     }
 
-    var liveScore: String? {
+    var liveScoreText: String? {
         let text = matchTitle + " " + topRoom.notice
         let pattern = "\\b(\\d{1,2})\\s*-\\s*(\\d{1,2})\\b"
         if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
@@ -97,6 +110,15 @@ struct LiveMatchGroup: Identifiable, Hashable {
                 return nsText.substring(with: match.range).replacingOccurrences(of: " ", with: "")
                     .replacingOccurrences(of: "-", with: " - ")
             }
+        }
+        return nil
+    }
+
+    var liveScore: LiveScoreDetail? {
+        guard let s = liveScoreText else { return nil }
+        let parts = s.components(separatedBy: "-").map { $0.trimmingCharacters(in: .whitespaces) }
+        if parts.count >= 2 {
+            return LiveScoreDetail(scoreA: parts[0], scoreB: parts[1])
         }
         return nil
     }

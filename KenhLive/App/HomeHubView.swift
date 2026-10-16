@@ -647,8 +647,8 @@ struct HomeHubView: View {
             originalName: "",
             thumbUrl: progress.posterUrl,
             posterUrl: progress.posterUrl,
-            year: "",
-            quality: "HD"
+            quality: "HD",
+            year: ""
         )
         self.resumeFilmProgress = progress
         self.selectedFilmForEpisodes = dummy

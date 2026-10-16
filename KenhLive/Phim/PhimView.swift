@@ -298,8 +298,8 @@ struct PhimView: View {
                             originalName: "",
                             thumbUrl: item.posterUrl,
                             posterUrl: item.posterUrl,
-                            year: "",
-                            quality: "HD"
+                            quality: "HD",
+                            year: ""
                         )
                         initialResumeProgressForSheet = item
                         selectedFilmForEpisodes = film
@@ -391,8 +391,8 @@ struct PhimView: View {
                         originalName: "",
                         thumbUrl: item.posterUrl,
                         posterUrl: item.posterUrl,
-                        year: "",
-                        quality: "HD"
+                        quality: "HD",
+                        year: ""
                     )
                     initialResumeProgressForSheet = item
                     selectedFilmForEpisodes = film
