@@ -19,7 +19,7 @@ struct KenhLiveApp: App {
     private func configureAudioSession() {
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .moviePlayback, options: [.allowAirPlay, .allowBluetooth])
+            try session.setCategory(.playback, mode: .moviePlayback)
             try session.setActive(true)
         } catch {
             // Ignore audio session setup errors on simulator

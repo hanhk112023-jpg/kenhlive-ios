@@ -5,20 +5,46 @@ struct IptvView: View {
     @ObservedObject private var storage = StorageManager.shared
     @State private var categories: [IptvCategory] = []
     @State private var selectedCategory: String = "VTV Quốc Gia"
+    @State private var searchQuery: String = ""
     @State private var previewChannel: IptvChannel? = nil
     @State private var activeChannelForPlayer: IptvChannel? = nil
     @State private var isLoading: Bool = true
 
+    private var allChannelsList: [IptvChannel] {
+        categories.flatMap { $0.channels }
+    }
+
+    private var favoriteChannels: [IptvChannel] {
+        let favs = allChannelsList.filter { storage.isFavoriteChannel(id: $0.channelId) }
+        return Array(Dictionary(grouping: favs, by: { $0.channelId }).values.compactMap { $0.first })
+    }
+
     private var currentCategoryChannels: [IptvChannel] {
-        if selectedCategory == "Yêu Thích" {
-            let favs = categories.flatMap { $0.channels }.filter { storage.isFavoriteChannel(id: $0.channelId) }
-            return Array(Set(favs))
+        var list: [IptvChannel]
+        if selectedCategory == "⭐ Yêu Thích" {
+            list = favoriteChannels
+        } else if selectedCategory == "Tất Cả" {
+            list = allChannelsList
+        } else {
+            list = categories.first(where: { $0.name == selectedCategory })?.channels ?? []
         }
-        return categories.first(where: { $0.name == selectedCategory })?.channels ?? []
+
+        let q = searchQuery.trimmingCharacters(in: .whitespaces).lowercased()
+        if !q.isEmpty {
+            list = list.filter { $0.name.lowercased().contains(q) || $0.group.lowercased().contains(q) }
+        }
+        return list
     }
 
     private var categoryTabs: [KLFilterItem<String>] {
-        categories.map { KLFilterItem(id: $0.name, title: $0.name) }
+        var tabs: [KLFilterItem<String>] = []
+        if !favoriteChannels.isEmpty {
+            tabs.append(KLFilterItem(id: "⭐ Yêu Thích", title: "⭐ Yêu Thích", badge: "\(favoriteChannels.count)"))
+        }
+        tabs.append(contentsOf: categories.map {
+            KLFilterItem(id: $0.name, title: $0.name, badge: "\($0.channels.count)")
+        })
+        return tabs
     }
 
     var body: some View {
@@ -26,34 +52,19 @@ struct IptvView: View {
             KLTheme.bgDeep.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Header Bar (Typography-First, Zero Icons)
-                HStack(alignment: .lastTextBaseline) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("TRUYỀN HÌNH VIỆT NAM")
-                            .font(.system(size: 11, weight: .black, design: .rounded))
-                            .tracking(1.8)
-                            .foregroundColor(KLTheme.brandOrange)
+                // 1. Editorial Header Bar
+                renderHeaderBar()
 
-                        Text("Kênh TV Trực Tuyến")
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundColor(KLTheme.textPrimary)
-                    }
-
-                    Spacer()
-
-                    if let preview = previewChannel {
-                        Text(preview.name)
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundColor(KLTheme.textSecondary)
-                            .lineLimit(1)
-                    }
-                }
+                // 2. Instant Search Bar
+                KLGlassSearchBar(
+                    text: $searchQuery,
+                    placeholder: "Tìm kiếm kênh VTV, K+, HTV, thể thao, tin tức..."
+                )
                 .padding(.horizontal, 16)
-                .padding(.top, 12)
                 .padding(.bottom, 10)
 
-                // Inline Top Preview Player
-                if let preview = previewChannel {
+                // 3. Inline 16:9 Muted Preview Player (Only when not searching)
+                if searchQuery.isEmpty, let preview = previewChannel {
                     InlinePreviewPlayerView(
                         channel: preview,
                         isFullscreenActive: activeChannelForPlayer != nil,
@@ -67,88 +78,49 @@ struct IptvView: View {
                     .padding(.bottom, 12)
                 }
 
-                // Category Filter Strip
+                // 4. Category Filter Strip
                 if !categoryTabs.isEmpty {
                     KLFilterStrip(items: categoryTabs, selection: $selectedCategory)
-                        .padding(.bottom, 12)
+                        .padding(.bottom, 10)
                 }
 
-                // Channel Grid (2 Columns on iPhone)
+                // 5. Channel Grid (2 Columns on iPhone)
                 ScrollView(showsIndicators: false) {
-                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-                        ForEach(currentCategoryChannels) { channel in
-                            let isFav = storage.isFavoriteChannel(id: channel.channelId)
-                            let isCurrentPreview = previewChannel?.channelId == channel.channelId
+                    if currentCategoryChannels.isEmpty {
+                        VStack(spacing: 12) {
+                            Image(systemName: "tv.slash")
+                                .font(.system(size: 34))
+                                .foregroundColor(KLTheme.textMuted)
 
-                            Button {
-                                if isCurrentPreview {
-                                    activeChannelForPlayer = channel
-                                } else {
-                                    previewChannel = channel
-                                }
-                            } label: {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    HStack {
-                                        KLPillBadge(text: "LIVE", fg: .white, bg: KLTheme.liveRed, border: .clear)
-                                        Spacer()
-                                        KLPillBadge(text: channel.resolution, fg: .white, bg: Color.white.opacity(0.10), border: .clear)
-                                    }
+                            Text("Không có kênh truyền hình phù hợp")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(KLTheme.textSecondary)
 
-                                    Text(channel.name)
-                                        .font(.system(size: 15, weight: .bold))
-                                        .foregroundColor(KLTheme.textPrimary)
-                                        .lineLimit(1)
-
-                                    HStack {
-                                        Text(channel.group.uppercased())
-                                            .font(.system(size: 10.5, weight: .medium, design: .monospaced))
-                                            .foregroundColor(KLTheme.textMuted)
-
-                                        Spacer()
-
-                                        if isFav {
-                                            Text("LƯU")
-                                                .font(.system(size: 9.5, weight: .bold))
-                                                .foregroundColor(KLTheme.imdbGold)
-                                                .padding(.horizontal, 6)
-                                                .padding(.vertical, 2)
-                                                .background(KLTheme.imdbGold.opacity(0.12))
-                                                .cornerRadius(4)
-                                        }
-                                    }
-                                }
-                                .padding(13)
-                                .background(isCurrentPreview ? KLTheme.brandOrange.opacity(0.15) : KLTheme.surfaceCard)
-                                .cornerRadius(12)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(isCurrentPreview ? KLTheme.brandOrange : KLTheme.borderSubtle, lineWidth: isCurrentPreview ? 1.5 : 0.8)
-                                )
-                            }
-                            .buttonStyle(.plain)
-                            .contextMenu {
-                                Button {
-                                    activeChannelForPlayer = channel
-                                } label: {
-                                    Text("Phát toàn màn hình")
-                                }
-
-                                Button {
-                                    storage.toggleFavoriteChannel(id: channel.channelId)
-                                } label: {
-                                    Text(isFav ? "Bỏ lưu kênh yêu thích" : "Lưu vào kênh yêu thích")
-                                }
+                            if selectedCategory == "⭐ Yêu Thích" {
+                                Text("Chạm vào biểu tượng ngôi sao ở mỗi kênh để lưu vào danh sách yêu thích.")
+                                    .font(.system(size: 11.5, weight: .regular))
+                                    .foregroundColor(KLTheme.textMuted)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 40)
                             }
                         }
+                        .padding(.top, 40)
+                    } else {
+                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                            ForEach(currentCategoryChannels) { channel in
+                                renderChannelCard(channel: channel)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 90)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 90)
                 }
             }
 
             if isLoading && categories.isEmpty {
                 ProgressView()
                     .tint(KLTheme.brandOrange)
+                    .scaleEffect(1.3)
             }
         }
         .task {
@@ -171,6 +143,137 @@ struct IptvView: View {
         }
         .onDisappear {
             previewChannel = nil
+        }
+    }
+
+    // MARK: - Header Bar
+    @ViewBuilder
+    private func renderHeaderBar() -> some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 5) {
+                    Text("TRUYỀN HÌNH VIỆT NAM & QUỐC TẾ")
+                        .font(.system(size: 10, weight: .black, design: .rounded))
+                        .tracking(1.4)
+                        .foregroundColor(KLTheme.accentCyan)
+
+                    Circle()
+                        .fill(KLTheme.accentCyan)
+                        .frame(width: 5, height: 5)
+                }
+
+                Text("Kênh TV Trực Tuyến")
+                    .font(.system(size: 22, weight: .heavy, design: .rounded))
+                    .foregroundColor(.white)
+            }
+
+            Spacer()
+
+            if let preview = previewChannel {
+                HStack(spacing: 5) {
+                    Circle()
+                        .fill(KLTheme.liveRed)
+                        .frame(width: 5, height: 5)
+                    Text(preview.name)
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(KLTheme.textSecondary)
+                        .lineLimit(1)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(KLTheme.surfaceCard)
+                .cornerRadius(6)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 4)
+        .padding(.bottom, 10)
+    }
+
+    // MARK: - Channel Card
+    @ViewBuilder
+    private func renderChannelCard(channel: IptvChannel) -> some View {
+        let isFav = storage.isFavoriteChannel(id: channel.channelId)
+        let isCurrentPreview = previewChannel?.channelId == channel.channelId
+
+        Button {
+            KLHaptics.selection()
+            if isCurrentPreview {
+                activeChannelForPlayer = channel
+            } else {
+                previewChannel = channel
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    KLLivePulseBadge(text: "LIVE", color: KLTheme.liveRed)
+
+                    Spacer()
+
+                    Text(channel.resolution.isEmpty ? "FHD" : channel.resolution)
+                        .font(.system(size: 8.5, weight: .black, design: .rounded))
+                        .foregroundColor(KLTheme.accentCyan)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(KLTheme.accentCyan.opacity(0.14))
+                        .cornerRadius(4)
+
+                    // Favorite Button
+                    Button {
+                        KLHaptics.selection()
+                        storage.toggleFavoriteChannel(id: channel.channelId)
+                    } label: {
+                        Image(systemName: isFav ? "star.fill" : "star")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(isFav ? KLTheme.imdbGold : KLTheme.textMuted)
+                            .padding(2)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Text(channel.name)
+                    .font(.system(size: 14.5, weight: .bold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+
+                HStack {
+                    Text(channel.group.uppercased())
+                        .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                        .foregroundColor(KLTheme.textMuted)
+                        .lineLimit(1)
+
+                    Spacer()
+
+                    HStack(spacing: 3) {
+                        Text(isCurrentPreview ? "PHÁT" : "XEM")
+                            .font(.system(size: 9.5, weight: .bold))
+                        Image(systemName: isCurrentPreview ? "play.circle.fill" : "play.fill")
+                            .font(.system(size: 8.5, weight: .bold))
+                    }
+                    .foregroundColor(isCurrentPreview ? KLTheme.brandOrange : KLTheme.textSecondary)
+                }
+            }
+            .padding(12)
+            .background(isCurrentPreview ? KLTheme.brandOrange.opacity(0.12) : KLTheme.surfaceCard)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(isCurrentPreview ? KLTheme.brandOrange : KLTheme.borderSubtle, lineWidth: isCurrentPreview ? 1.5 : 0.8)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+        .buttonStyle(KLScaleButtonStyle())
+        .contextMenu {
+            Button {
+                activeChannelForPlayer = channel
+            } label: {
+                Label("Phát toàn màn hình", systemImage: "arrow.up.left.and.arrow.down.right")
+            }
+
+            Button {
+                storage.toggleFavoriteChannel(id: channel.channelId)
+            } label: {
+                Label(isFav ? "Bỏ lưu kênh yêu thích" : "Lưu vào kênh yêu thích", systemImage: isFav ? "star.slash" : "star.fill")
+            }
         }
     }
 }
@@ -208,13 +311,17 @@ private struct InlinePreviewPlayerView: View {
 
                     Spacer()
 
-                    Text("PHÁT")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(KLTheme.brandOrange)
-                        .cornerRadius(6)
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            .font(.system(size: 10, weight: .bold))
+                        Text("PHÓNG TO")
+                            .font(.system(size: 10.5, weight: .bold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 6)
+                    .background(KLTheme.brandOrange)
+                    .cornerRadius(6)
                 }
                 .padding(12)
                 .background(
@@ -256,7 +363,7 @@ private struct InlinePreviewPlayerView: View {
         }
         .onChange(of: isFullscreenActive) { active in
             if active {
-                // Instantly pause and silence preview when fullscreen is active!
+                // Instantly pause and silence preview when fullscreen is active
                 player?.pause()
             } else {
                 // Resume preview (remains muted) when fullscreen is dismissed

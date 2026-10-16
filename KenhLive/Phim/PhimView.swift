@@ -25,10 +25,10 @@ struct PhimView: View {
         "Dragon Ball",
         "Lật Mặt",
         "Tây Du Ký",
-        "Naruto",
         "Solo Leveling",
         "Jujutsu Kaisen",
-        "Bleach"
+        "Bleach",
+        "Chainsaw Man"
     ]
 
     @State private var selectedFilmForEpisodes: FilmItem? = nil
@@ -62,108 +62,20 @@ struct PhimView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
                     // 1. Netflix Editorial Header Bar
-                    HStack(alignment: .center) {
-                        HStack(spacing: 8) {
-                            Text("K")
-                                .font(.system(size: 16, weight: .black, design: .rounded))
-                                .foregroundColor(.white)
-                                .frame(width: 25, height: 25)
-                                .background(KLTheme.netflixRed)
-                                .cornerRadius(5)
-
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text("RẠP PHIM ĐIỆN ẢNH")
-                                    .font(.system(size: 10, weight: .black, design: .rounded))
-                                    .tracking(1.6)
-                                    .foregroundColor(KLTheme.netflixRed)
-
-                                Text("Kho Phim Netflix Cinema")
-                                    .font(.system(size: 21, weight: .heavy))
-                                    .foregroundColor(.white)
-                            }
-                        }
-
-                        Spacer()
-
-                        KLPillBadge(
-                            text: "HLS 4K NATIVE",
-                            fg: KLTheme.imdbGold,
-                            bg: KLTheme.imdbGold.opacity(0.14),
-                            border: KLTheme.imdbGold.opacity(0.4)
-                        )
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 10)
+                    renderHeaderBar()
 
                     // 2. Real-Time Cinema Search Bar
-                    HStack(spacing: 10) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(KLTheme.textMuted)
-
-                        TextField("Tìm tên phim, diễn viên, anime (Conan, Khánh Dư Niên...)", text: $searchQuery)
-                            .font(.system(size: 13.5, weight: .medium))
-                            .foregroundColor(.white)
-                            .autocorrectionDisabled()
-                            .textInputAutocapitalization(.never)
-                            .onChange(of: searchQuery) { query in
-                                performSearch(query: query)
-                            }
-
-                        if isSearching {
-                            ProgressView()
-                                .tint(KLTheme.netflixRed)
-                                .scaleEffect(0.8)
-                        } else if !searchQuery.isEmpty {
-                            Button {
-                                searchQuery = ""
-                                searchResults = []
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(KLTheme.textMuted)
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(KLTheme.surfaceCard)
-                    .cornerRadius(10)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(searchQuery.isEmpty ? KLTheme.borderSubtle : KLTheme.netflixRed.opacity(0.6), lineWidth: 1)
+                    KLGlassSearchBar(
+                        text: $searchQuery,
+                        placeholder: "Tìm tên phim, diễn viên, anime (Conan, One Piece...)"
                     )
                     .padding(.horizontal, 16)
-
-                    // 2b. Trending Keywords Strip (Gợi Ý Bấm Nhanh Chuẩn Netflix)
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 7) {
-                            Text("🔥")
-                                .font(.system(size: 11))
-                            ForEach(trendingKeywords, id: \.self) { kw in
-                                let isSelected = searchQuery.lowercased() == kw.lowercased()
-                                Button {
-                                    KLHaptics.light()
-                                    searchQuery = kw
-                                    performSearch(query: kw)
-                                } label: {
-                                    Text(kw)
-                                        .font(.system(size: 11.5, weight: isSelected ? .bold : .medium))
-                                        .foregroundColor(isSelected ? .white : KLTheme.textSecondary)
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 5)
-                                        .background(isSelected ? KLTheme.brandOrange : KLTheme.surfaceCard)
-                                        .cornerRadius(12)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .stroke(isSelected ? Color.clear : KLTheme.borderSubtle, lineWidth: 0.8)
-                                        )
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        .padding(.horizontal, 16)
+                    .onChange(of: searchQuery) { query in
+                        performSearch(query: query)
                     }
+
+                    // 2b. Trending Keywords Strip
+                    renderTrendingKeywordsStrip()
 
                     // 3. Search Results Overlay OR Regular Cinema Catalog
                     if !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -183,6 +95,7 @@ struct PhimView: View {
             if isLoading && sections.isEmpty && categoryFilms.isEmpty {
                 ProgressView()
                     .tint(KLTheme.netflixRed)
+                    .scaleEffect(1.3)
             }
         }
         .task {
@@ -198,6 +111,83 @@ struct PhimView: View {
         }
     }
 
+    // MARK: - Header Bar
+    @ViewBuilder
+    private func renderHeaderBar() -> some View {
+        HStack(alignment: .center) {
+            HStack(spacing: 8) {
+                Text("K")
+                    .font(.system(size: 16, weight: .black, design: .rounded))
+                    .foregroundColor(.white)
+                    .frame(width: 26, height: 26)
+                    .background(KLTheme.netflixRed)
+                    .cornerRadius(6)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    HStack(spacing: 5) {
+                        Text("RẠP PHIM ĐIỆN ẢNH")
+                            .font(.system(size: 10, weight: .black, design: .rounded))
+                            .tracking(1.4)
+                            .foregroundColor(KLTheme.netflixRed)
+
+                        Circle()
+                            .fill(KLTheme.netflixRed)
+                            .frame(width: 5, height: 5)
+                    }
+
+                    Text("Kho Phim Netflix Cinema")
+                        .font(.system(size: 21, weight: .heavy, design: .rounded))
+                        .foregroundColor(.white)
+                }
+            }
+
+            Spacer()
+
+            KLPillBadge(
+                text: "HLS 4K NATIVE",
+                fg: KLTheme.imdbGold,
+                bg: KLTheme.imdbGold.opacity(0.14),
+                border: KLTheme.imdbGold.opacity(0.4)
+            )
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 4)
+    }
+
+    // MARK: - Trending Keywords Strip
+    @ViewBuilder
+    private func renderTrendingKeywordsStrip() -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 7) {
+                Text("🔥")
+                    .font(.system(size: 12))
+
+                ForEach(trendingKeywords, id: \.self) { kw in
+                    let isSelected = searchQuery.lowercased() == kw.lowercased()
+                    Button {
+                        KLHaptics.light()
+                        searchQuery = kw
+                        performSearch(query: kw)
+                    } label: {
+                        Text(kw)
+                            .font(.system(size: 11.5, weight: isSelected ? .bold : .medium))
+                            .foregroundColor(isSelected ? .black : KLTheme.textSecondary)
+                            .padding(.horizontal, 11)
+                            .padding(.vertical, 5.5)
+                            .background(isSelected ? Color.white : KLTheme.surfaceCard)
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(isSelected ? Color.white : KLTheme.borderSubtle, lineWidth: 0.8)
+                            )
+                    }
+                    .buttonStyle(KLScaleButtonStyle())
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+
     // MARK: - Search Results View
     @ViewBuilder
     private func renderSearchResultsView() -> some View {
@@ -210,9 +200,13 @@ struct PhimView: View {
 
                 Spacer()
 
-                Text("\(searchResults.count) PHIM")
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundColor(KLTheme.imdbGold)
+                if isSearching {
+                    ProgressView().tint(KLTheme.netflixRed).scaleEffect(0.8)
+                } else {
+                    Text("\(searchResults.count) PHIM")
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .foregroundColor(KLTheme.imdbGold)
+                }
             }
             .padding(.horizontal, 16)
 
@@ -249,7 +243,7 @@ struct PhimView: View {
         }
     }
 
-    // MARK: - Main Catalog View (Filter Strip, Hero, Continue Watching, Rails/Grid)
+    // MARK: - Main Catalog View
     @ViewBuilder
     private func renderMainCatalogView() -> some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -301,8 +295,11 @@ struct PhimView: View {
                         let film = FilmItem(
                             name: item.filmName,
                             slug: item.filmSlug,
+                            originName: "",
                             thumbUrl: item.posterUrl,
-                            posterUrl: item.posterUrl
+                            posterUrl: item.posterUrl,
+                            year: "",
+                            quality: "HD"
                         )
                         initialResumeProgressForSheet = item
                         selectedFilmForEpisodes = film
@@ -391,8 +388,11 @@ struct PhimView: View {
                     let film = FilmItem(
                         name: item.filmName,
                         slug: item.filmSlug,
+                        originName: "",
                         thumbUrl: item.posterUrl,
-                        posterUrl: item.posterUrl
+                        posterUrl: item.posterUrl,
+                        year: "",
+                        quality: "HD"
                     )
                     initialResumeProgressForSheet = item
                     selectedFilmForEpisodes = film
@@ -1008,11 +1008,5 @@ private struct FilmSectionRow: View {
                 .padding(.horizontal, 16)
             }
         }
-    }
-}
-
-private struct RotatedCardBorderModifier: View {
-    var body: some View {
-        EmptyView()
     }
 }
