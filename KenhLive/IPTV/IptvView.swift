@@ -5,7 +5,6 @@ struct IptvView: View {
     @ObservedObject private var storage = StorageManager.shared
     @State private var categories: [IptvCategory] = []
     @State private var selectedCategory: String = "VTV Quốc Gia"
-    @State private var searchQuery: String = ""
     @State private var previewChannel: IptvChannel? = nil
     @State private var activeChannelForPlayer: IptvChannel? = nil
     @State private var isLoading: Bool = true
@@ -20,20 +19,13 @@ struct IptvView: View {
     }
 
     private var currentCategoryChannels: [IptvChannel] {
-        var list: [IptvChannel]
         if selectedCategory == "⭐ Yêu Thích" {
-            list = favoriteChannels
+            return favoriteChannels
         } else if selectedCategory == "Tất Cả" {
-            list = allChannelsList
+            return allChannelsList
         } else {
-            list = categories.first(where: { $0.name == selectedCategory })?.channels ?? []
+            return categories.first(where: { $0.name == selectedCategory })?.channels ?? []
         }
-
-        let q = searchQuery.trimmingCharacters(in: .whitespaces).lowercased()
-        if !q.isEmpty {
-            list = list.filter { $0.name.lowercased().contains(q) || $0.group.lowercased().contains(q) }
-        }
-        return list
     }
 
     private var categoryTabs: [KLFilterItem<String>] {
@@ -55,16 +47,8 @@ struct IptvView: View {
                 // 1. Editorial Header Bar
                 renderHeaderBar()
 
-                // 2. Instant Search Bar
-                KLGlassSearchBar(
-                    text: $searchQuery,
-                    placeholder: "Tìm kiếm kênh VTV, K+, HTV, thể thao, tin tức..."
-                )
-                .padding(.horizontal, 16)
-                .padding(.bottom, 10)
-
-                // 3. Inline 16:9 Muted Preview Player (Only when not searching)
-                if searchQuery.isEmpty, let preview = previewChannel {
+                // 2. Inline 16:9 Muted Preview Player
+                if let preview = previewChannel {
                     InlinePreviewPlayerView(
                         channel: preview,
                         isFullscreenActive: activeChannelForPlayer != nil,

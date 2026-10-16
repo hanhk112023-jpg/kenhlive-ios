@@ -7,7 +7,6 @@ struct LiveSportsView: View {
     @State private var giovangMatches: [LiveMatchGroup] = []
 
     @State private var selectedProvider: String = "all"
-    @State private var searchQuery: String = ""
     @State private var selectedLeague: String = "all"
     @State private var heroIndex: Int = 0
     @State private var isLoading: Bool = true
@@ -31,14 +30,6 @@ struct LiveSportsView: View {
 
     private var activeMatchesForCurrentProvider: [LiveMatchGroup] {
         var list = providerFilteredMatches
-        let q = searchQuery.trimmingCharacters(in: .whitespaces).lowercased()
-        if !q.isEmpty {
-            list = list.filter {
-                $0.matchTitle.lowercased().contains(q) ||
-                $0.topRoom.blvName.lowercased().contains(q) ||
-                $0.league.lowercased().contains(q)
-            }
-        }
         if selectedLeague != "all" {
             list = list.filter { $0.league == selectedLeague }
         }
@@ -78,27 +69,20 @@ struct LiveSportsView: View {
                     // 1. Editorial Header Bar
                     renderHeaderBar()
 
-                    // 2. Instant Match & Commentator Search Bar
-                    KLGlassSearchBar(
-                        text: $searchQuery,
-                        placeholder: "Tìm trận đấu, câu lạc bộ, giải đấu hoặc BLV..."
-                    )
-                    .padding(.horizontal, 16)
-
-                    // 3. Segmented Broadcaster Strip with Real-Time Counts
+                    // 2. Segmented Broadcaster Strip with Real-Time Counts
                     KLFilterStrip(items: providerPills, selection: $selectedProvider)
                         .onChange(of: selectedProvider) { _ in
                             heroIndex = 0
                             selectedLeague = "all"
                         }
 
-                    // 4. League Quick Filter Chips
-                    if availableLeagues.count > 2 && searchQuery.isEmpty {
+                    // 3. League Quick Filter Chips
+                    if availableLeagues.count > 2 {
                         renderLeagueFilterStrip()
                     }
 
-                    // 5. Spotlight Hero Match Banner (only when not searching)
-                    if searchQuery.isEmpty, let hero = currentHero {
+                    // 4. Spotlight Hero Match Banner
+                    if let hero = currentHero {
                         SportsHeroBanner(
                             group: hero,
                             currentIndex: heroIndex,
@@ -123,8 +107,8 @@ struct LiveSportsView: View {
                         )
                     }
 
-                    // 6. Matches Content Feed
-                    if selectedProvider == "all" && searchQuery.isEmpty && selectedLeague == "all" {
+                    // 5. Matches Content Feed
+                    if selectedProvider == "all" && selectedLeague == "all" {
                         renderAllProvidersRails()
                     } else {
                         renderVerticalMatchesFeed()

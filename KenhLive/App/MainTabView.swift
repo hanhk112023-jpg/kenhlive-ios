@@ -1,16 +1,16 @@
 import SwiftUI
 
-// MARK: - Cinema Netflix / Liquid Glass 5-Tab Navigation
+// MARK: - Cinema Netflix / Liquid Glass 4-Tab Navigation
 enum KLTab: Int, CaseIterable, Identifiable {
     case home = 0       // "Trang chủ" (Kho Phim Cinema)
     case sports = 1     // "Thể thao" (Socolive, ColaTV, Gà Vàng, Giờ Vàng)
     case iptv = 2       // "Truyền hình" (VTV1-6, K+ Sport, HTV)
-    case search = 3     // "Tìm kiếm" (Universal Search)
-    case profile = 4    // "Cá nhân" (Tiếp tục xem, Lịch đá, Báo lỗi, Cài đặt)
+    case profile = 3    // "Cá nhân" (Tiếp tục xem, Lịch đá, Báo lỗi, Cài đặt)
 
     // Backward-compatibility aliases for legacy portals & services
     static let live = KLTab.sports
     static let phim = KLTab.home
+    static let search = KLTab.home
     static let library = KLTab.profile
     static let settings = KLTab.profile
 
@@ -21,7 +21,6 @@ enum KLTab: Int, CaseIterable, Identifiable {
         case .home: return "Trang chủ"
         case .sports: return "Thể thao"
         case .iptv: return "Truyền hình"
-        case .search: return "Tìm kiếm"
         case .profile: return "Cá nhân"
         }
     }
@@ -31,7 +30,6 @@ enum KLTab: Int, CaseIterable, Identifiable {
         case .home: return "house.fill"
         case .sports: return "sportscourt.fill"
         case .iptv: return "tv.fill"
-        case .search: return "magnifyingglass"
         case .profile: return "person.fill"
         }
     }
@@ -55,11 +53,6 @@ struct MainTabView: View {
                         withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
                             selectedTab = targetTab
                         }
-                    },
-                    onOpenSearch: {
-                        withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
-                            selectedTab = .search
-                        }
                     }
                 )
                 .opacity(selectedTab == .home ? 1 : 0)
@@ -72,10 +65,6 @@ struct MainTabView: View {
                 IptvView()
                     .opacity(selectedTab == .iptv ? 1 : 0)
                     .allowsHitTesting(selectedTab == .iptv)
-
-                CinemaSearchView()
-                    .opacity(selectedTab == .search ? 1 : 0)
-                    .allowsHitTesting(selectedTab == .search)
 
                 CinemaProfileView(
                     onOpenSchedule: { isShowingSchedule = true },
@@ -171,9 +160,10 @@ struct MainTabView: View {
     }
 }
 
-// MARK: - Dedicated Cinema Search View (Tab 3: "Tìm kiếm Phim")
+// MARK: - Dedicated Cinema Search View
 struct CinemaSearchView: View {
     @ObservedObject private var storage = StorageManager.shared
+    var onDismiss: (() -> Void)? = nil
     @State private var searchKeyword: String = ""
     @State private var selectedCategory: String = "tat-ca"
     @State private var matchedFilms: [FilmItem] = []
@@ -210,11 +200,26 @@ struct CinemaSearchView: View {
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
-                    // Header
-                    HStack {
+                    // Header with Optional Back Button
+                    HStack(spacing: 12) {
+                        if let onDismiss = onDismiss {
+                            Button {
+                                KLHaptics.light()
+                                onDismiss()
+                            } label: {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 38, height: 38)
+                                    .background(Color.white.opacity(0.10))
+                                    .clipShape(Circle())
+                            }
+                            .buttonStyle(.plain)
+                        }
+
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Tìm Kiếm Phim")
-                                .font(.system(size: 26, weight: .heavy, design: .rounded))
+                                .font(.system(size: 24, weight: .heavy, design: .rounded))
                                 .foregroundColor(.white)
                             Text("Kho phim KKPhim & NguonC chất lượng 4K")
                                 .font(.system(size: 11.5, weight: .medium))

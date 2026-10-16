@@ -1,3 +1,16 @@
+# 🚀 KENHLIVE iOS v1.7.2 (Build 144) — CHUYỂN HOÀN TOÀN TÌM KIẾM VÀO TRANG ĐẦU, DOCK 4 TAB TINH GỌN, XÓA BỎ THANH TÌM KIẾM THỂ THAO & TRUYỀN HÌNH
+
+### 🎬 1. Bỏ Tab Tìm Kiếm Khỏi Thanh Dock — Chuyển Trọn Vẹn Vào Nút Tìm Kiếm Trang Chủ
+- Loại bỏ hoàn toàn tab Tìm kiếm khỏi thanh Dock điều hướng phía dưới.
+- Thanh Dock trở về cấu trúc **4 Tab tinh gọn, chuẩn mực**: `Trang chủ`, `Thể thao 4 đài`, `Truyền hình VTV/K+`, `Cá nhân`.
+- Tính năng Tìm kiếm Phim 4K & Anime được kích hoạt thông qua **nút kính lúp góc phải trên cùng của Trang chủ**, mở giao diện tìm kiếm rạp phim toàn màn hình với nút quay lại tiện lợi.
+
+### ⚽ 2. Loại Bỏ Hoàn Toàn Thanh Tìm Kiếm Ở Thể Thao & Truyền Hình
+- **Màn hình Thể thao 4 đài (`LiveSportsView`)**: Gỡ bỏ thanh tìm kiếm `KLGlassSearchBar`, giải phóng không gian màn hình tối đa để tập trung 100% vào danh sách các trận cầu trực tiếp, thanh đài phát sóng và bộ lọc giải đấu.
+- **Màn hình Truyền hình VTV (`IptvView`)**: Gỡ bỏ thanh tìm kiếm, giữ lại nguyên vẹn màn hình xem trước và danh mục phân loại kênh truyền hình trực quan, mượt mà.
+
+---
+
 # 🚀 KENHLIVE iOS v1.7.1 (Build 143) — SỬA TRIỆT ĐỂ LỖI HITBOX VÙNG CHẠM THANH DOCK ĐIỀU HƯỚNG
 
 ### 🎯 1. Khắc Phục Triệt Để Lỗi Hitbox Vùng Chạm Thanh Tab Ngang (Full-Column Hitbox)

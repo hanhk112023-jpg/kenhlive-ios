@@ -23,9 +23,9 @@ struct PhimView: View {
     @State private var selectedFilmForEpisodes: FilmItem? = nil
     @State private var initialResumeProgressForSheet: WatchProgress? = nil
     @State private var autoPlayForSheet: Bool = false
+    @State private var isShowingSearchSheet: Bool = false
 
     var onSelectTab: ((KLTab) -> Void)? = nil
-    var onOpenSearch: (() -> Void)? = nil
 
     private let filterPills: [KLFilterItem<String>] = [
         KLFilterItem(id: "tat-ca", title: "Trang Chủ Phim"),
@@ -146,7 +146,7 @@ struct PhimView: View {
             // Top-Right Floating Search Button (Góc phải trên cùng trang chủ)
             Button {
                 KLHaptics.selection()
-                onOpenSearch?()
+                isShowingSearchSheet = true
             } label: {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 15, weight: .bold))
@@ -163,6 +163,11 @@ struct PhimView: View {
             .buttonStyle(.plain)
             .padding(.trailing, 16)
             .padding(.top, 50)
+        }
+        .fullScreenCover(isPresented: $isShowingSearchSheet) {
+            CinemaSearchView(onDismiss: {
+                isShowingSearchSheet = false
+            })
         }
         .task {
             if sections.isEmpty {
