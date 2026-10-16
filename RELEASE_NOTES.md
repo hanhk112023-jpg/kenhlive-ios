@@ -1,3 +1,20 @@
+# 🚀 KENHLIVE iOS v1.6.8 (Build 140) — TỐI ƯU TAB TÌM KIẾM CHUYÊN BIỆT 100% CHO KHO PHIM ĐIỆN ẢNH (CINEMA 4K)
+
+### 🎬 1. Tab Tìm Kiếm Chuyên Biệt Cho Kho Phim Điện Ảnh
+- **Tập trung 100% vào Phim**:
+  - Loại bỏ hoàn toàn các bộ lọc thể thao và truyền hình gây rối mắt khỏi giao diện tìm kiếm.
+  - Tích hợp thanh tìm kiếm thông minh tối ưu cho tác phẩm điện ảnh, diễn viên, anime hot (KKPhim & NguonC HLS 4K).
+- **Bộ Lọc Thể Loại Phim Đầy Đủ**:
+  - Bổ sung thanh lọc thể loại phim chuyên sâu: **"Tất Cả Phim"**, **"Mới Cập Nhật"**, **"Phim Lẻ Rạp"**, **"Phim Bộ Hot"**, **"Hoạt Hình & Anime"**, **"Hàn Quốc"**, **"Trung Quốc"**, **"Âu Mỹ Bom Tấn"**, **"Hành Động"**, **"Cổ Trang"**, **"Kinh Dị"**.
+  - Hỗ trợ nạp phim theo thể loại với bộ đệm RAM 0ms độ trễ.
+- **Từ Khóa Phim & Anime Thịnh Hành**:
+  - Hàng chip xu hướng điện ảnh: *One Piece, Conan, Marvel, Batman, Doraemon, Naruto, Squid Game, Chiếu Rạp, Avengers, John Wick*.
+- **Lưới Poster Phim Chuẩn Cinema 3 Cột**:
+  - Thẻ poster tỉ lệ 2:3 bo góc 8pt, tích hợp huy hiệu điểm vàng IMDb (`★ 9.0`), nhãn chất lượng (`4K / Full HD`), số tập hiện tại và năm phát hành.
+  - Bấm vào bất kỳ poster nào lập tức mở bảng chọn tập và phát phim chế độ ngang màn hình.
+
+---
+
 # 🚀 KENHLIVE iOS v1.6.7 (Build 139) — KHÔI PHỤC ĐẦY ĐỦ THỂ THAO & VTV TRUYỀN HÌNH + HIỆU ỨNG TRƯỢT VIÊN THUỐC ĐỘNG (MATCHEDGEOMETRY)
 
 ### ⚽ 1. Khôi Phục Đầy Đủ Thể Thao Live & VTV Truyền Hình Vào Thanh Điều Hướng Đáy (5 Tab)

@@ -182,28 +182,37 @@ struct MainTabView: View {
     }
 }
 
-// MARK: - Dedicated Cinema Search View (Tab 3: "Tìm kiếm")
+// MARK: - Dedicated Cinema Search View (Tab 3: "Tìm kiếm Phim")
 struct CinemaSearchView: View {
     @ObservedObject private var storage = StorageManager.shared
     @State private var searchKeyword: String = ""
-    @State private var searchScope: String = "all"
+    @State private var selectedCategory: String = "tat-ca"
     @State private var matchedFilms: [FilmItem] = []
-    @State private var matchedMatches: [LiveMatchGroup] = []
-    @State private var matchedChannels: [IptvChannel] = []
+    @State private var categoryFilms: [FilmItem] = []
+    @State private var trendingFilms: [FilmItem] = []
     @State private var isSearching: Bool = false
+    @State private var isLoadingCategory: Bool = false
     @State private var searchTask: Task<Void, Never>? = nil
-
+    @State private var categoryTask: Task<Void, Never>? = nil
     @State private var selectedFilm: FilmItem? = nil
-    @State private var selectedMatchForPlayer: LiveRoom? = nil
-    @State private var selectedChannelForPlayer: IptvChannel? = nil
 
-    private let trendingChips = ["One Piece", "Conan", "Marvel", "Batman", "Ngoại Hạng Anh", "VTV3", "K-Drama"]
+    private let trendingChips = [
+        "One Piece", "Conan", "Marvel", "Batman",
+        "Doraemon", "Naruto", "Squid Game", "Chiếu Rạp", "Avengers", "John Wick"
+    ]
 
-    private let searchScopePills: [KLFilterItem<String>] = [
-        KLFilterItem(id: "all", title: "Tất Cả"),
-        KLFilterItem(id: "phim", title: "Kho Phim", icon: "film.fill"),
-        KLFilterItem(id: "thethao", title: "Thể Thao Live", icon: "sportscourt.fill"),
-        KLFilterItem(id: "tv", title: "Kênh TV", icon: "tv.fill")
+    private let movieCategoryPills: [KLFilterItem<String>] = [
+        KLFilterItem(id: "tat-ca", title: "Tất Cả Phim"),
+        KLFilterItem(id: "phim-moi", title: "Mới Cập Nhật"),
+        KLFilterItem(id: "phim-le", title: "Phim Lẻ Rạp"),
+        KLFilterItem(id: "phim-bo", title: "Phim Bộ Hot"),
+        KLFilterItem(id: "hoat-hinh", title: "Hoạt Hình & Anime"),
+        KLFilterItem(id: "han-quoc", title: "Hàn Quốc"),
+        KLFilterItem(id: "trung-quoc", title: "Trung Quốc"),
+        KLFilterItem(id: "au-my", title: "Âu Mỹ Bom Tấn"),
+        KLFilterItem(id: "hanh-dong", title: "Hành Động"),
+        KLFilterItem(id: "co-trang", title: "Cổ Trang"),
+        KLFilterItem(id: "kinh-di", title: "Kinh Dị")
     ]
 
     var body: some View {
@@ -213,23 +222,39 @@ struct CinemaSearchView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
                     // Header
-                    Text("Tìm Kiếm")
-                        .font(.system(size: 26, weight: .heavy, design: .rounded))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 54)
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Tìm Kiếm Phim")
+                                .font(.system(size: 26, weight: .heavy, design: .rounded))
+                                .foregroundColor(.white)
+                            Text("Kho phim KKPhim & NguonC chất lượng 4K")
+                                .font(.system(size: 11.5, weight: .medium))
+                                .foregroundColor(KLTheme.textMuted)
+                        }
+
+                        Spacer()
+
+                        KLPillBadge(
+                            text: "CINEMA 4K",
+                            fg: Color(red: 0.96, green: 0.77, blue: 0.10),
+                            bg: Color(red: 0.96, green: 0.77, blue: 0.10).opacity(0.14),
+                            border: Color(red: 0.96, green: 0.77, blue: 0.10).opacity(0.35)
+                        )
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 54)
 
                     // Search Bar
                     KLGlassSearchBar(
                         text: $searchKeyword,
-                        placeholder: "Tìm phim, diễn viên, trận đấu, kênh TV..."
+                        placeholder: "Tìm tên phim, diễn viên, anime (One Piece, Conan, Marvel...)"
                     )
                     .padding(.horizontal, 16)
                     .onChange(of: searchKeyword) { kw in
                         triggerSearch(query: kw)
                     }
 
-                    // Trending Chips
+                    // Trending Movie Chips
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
                             Text("🔥")
@@ -255,12 +280,14 @@ struct CinemaSearchView: View {
                         .padding(.horizontal, 16)
                     }
 
-                    // Scope Strip
-                    if !searchKeyword.trimmingCharacters(in: .whitespaces).isEmpty {
-                        KLFilterStrip(items: searchScopePills, selection: $searchScope)
+                    // Movie Category Filter Strip
+                    if searchKeyword.trimmingCharacters(in: .whitespaces).isEmpty {
+                        KLFilterStrip(items: movieCategoryPills, selection: $selectedCategory) { newCat in
+                            Task { await selectCategory(newCat) }
+                        }
                     }
 
-                    // Results
+                    // Results or Category Grid
                     if isSearching {
                         HStack {
                             Spacer()
@@ -269,23 +296,18 @@ struct CinemaSearchView: View {
                         }
                         .padding(.top, 40)
                     } else if !searchKeyword.trimmingCharacters(in: .whitespaces).isEmpty {
-                        renderResultsGrid()
+                        renderSearchResultsGrid()
                     } else {
-                        // Empty Search State
-                        VStack(spacing: 12) {
-                            Image(systemName: "magnifyingglass")
-                                .font(.system(size: 42))
-                                .foregroundColor(Color.white.opacity(0.25))
-                            Text("Nhập từ khóa để khám phá kho phim & thể thao")
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(KLTheme.textMuted)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 60)
+                        renderCategoryOrSuggestedGrid()
                     }
 
                     Spacer(minLength: 120)
                 }
+            }
+        }
+        .task {
+            if trendingFilms.isEmpty {
+                await loadInitialFilms()
             }
         }
         .sheet(item: $selectedFilm) { film in
@@ -294,87 +316,171 @@ struct CinemaSearchView: View {
                 initialResumeProgress: storage.getProgress(for: film.slug)
             )
         }
-        .fullScreenCover(item: $selectedMatchForPlayer) { room in
-            HLSPlayerView(
-                title: room.matchTitle,
-                subtitle: "\(room.providerDisplayName) · \(room.blvName)",
-                room: room
-            )
-        }
-        .fullScreenCover(item: $selectedChannelForPlayer) { ch in
-            HLSPlayerView(
-                title: ch.name,
-                subtitle: ch.group,
-                directUrl: ch.streamUrl
-            )
-        }
     }
 
     @ViewBuilder
-    private func renderResultsGrid() -> some View {
+    private func renderSearchResultsGrid() -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            if matchedFilms.isEmpty && matchedMatches.isEmpty && matchedChannels.isEmpty {
+            HStack {
+                Text("KẾT QUẢ TÌM KIẾM")
+                    .font(.system(size: 11, weight: .heavy))
+                    .tracking(0.8)
+                    .foregroundColor(KLTheme.textMuted)
+
+                Spacer()
+
+                Text("\(matchedFilms.count) PHIM")
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundColor(KLTheme.imdbGold)
+            }
+            .padding(.horizontal, 16)
+
+            if matchedFilms.isEmpty {
                 VStack(spacing: 10) {
                     Image(systemName: "film.stack")
                         .font(.system(size: 36))
                         .foregroundColor(Color.white.opacity(0.3))
-                    Text("Không tìm thấy kết quả phù hợp với \"\(searchKeyword)\"")
+                    Text("Không tìm thấy phim phù hợp với \"\(searchKeyword)\"")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundColor(KLTheme.textMuted)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.top, 40)
             } else {
-                // Movies Grid
-                if (searchScope == "all" || searchScope == "phim") && !matchedFilms.isEmpty {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("KHO PHIM (\(matchedFilms.count))")
-                            .font(.system(size: 12, weight: .heavy))
-                            .tracking(0.6)
-                            .foregroundColor(KLTheme.textMuted)
-                            .padding(.horizontal, 16)
-
-                        LazyVGrid(columns: [
-                            GridItem(.flexible(), spacing: 10),
-                            GridItem(.flexible(), spacing: 10),
-                            GridItem(.flexible(), spacing: 10)
-                        ], spacing: 14) {
-                            ForEach(matchedFilms) { film in
-                                Button {
-                                    KLHaptics.light()
-                                    selectedFilm = film
-                                } label: {
-                                    VStack(alignment: .leading, spacing: 5) {
-                                        AsyncImage(url: URL(string: film.posterUrl.isEmpty ? film.thumbUrl : film.posterUrl)) { phase in
-                                            if let img = phase.image {
-                                                img.resizable().aspectRatio(contentMode: .fill)
-                                            } else {
-                                                Color(red: 0.14, green: 0.14, blue: 0.18)
-                                            }
-                                        }
-                                        .frame(height: 155)
-                                        .clipped()
-                                        .cornerRadius(8)
-
-                                        Text(film.name)
-                                            .font(.system(size: 11.5, weight: .bold))
-                                            .foregroundColor(.white)
-                                            .lineLimit(1)
-
-                                        Text("\(film.year) · \(film.language)")
-                                            .font(.system(size: 10, weight: .medium))
-                                            .foregroundColor(KLTheme.textMuted)
-                                            .lineLimit(1)
-                                    }
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                    }
-                }
+                renderMoviePostersGrid(films: matchedFilms)
             }
         }
+    }
+
+    @ViewBuilder
+    private func renderCategoryOrSuggestedGrid() -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            let activeTitle = movieCategoryPills.first(where: { $0.id == selectedCategory })?.title ?? "Phim Đề Xuất"
+            HStack {
+                Text(activeTitle.uppercased())
+                    .font(.system(size: 11.5, weight: .heavy))
+                    .tracking(0.8)
+                    .foregroundColor(KLTheme.textMuted)
+
+                Spacer()
+
+                if isLoadingCategory {
+                    ProgressView().tint(KLTheme.brandOrange).scaleEffect(0.8)
+                } else {
+                    let count = selectedCategory == "tat-ca" ? trendingFilms.count : categoryFilms.count
+                    Text("\(count) PHIM")
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .foregroundColor(KLTheme.imdbGold)
+                }
+            }
+            .padding(.horizontal, 16)
+
+            let displayFilms = selectedCategory == "tat-ca" ? trendingFilms : categoryFilms
+            if isLoadingCategory && displayFilms.isEmpty {
+                LazyVGrid(columns: [
+                    GridItem(.flexible(), spacing: 10),
+                    GridItem(.flexible(), spacing: 10),
+                    GridItem(.flexible(), spacing: 10)
+                ], spacing: 14) {
+                    ForEach(0..<12, id: \.self) { _ in
+                        VStack(alignment: .leading, spacing: 6) {
+                            KLSkeletonView(height: 155, cornerRadius: 8)
+                            KLSkeletonView(height: 12, cornerRadius: 3)
+                        }
+                    }
+                }
+                .padding(.horizontal, 16)
+            } else {
+                renderMoviePostersGrid(films: displayFilms)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func renderMoviePostersGrid(films: [FilmItem]) -> some View {
+        LazyVGrid(columns: [
+            GridItem(.flexible(), spacing: 10),
+            GridItem(.flexible(), spacing: 10),
+            GridItem(.flexible(), spacing: 10)
+        ], spacing: 14) {
+            ForEach(films) { film in
+                Button {
+                    KLHaptics.light()
+                    selectedFilm = film
+                } label: {
+                    VStack(alignment: .leading, spacing: 5) {
+                        ZStack {
+                            AsyncImage(url: URL(string: film.posterUrl.isEmpty ? film.thumbUrl : film.posterUrl)) { phase in
+                                if let img = phase.image {
+                                    img.resizable().aspectRatio(contentMode: .fill)
+                                } else {
+                                    Color(red: 0.14, green: 0.14, blue: 0.18)
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 155)
+                            .clipped()
+
+                            // Badges Overlay
+                            VStack {
+                                HStack {
+                                    Text("★ \(film.imdbScore)")
+                                        .font(.system(size: 9, weight: .heavy, design: .rounded))
+                                        .foregroundColor(KLTheme.imdbGold)
+                                        .padding(.horizontal, 4.5)
+                                        .padding(.vertical, 2)
+                                        .background(Color.black.opacity(0.80))
+                                        .cornerRadius(3.5)
+
+                                    Spacer()
+
+                                    Text(film.quality)
+                                        .font(.system(size: 8.5, weight: .black))
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 4.5)
+                                        .padding(.vertical, 2)
+                                        .background(KLTheme.netflixRed)
+                                        .cornerRadius(3.5)
+                                }
+                                .padding(5)
+
+                                Spacer()
+
+                                HStack {
+                                    Text(film.currentEpisode.isEmpty ? "Full" : film.currentEpisode)
+                                        .font(.system(size: 8.5, weight: .bold))
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 5)
+                                        .padding(.vertical, 2)
+                                        .background(Color.black.opacity(0.80))
+                                        .cornerRadius(3.5)
+                                    Spacer()
+                                }
+                                .padding(5)
+                            }
+                        }
+                        .frame(height: 155)
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.white.opacity(0.12), lineWidth: 0.8)
+                        )
+
+                        Text(film.name)
+                            .font(.system(size: 11.5, weight: .bold))
+                            .foregroundColor(.white)
+                            .lineLimit(1)
+
+                        Text("\(film.year) · \(film.language)")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(KLTheme.textMuted)
+                            .lineLimit(1)
+                    }
+                }
+                .buttonStyle(KLScaleButtonStyle())
+            }
+        }
+        .padding(.horizontal, 16)
     }
 
     private func triggerSearch(query: String) {
@@ -382,8 +488,6 @@ struct CinemaSearchView: View {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             matchedFilms = []
-            matchedMatches = []
-            matchedChannels = []
             isSearching = false
             return
         }
@@ -399,6 +503,36 @@ struct CinemaSearchView: View {
                     self.isSearching = false
                 }
             }
+        }
+    }
+
+    private func selectCategory(_ slug: String) async {
+        selectedCategory = slug
+        categoryTask?.cancel()
+        guard slug != "tat-ca" else { return }
+
+        isLoadingCategory = true
+        if let cached = PhimService.shared.getCachedCategory(slug: slug), !cached.isEmpty {
+            self.categoryFilms = cached
+            self.isLoadingCategory = false
+            return
+        }
+
+        categoryTask = Task {
+            let films = await PhimService.shared.fetchCategoryFilms(slug: slug)
+            if !Task.isCancelled {
+                await MainActor.run {
+                    self.categoryFilms = films
+                    self.isLoadingCategory = false
+                }
+            }
+        }
+    }
+
+    private func loadInitialFilms() async {
+        let initial = await PhimService.shared.fetchQuickInitialSections()
+        if let first = initial.first {
+            trendingFilms = first.films
         }
     }
 }
