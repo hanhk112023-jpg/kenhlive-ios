@@ -146,7 +146,7 @@ struct EpisodeServer: Identifiable, Hashable {
 }
 
 struct EpisodeItem: Identifiable, Codable, Hashable {
-    var id: String { slug + "_" + (m3u8.isEmpty ? embed : m3u8) }
+    var id: String { "\(slug)_\(name)" }
     let name: String
     let slug: String
     let embed: String

@@ -4,6 +4,7 @@ import AVFoundation
 struct EpisodePickerSheet: View {
     let film: FilmItem
     var initialResumeProgress: WatchProgress? = nil
+    var autoPlay: Bool = false
     var onSelectEpisode: ((EpisodeItem) -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
@@ -16,10 +17,9 @@ struct EpisodePickerSheet: View {
     @State private var isExpandedSynopsis: Bool = false
     @State private var isLoading: Bool = true
 
-    // Inline Cinema Player State (Plays in 16:9 top header with zero forced full screen)
-    @State private var activePlayingEpisode: EpisodeItem? = nil
-    @State private var activeResumeSeconds: Double = 0
-    @State private var isFullscreenPlayerPresented: Bool = false
+    // Direct Fullscreen Cinema Player State (Zero inline duplicate player!)
+    @State private var activeEpisodeForPlayer: EpisodeItem? = nil
+    @State private var activePlayerResumeSeconds: Double = 0
 
     private let chunkSize = 30
 
@@ -77,94 +77,27 @@ struct EpisodePickerSheet: View {
                     .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, 12)
-                .padding(.bottom, 8)
+                .padding(.top, 14)
+                .padding(.bottom, 10)
 
                 ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 14) {
-                        // 1. Top Section: 16:9 Inline Player OR Cinema Poster Banner
-                        if let activeEp = activePlayingEpisode {
-                            let directUrl = activeEp.m3u8.isEmpty ? activeEp.embed : activeEp.m3u8
-                            VStack(alignment: .leading, spacing: 6) {
-                                HLSPlayerView(
-                                    title: film.name,
-                                    subtitle: "\(film.quality) · \(activeEp.name)",
-                                    roomNum: nil,
-                                    directUrl: directUrl,
-                                    streamReferer: nil,
-                                    room: nil,
-                                    initialTimeSeconds: activeResumeSeconds,
-                                    isFullscreen: false,
-                                    onToggleFullscreen: {
-                                        isFullscreenPlayerPresented = true
-                                    },
-                                    onClose: {
-                                        activePlayingEpisode = nil
-                                    },
-                                    onProgressUpdate: { currentSec, durationSec in
-                                        activeResumeSeconds = currentSec
-                                        saveProgress(episode: activeEp, currentSec: currentSec, durationSec: durationSec)
-                                    }
-                                )
-                                .id("inline-\(activeEp.slug)")
-                                .frame(height: 220)
-                                .cornerRadius(12)
-                                .clipped()
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .stroke(KLTheme.borderSubtle, lineWidth: 0.8)
-                                )
-
-                                HStack {
-                                    HStack(spacing: 5) {
-                                        Circle()
-                                            .fill(KLTheme.netflixGreen)
-                                            .frame(width: 6, height: 6)
-                                        Text("Đang phát: \(activeEp.name)")
-                                            .font(.system(size: 11.5, weight: .bold))
-                                            .foregroundColor(KLTheme.netflixGreen)
-                                    }
-
-                                    Spacer()
-
-                                    Button {
-                                        KLHaptics.medium()
-                                        isFullscreenPlayerPresented = true
-                                    } label: {
-                                        HStack(spacing: 4) {
-                                            Image(systemName: "arrow.up.left.and.arrow.down.right")
-                                                .font(.system(size: 10, weight: .bold))
-                                            Text("Toàn màn hình")
-                                                .font(.system(size: 10.5, weight: .bold))
-                                        }
-                                        .foregroundColor(KLTheme.brandOrange)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(KLTheme.brandOrange.opacity(0.12))
-                                        .cornerRadius(6)
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                                .padding(.horizontal, 2)
-                            }
-                        } else {
-                            // Poster Thumbnail (2:3) & Metadata
-                            renderPosterHeader()
-                        }
+                    VStack(alignment: .leading, spacing: 16) {
+                        // 1. Cinema Poster Banner & Core Information
+                        renderPosterHeader()
 
                         // 2. Resume Watching Banner (If previous watch progress exists)
-                        if let saved = savedProgress, activePlayingEpisode?.slug != saved.episodeSlug {
-                            HStack(spacing: 10) {
+                        if let saved = savedProgress {
+                            HStack(spacing: 12) {
                                 Image(systemName: "clock.arrow.circlepath")
-                                    .font(.system(size: 15, weight: .bold))
+                                    .font(.system(size: 18, weight: .bold))
                                     .foregroundColor(KLTheme.brandOrange)
 
-                                VStack(alignment: .leading, spacing: 1) {
+                                VStack(alignment: .leading, spacing: 2) {
                                     Text("Xem tiếp tập \(saved.episodeName)")
-                                        .font(.system(size: 12.5, weight: .bold))
+                                        .font(.system(size: 13, weight: .bold))
                                         .foregroundColor(.white)
-                                    Text("Dừng tại \(formatTime(Double(saved.positionMs) / 1000.0))")
-                                        .font(.system(size: 10.5, weight: .medium))
+                                    Text("Đã xem \(formatTime(Double(saved.positionMs) / 1000.0))")
+                                        .font(.system(size: 11, weight: .medium))
                                         .foregroundColor(KLTheme.textSecondary)
                                 }
 
@@ -173,31 +106,36 @@ struct EpisodePickerSheet: View {
                                 Button {
                                     resumeSavedProgress(saved)
                                 } label: {
-                                    Text("XEM TIẾP")
-                                        .font(.system(size: 11, weight: .black))
-                                        .foregroundColor(.black)
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 6)
-                                        .background(KLTheme.brandOrange)
-                                        .cornerRadius(6)
+                                    HStack(spacing: 5) {
+                                        Image(systemName: "play.fill")
+                                            .font(.system(size: 10, weight: .bold))
+                                        Text("XEM TIẾP")
+                                            .font(.system(size: 11.5, weight: .black))
+                                    }
+                                    .foregroundColor(.black)
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 8)
+                                    .background(KLTheme.brandOrange)
+                                    .cornerRadius(7)
                                 }
                                 .buttonStyle(.plain)
                             }
-                            .padding(10)
-                            .background(KLTheme.brandOrange.opacity(0.10))
-                            .cornerRadius(10)
+                            .padding(12)
+                            .background(KLTheme.brandOrange.opacity(0.12))
+                            .cornerRadius(12)
                             .overlay(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .stroke(KLTheme.brandOrange.opacity(0.35), lineWidth: 0.8)
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(KLTheme.brandOrange.opacity(0.4), lineWidth: 1)
                             )
                         }
 
                         // 3. Synopsis & Cast Info
                         if let desc = detail?.description, !desc.isEmpty {
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: 5) {
                                 Text(desc)
                                     .font(.system(size: 12.5, weight: .regular))
                                     .foregroundColor(KLTheme.textSecondary)
+                                    .lineSpacing(3)
                                     .lineLimit(isExpandedSynopsis ? nil : 3)
                                     .onTapGesture {
                                         withAnimation(.easeInOut(duration: 0.2)) {
@@ -210,6 +148,7 @@ struct EpisodePickerSheet: View {
                                         .font(.system(size: 11, weight: .medium))
                                         .foregroundColor(KLTheme.textMuted)
                                         .lineLimit(1)
+                                        .padding(.top, 2)
                                 }
                             }
                         }
@@ -315,7 +254,7 @@ struct EpisodePickerSheet: View {
                                     ProgressView().tint(KLTheme.netflixRed)
                                     Spacer()
                                 }
-                                .padding(.vertical, 30)
+                                .padding(.vertical, 35)
                             } else if visibleEpisodes.isEmpty {
                                 Text("Chưa có tập phim nào")
                                     .font(.system(size: 12))
@@ -328,32 +267,30 @@ struct EpisodePickerSheet: View {
                                     GridItem(.flexible(), spacing: 10)
                                 ], spacing: 10) {
                                     ForEach(visibleEpisodes) { ep in
-                                        let isCurrentlyPlaying = activePlayingEpisode?.slug == ep.slug
                                         let isWatched = storage.watchHistory.contains {
                                             $0.filmSlug == film.slug && $0.episodeSlug == ep.slug
                                         }
 
                                         Button {
-                                            KLHaptics.medium()
-                                            startPlaying(episode: ep, resumeSeconds: 0)
+                                            launchFullscreenPlayer(episode: ep, resumeSeconds: 0)
                                         } label: {
-                                            HStack(spacing: 4) {
-                                                Image(systemName: isCurrentlyPlaying ? "waveform" : (isWatched ? "checkmark.circle.fill" : "play.fill"))
-                                                    .font(.system(size: 9.5, weight: .bold))
-                                                    .foregroundColor(isCurrentlyPlaying ? KLTheme.brandOrange : (isWatched ? KLTheme.netflixGreen : KLTheme.netflixRed))
+                                            HStack(spacing: 5) {
+                                                Image(systemName: isWatched ? "checkmark.circle.fill" : "play.fill")
+                                                    .font(.system(size: 10, weight: .bold))
+                                                    .foregroundColor(isWatched ? KLTheme.netflixGreen : KLTheme.netflixRed)
 
                                                 Text(ep.name)
-                                                    .font(.system(size: 12, weight: isCurrentlyPlaying ? .black : .bold))
-                                                    .foregroundColor(isCurrentlyPlaying ? KLTheme.brandOrange : .white)
+                                                    .font(.system(size: 12, weight: .bold))
+                                                    .foregroundColor(.white)
                                                     .lineLimit(1)
                                             }
                                             .frame(maxWidth: .infinity)
-                                            .padding(.vertical, 11)
-                                            .background(isCurrentlyPlaying ? KLTheme.brandOrange.opacity(0.18) : (isWatched ? KLTheme.netflixRed.opacity(0.14) : KLTheme.surfaceCard))
+                                            .padding(.vertical, 12)
+                                            .background(isWatched ? KLTheme.netflixRed.opacity(0.15) : KLTheme.surfaceCard)
                                             .cornerRadius(9)
                                             .overlay(
                                                 RoundedRectangle(cornerRadius: 9)
-                                                    .stroke(isCurrentlyPlaying ? KLTheme.brandOrange : (isWatched ? KLTheme.netflixRed.opacity(0.4) : KLTheme.borderSubtle), lineWidth: isCurrentlyPlaying ? 1.5 : 0.8)
+                                                    .stroke(isWatched ? KLTheme.netflixRed.opacity(0.4) : KLTheme.borderSubtle, lineWidth: 0.8)
                                             )
                                         }
                                         .buttonStyle(KLScaleButtonStyle())
@@ -374,42 +311,45 @@ struct EpisodePickerSheet: View {
             self.detail = d
             isLoading = false
 
-            // Auto-detect resume progress if passed
-            if let saved = savedProgress {
-                if let ep = findEpisode(for: saved, in: d.servers) {
-                    self.activeResumeSeconds = Double(saved.positionMs) / 1000.0
-                    // If tapped directly from Continue Watching, auto-start in 16:9 player
-                    if initialResumeProgress != nil {
-                        self.activePlayingEpisode = ep
-                    }
+            // Auto-play handling if user tapped "XEM NGAY" or Resume
+            if autoPlay {
+                if let saved = savedProgress, let ep = findEpisode(for: saved, in: d.servers) {
+                    launchFullscreenPlayer(episode: ep, resumeSeconds: Double(saved.positionMs) / 1000.0)
+                } else if let first = d.allEpisodes.first {
+                    launchFullscreenPlayer(episode: first, resumeSeconds: 0)
                 }
             }
         }
-        .fullScreenCover(isPresented: $isFullscreenPlayerPresented) {
-            if let activeEp = activePlayingEpisode {
-                let directUrl = activeEp.m3u8.isEmpty ? activeEp.embed : activeEp.m3u8
-                HLSPlayerView(
-                    title: film.name,
-                    subtitle: "\(film.quality) · \(activeEp.name)",
-                    roomNum: nil,
-                    directUrl: directUrl,
-                    streamReferer: nil,
-                    room: nil,
-                    initialTimeSeconds: activeResumeSeconds,
-                    isFullscreen: true,
-                    onToggleFullscreen: {
-                        isFullscreenPlayerPresented = false
-                    },
-                    onClose: {
-                        isFullscreenPlayerPresented = false
-                    },
-                    onProgressUpdate: { currentSec, durationSec in
-                        activeResumeSeconds = currentSec
-                        saveProgress(episode: activeEp, currentSec: currentSec, durationSec: durationSec)
+        .fullScreenCover(item: $activeEpisodeForPlayer) { activeEp in
+            let epIdx = allCurrentEpisodes.firstIndex(where: { $0.id == activeEp.id }) ?? 0
+            let directUrl = activeEp.m3u8.isEmpty ? activeEp.embed : activeEp.m3u8
+
+            HLSPlayerView(
+                title: film.name,
+                subtitle: "\(film.quality) · \(activeEp.name)",
+                roomNum: nil,
+                directUrl: directUrl,
+                streamReferer: nil,
+                room: nil,
+                episodes: allCurrentEpisodes,
+                currentEpisodeIndex: epIdx,
+                onSelectEpisodeIndex: { nextIdx in
+                    if nextIdx >= 0 && nextIdx < allCurrentEpisodes.count {
+                        let nextEp = allCurrentEpisodes[nextIdx]
+                        activeEpisodeForPlayer = nextEp
+                        saveProgress(episode: nextEp, currentSec: 0, durationSec: 2700)
                     }
-                )
-                .id("fullscreen-\(activeEp.slug)")
-            }
+                },
+                initialTimeSeconds: activePlayerResumeSeconds,
+                isFullscreen: true,
+                onClose: {
+                    activeEpisodeForPlayer = nil
+                },
+                onProgressUpdate: { currentSec, durationSec in
+                    activePlayerResumeSeconds = currentSec
+                    saveProgress(episode: activeEp, currentSec: currentSec, durationSec: durationSec)
+                }
+            )
         }
     }
 
@@ -432,7 +372,7 @@ struct EpisodePickerSheet: View {
                     }
                 }
             }
-            .frame(width: 92, height: 136)
+            .frame(width: 96, height: 142)
             .cornerRadius(10)
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
@@ -485,8 +425,7 @@ struct EpisodePickerSheet: View {
                 HStack(spacing: 8) {
                     Button {
                         if let first = allCurrentEpisodes.first {
-                            KLHaptics.medium()
-                            startPlaying(episode: first, resumeSeconds: 0)
+                            launchFullscreenPlayer(episode: first, resumeSeconds: 0)
                         }
                     } label: {
                         HStack(spacing: 5) {
@@ -521,15 +460,16 @@ struct EpisodePickerSheet: View {
                         .cornerRadius(7)
                     }
                 }
-                .padding(.top, 2)
+                .padding(.top, 4)
             }
         }
     }
 
     // MARK: - Actions & Helpers
-    private func startPlaying(episode: EpisodeItem, resumeSeconds: Double) {
-        self.activePlayingEpisode = episode
-        self.activeResumeSeconds = resumeSeconds
+    private func launchFullscreenPlayer(episode: EpisodeItem, resumeSeconds: Double) {
+        KLHaptics.medium()
+        self.activePlayerResumeSeconds = resumeSeconds
+        self.activeEpisodeForPlayer = episode
         self.onSelectEpisode?(episode)
         saveProgress(episode: episode, currentSec: resumeSeconds, durationSec: 2700)
     }
@@ -537,9 +477,9 @@ struct EpisodePickerSheet: View {
     private func resumeSavedProgress(_ saved: WatchProgress) {
         KLHaptics.medium()
         if let ep = findEpisode(for: saved, in: detail?.servers ?? []) {
-            startPlaying(episode: ep, resumeSeconds: Double(saved.positionMs) / 1000.0)
+            launchFullscreenPlayer(episode: ep, resumeSeconds: Double(saved.positionMs) / 1000.0)
         } else if let first = allCurrentEpisodes.first {
-            startPlaying(episode: first, resumeSeconds: Double(saved.positionMs) / 1000.0)
+            launchFullscreenPlayer(episode: first, resumeSeconds: Double(saved.positionMs) / 1000.0)
         }
     }
 

@@ -10,6 +10,9 @@ struct HLSPlayerView: View {
     var directUrl: String? = nil
     var streamReferer: String? = nil
     var room: LiveRoom? = nil
+    var episodes: [EpisodeItem] = []
+    var currentEpisodeIndex: Int = 0
+    var onSelectEpisodeIndex: ((Int) -> Void)? = nil
     var initialTimeSeconds: Double = 0
     var isFullscreen: Bool = true
     var onToggleFullscreen: (() -> Void)? = nil
@@ -22,6 +25,8 @@ struct HLSPlayerView: View {
     @State private var player: AVPlayer? = nil
     @State private var servers: [StreamServer] = []
     @State private var currentServerIndex: Int = 0
+    @State private var internalEpIndex: Int = 0
+    @State private var isShowingEpisodeDrawer: Bool = false
     @State private var isLoadingStream: Bool = true
     @State private var isPlaying: Bool = true
     @State private var isMuted: Bool = false
@@ -193,6 +198,7 @@ struct HLSPlayerView: View {
             }
         }
         .onAppear {
+            internalEpIndex = currentEpisodeIndex
             if isFullscreen {
                 OrientationManager.lockLandscape()
                 isOrientationLockedLandscape = true
@@ -207,6 +213,9 @@ struct HLSPlayerView: View {
                 OrientationManager.lockPortrait()
             }
             closePlayer()
+        }
+        .sheet(isPresented: $isShowingEpisodeDrawer) {
+            episodeDrawerSheet
         }
     }
 
@@ -261,7 +270,7 @@ struct HLSPlayerView: View {
                     HStack(spacing: 5) {
                         Image(systemName: "server.rack")
                             .font(.system(size: 10))
-                        Text("Server \\(currentServerIndex + 1)")
+                        Text("Server \(currentServerIndex + 1)")
                             .font(.system(size: 11, weight: .bold))
                     }
                     .foregroundColor(KLTheme.brandOrange)
@@ -273,6 +282,27 @@ struct HLSPlayerView: View {
                         Capsule().stroke(KLTheme.brandOrange.opacity(0.4), lineWidth: 0.8)
                     )
                 }
+            }
+
+            // Episode Drawer Selector (For VOD / Phim)
+            if episodes.count > 1 {
+                Button {
+                    KLHaptics.light()
+                    isShowingEpisodeDrawer = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "square.stack.3d.down.right.fill")
+                            .font(.system(size: 11))
+                        Text("TẬP \(internalEpIndex + 1)/\(episodes.count)")
+                            .font(.system(size: 10, weight: .bold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5.5)
+                    .background(Color.white.opacity(0.18))
+                    .cornerRadius(7)
+                }
+                .buttonStyle(.plain)
             }
 
             // Orientation Lock Toggle Button (Switches Landscape vs Portrait)
@@ -310,15 +340,34 @@ struct HLSPlayerView: View {
 
     // MARK: - Center Controls View
     private var centerControlsView: some View {
-        HStack(spacing: 36) {
+        HStack(spacing: 28) {
+            // Previous Episode Button (if available)
+            if episodes.count > 1 {
+                Button {
+                    KLHaptics.medium()
+                    if internalEpIndex > 0 {
+                        switchToEpisode(index: internalEpIndex - 1)
+                    }
+                } label: {
+                    Image(systemName: "backward.end.fill")
+                        .font(.system(size: 19, weight: .bold))
+                        .foregroundColor(internalEpIndex > 0 ? .white : Color.white.opacity(0.25))
+                        .frame(width: 44, height: 44)
+                        .background(Color.black.opacity(0.55))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .disabled(internalEpIndex <= 0)
+            }
+
             // Seek Backward 10s
             Button {
                 performQuickSeek(seconds: -10, side: .leading)
             } label: {
                 Image(systemName: "gobackward.10")
-                    .font(.system(size: 26, weight: .semibold))
+                    .font(.system(size: 24, weight: .semibold))
                     .foregroundColor(.white)
-                    .frame(width: 48, height: 48)
+                    .frame(width: 46, height: 46)
                     .background(Color.black.opacity(0.55))
                     .clipShape(Circle())
             }
@@ -331,7 +380,7 @@ struct HLSPlayerView: View {
                 Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                     .font(.system(size: 28, weight: .bold))
                     .foregroundColor(.white)
-                    .frame(width: 66, height: 66)
+                    .frame(width: 64, height: 64)
                     .background(
                         LinearGradient(
                             colors: [KLTheme.brandOrange, Color(red: 0.95, green: 0.32, blue: 0.05)],
@@ -349,13 +398,32 @@ struct HLSPlayerView: View {
                 performQuickSeek(seconds: 10, side: .trailing)
             } label: {
                 Image(systemName: "goforward.10")
-                    .font(.system(size: 26, weight: .semibold))
+                    .font(.system(size: 24, weight: .semibold))
                     .foregroundColor(.white)
-                    .frame(width: 48, height: 48)
+                    .frame(width: 46, height: 46)
                     .background(Color.black.opacity(0.55))
                     .clipShape(Circle())
             }
             .buttonStyle(.plain)
+
+            // Next Episode Button (if available)
+            if episodes.count > 1 {
+                Button {
+                    KLHaptics.medium()
+                    if internalEpIndex + 1 < episodes.count {
+                        switchToEpisode(index: internalEpIndex + 1)
+                    }
+                } label: {
+                    Image(systemName: "forward.end.fill")
+                        .font(.system(size: 19, weight: .bold))
+                        .foregroundColor(internalEpIndex + 1 < episodes.count ? .white : Color.white.opacity(0.25))
+                        .frame(width: 44, height: 44)
+                        .background(Color.black.opacity(0.55))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .disabled(internalEpIndex + 1 >= episodes.count)
+            }
         }
     }
 
@@ -499,6 +567,19 @@ struct HLSPlayerView: View {
             if let first = list.first, let url = URL(string: first.url) {
                 playUrl(url, referer: first.referer.isEmpty ? r.streamReferer : first.referer)
             }
+        } else if !episodes.isEmpty {
+            let safeIdx = min(max(0, internalEpIndex), episodes.count - 1)
+            internalEpIndex = safeIdx
+            let ep = episodes[safeIdx]
+            let urlStr = ep.m3u8.isEmpty ? ep.embed : ep.m3u8
+            var target = urlStr
+            if let extracted = extractDirectM3u8(from: urlStr) {
+                target = extracted
+            }
+            if let url = URL(string: target) {
+                servers = [StreamServer(name: ep.name, url: target, isBackup: false, referer: "")]
+                playUrl(url, referer: "")
+            }
         } else if let direct = directUrl {
             var targetUrlStr = direct
             if let extracted = extractDirectM3u8(from: direct) {
@@ -525,6 +606,99 @@ struct HLSPlayerView: View {
         currentServerIndex = index
         playUrl(url, referer: servers[index].referer)
         rescheduleAutoHide()
+    }
+
+    private func switchToEpisode(index: Int) {
+        guard index >= 0 && index < episodes.count else { return }
+        KLHaptics.medium()
+        internalEpIndex = index
+        onSelectEpisodeIndex?(index)
+        let ep = episodes[index]
+        let urlStr = ep.m3u8.isEmpty ? ep.embed : ep.m3u8
+        var target = urlStr
+        if let extracted = extractDirectM3u8(from: urlStr) {
+            target = extracted
+        }
+        if let url = URL(string: target) {
+            servers = [StreamServer(name: ep.name, url: target, isBackup: false, referer: "")]
+            playUrl(url, referer: "")
+        }
+        rescheduleAutoHide()
+    }
+
+    @ViewBuilder
+    private var episodeDrawerSheet: some View {
+        ZStack {
+            KLTheme.bgDeep.ignoresSafeArea()
+
+            VStack(alignment: .leading, spacing: 14) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("DANH SÁCH TẬP PHIM")
+                            .font(.system(size: 13, weight: .heavy))
+                            .foregroundColor(KLTheme.brandOrange)
+                        Text(title)
+                            .font(.system(size: 14.5, weight: .bold))
+                            .foregroundColor(.white)
+                            .lineLimit(1)
+                    }
+
+                    Spacer()
+
+                    Button {
+                        isShowingEpisodeDrawer = false
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(8)
+                            .background(Color.white.opacity(0.14))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 18)
+
+                ScrollView(showsIndicators: false) {
+                    LazyVGrid(columns: [
+                        GridItem(.flexible(), spacing: 10),
+                        GridItem(.flexible(), spacing: 10),
+                        GridItem(.flexible(), spacing: 10),
+                        GridItem(.flexible(), spacing: 10)
+                    ], spacing: 10) {
+                        ForEach(Array(episodes.enumerated()), id: \.offset) { idx, ep in
+                            let isCurrent = idx == internalEpIndex
+                            Button {
+                                isShowingEpisodeDrawer = false
+                                switchToEpisode(index: idx)
+                            } label: {
+                                HStack(spacing: 4) {
+                                    if isCurrent {
+                                        Circle().fill(Color.black).frame(width: 5, height: 5)
+                                    }
+                                    Text(ep.name)
+                                        .font(.system(size: 11.5, weight: isCurrent ? .black : .bold))
+                                        .lineLimit(1)
+                                }
+                                .foregroundColor(isCurrent ? .black : .white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(isCurrent ? KLTheme.brandOrange : KLTheme.surfaceCard)
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(isCurrent ? KLTheme.brandOrange : KLTheme.borderSubtle, lineWidth: 0.8)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 30)
+                }
+            }
+        }
     }
 
     private func playUrl(_ url: URL, referer: String) {

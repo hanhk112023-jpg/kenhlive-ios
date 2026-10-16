@@ -33,6 +33,7 @@ struct PhimView: View {
 
     @State private var selectedFilmForEpisodes: FilmItem? = nil
     @State private var initialResumeProgressForSheet: WatchProgress? = nil
+    @State private var autoPlayForSheet: Bool = false
 
     private let filterPills: [KLFilterItem<String>] = [
         KLFilterItem(id: "tat-ca", title: "Trang Chủ Phim"),
@@ -106,7 +107,8 @@ struct PhimView: View {
         .sheet(item: $selectedFilmForEpisodes) { film in
             EpisodePickerSheet(
                 film: film,
-                initialResumeProgress: initialResumeProgressForSheet ?? storage.getProgress(for: film.slug)
+                initialResumeProgress: initialResumeProgressForSheet ?? storage.getProgress(for: film.slug),
+                autoPlay: autoPlayForSheet
             )
         }
     }
@@ -264,11 +266,13 @@ struct PhimView: View {
                         isFavorite: storage.isFavoriteFilm(slug: hero.slug),
                         onPlayNow: {
                             KLHaptics.medium()
+                            autoPlayForSheet = true
                             initialResumeProgressForSheet = storage.getProgress(for: hero.slug)
                             selectedFilmForEpisodes = hero
                         },
                         onOpenEpisodes: {
                             KLHaptics.light()
+                            autoPlayForSheet = false
                             initialResumeProgressForSheet = storage.getProgress(for: hero.slug)
                             selectedFilmForEpisodes = hero
                         },
@@ -301,6 +305,7 @@ struct PhimView: View {
                             quality: "HD",
                             year: ""
                         )
+                        autoPlayForSheet = true
                         initialResumeProgressForSheet = item
                         selectedFilmForEpisodes = film
                     }
@@ -315,6 +320,8 @@ struct PhimView: View {
                         watchHistory: storage.watchHistory,
                         onSelectFilm: { film in
                             KLHaptics.light()
+                            autoPlayForSheet = false
+                            initialResumeProgressForSheet = nil
                             selectedFilmForEpisodes = film
                         },
                         onSeeMore: {

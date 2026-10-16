@@ -143,15 +143,19 @@ final class PhimService {
     // MARK: - 3. Instant Search API (Multi-result Realtime Search)
     func searchFilms(keyword: String) async -> [FilmItem] {
         let trimmed = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty,
-              let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
-            return []
+        guard !trimmed.isEmpty else { return [] }
+
+        var components = URLComponents(string: "\(kkphimApi)/v1/api/tim-kiem")
+        components?.queryItems = [
+            URLQueryItem(name: "keyword", value: trimmed),
+            URLQueryItem(name: "limit", value: "36")
+        ]
+        guard let url = components?.url else {
+            return await searchNguonC(keyword: trimmed)
         }
 
-        let urlStr = "\(kkphimApi)/v1/api/tim-kiem?keyword=\(encoded)&limit=36"
-        guard let url = URL(string: urlStr) else { return [] }
-
         var req = URLRequest(url: url)
+        req.timeoutInterval = 10.0
         req.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)", forHTTPHeaderField: "User-Agent")
 
         do {
@@ -183,6 +187,7 @@ final class PhimService {
         }
 
         var req = URLRequest(url: url)
+        req.timeoutInterval = 10.0
         req.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)", forHTTPHeaderField: "User-Agent")
 
         do {
@@ -219,8 +224,12 @@ final class PhimService {
                     for it in serverData {
                         let name = it["name"] as? String ?? "Tập 1"
                         let epSlug = it["slug"] as? String ?? name
-                        let m3u8 = (it["link_m3u8"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                        var m3u8 = (it["link_m3u8"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
                         let embed = (it["link_embed"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+
+                        if m3u8.isEmpty, let extracted = extractM3u8FromEmbed(embed) {
+                            m3u8 = extracted
+                        }
 
                         if !m3u8.isEmpty || !embed.isEmpty {
                             epItems.append(EpisodeItem(
@@ -267,6 +276,7 @@ final class PhimService {
     private func fetchKKPhimList(endpoint: String) async -> [FilmItem] {
         guard let url = URL(string: "\(kkphimApi)/\(endpoint)") else { return [] }
         var req = URLRequest(url: url)
+        req.timeoutInterval = 10.0
         req.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)", forHTTPHeaderField: "User-Agent")
 
         do {
@@ -284,6 +294,7 @@ final class PhimService {
     private func fetchKKPhimV1List(endpoint: String) async -> [FilmItem] {
         guard let url = URL(string: "\(kkphimApi)/v1/api/\(endpoint)") else { return [] }
         var req = URLRequest(url: url)
+        req.timeoutInterval = 10.0
         req.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)", forHTTPHeaderField: "User-Agent")
 
         do {
@@ -309,8 +320,12 @@ final class PhimService {
         let rawThumb = d["thumb_url"] as? String ?? ""
         let rawPoster = d["poster_url"] as? String ?? ""
 
-        let thumb = normalizeImageUrl(rawThumb)
-        let poster = normalizeImageUrl(rawPoster.isEmpty ? rawThumb : rawPoster)
+        // Safe Fallback between thumb and poster if one is missing or "None"
+        let effectiveThumb = (!rawThumb.isEmpty && rawThumb != "None") ? rawThumb : rawPoster
+        let effectivePoster = (!rawPoster.isEmpty && rawPoster != "None") ? rawPoster : rawThumb
+
+        let thumb = normalizeImageUrl(effectiveThumb)
+        let poster = normalizeImageUrl(effectivePoster.isEmpty ? effectiveThumb : effectivePoster)
 
         let curEp = d["episode_current"] as? String ?? d["current_episode"] as? String ?? "Full"
         let quality = d["quality"] as? String ?? "FHD"
@@ -350,9 +365,22 @@ final class PhimService {
         )
     }
 
+    private func extractM3u8FromEmbed(_ embed: String) -> String? {
+        if let range = embed.range(of: "url=") {
+            let candidate = String(embed[range.upperBound...])
+            if let decoded = candidate.removingPercentEncoding, decoded.contains(".m3u8") {
+                return decoded
+            }
+            if candidate.contains(".m3u8") {
+                return candidate
+            }
+        }
+        return nil
+    }
+
     private func normalizeImageUrl(_ u: String) -> String {
         let trimmed = u.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty { return "" }
+        if trimmed.isEmpty || trimmed == "None" { return "" }
         if trimmed.hasPrefix("http://") || trimmed.hasPrefix("https://") { return trimmed }
         if trimmed.hasPrefix("/") { return "\(imageCdnBase)\(trimmed)" }
         return "\(imageCdnBase)/\(trimmed)"
