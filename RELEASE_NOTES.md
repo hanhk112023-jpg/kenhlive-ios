@@ -1,3 +1,19 @@
+# 🚀 KENHLIVE iOS v1.6.6 (Build 138) — HOÀN THIỆN ĐỒNG BỘ TOÀN BỘ GIAO DIỆN THEO MẪU THIẾT KẾ (DOCK BAR 4 TAB & FULL BLEED STATUS BAR)
+
+### 🌟 1. Banner Tràn Viền Tuyệt Đối (Edge-to-Edge Status Bar)
+- Loại bỏ thanh tiêu đề phía trên (`Header Bar`), để ảnh bìa tác phẩm điện ảnh tràn viền 100% lên tận mép trên cùng của màn hình iPhone, lồng ghép trực tiếp dưới thanh trạng thái iOS (đồng hồ, pin, sóng WiFi) theo đúng ảnh mẫu.
+- Nâng chiều cao Hero Banner lên 480pt cho trải nghiệm thị giác điện ảnh choáng ngợp.
+- Thêm huy hiệu chất lượng xanh Cyan `Full HD (PĐ)` và `4K (PĐ-TM)` chính xác theo ảnh mẫu.
+
+### ⚓ 2. Thanh Điều Hướng Đáy Kiểu Dock Nổi (Floating Glass Dock Bar)
+- Thiết kế thanh điều hướng 4 tab dạng dock bo tròn 32pt với hiệu ứng kính mờ tối màu:
+  1. **Trang chủ**: Viên thuốc màu đỏ rượu vang (`#7A1F26`) độc quyền với icon ngôi nhà đỏ san hô rực sáng.
+  2. **Tìm kiếm**: Tab chuyên biệt tích hợp thanh tìm kiếm thông minh, từ khóa thịnh hành (One Piece, Conan, Ngoại Hạng Anh...) và bộ lọc thể loại.
+  3. **Thư viện**: Quản lý tập phim xem dở ("Tiếp tục xem") và danh sách phim đã lưu.
+  4. **Hồ sơ**: Thông tin VIP, Lịch thi đấu bóng đá 7 ngày, Báo lỗi Telegram và công cụ kiểm tra tốc độ CDN.
+
+---
+
 # 🚀 KENHLIVE iOS v1.6.5 (Build 137) — GIAO DIỆN CINEMA NETFLIX CHUẨN ĐIỆN ẢNH THEO MẪU THIẾT KẾ MỚI
 
 ### 🌟 1. Billboard Hero Tràn Viền Chuẩn Cinematic (410pt)

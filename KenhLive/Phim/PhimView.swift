@@ -105,44 +105,18 @@ struct PhimView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 22) {
                     // 1. Full-Bleed Cinema Hero Banner (Featured Title, Subtitle, Badges & "Xem chi tiết" CTA)
-                    if selectedFilter == "tat-ca" && searchQuery.isEmpty {
-                        renderHeroCarouselBanner()
-                    }
+                    renderHeroCarouselBanner()
 
-                    // 2. Real-Time Cinema Search Bar
-                    KLGlassSearchBar(
-                        text: $searchQuery,
-                        placeholder: "Tìm kiếm phim, diễn viên, anime (One Piece, Conan...)"
-                    )
-                    .padding(.horizontal, 16)
-                    .onChange(of: searchQuery) { query in
-                        performSearch(query: query)
-                    }
+                    // 2. Main Cinema Catalog ("Bạn đang quan tâm gì?" -> "Top tuần" -> Curated Shelves)
+                    renderMainCinemaCatalog()
 
-                    // 3. Category Filter Strip (Direct onSelect Callback with 0ms Cache Retrieval)
-                    if searchQuery.isEmpty {
-                        KLFilterStrip(items: filterPills, selection: $selectedFilter) { newCat in
-                            Task { await selectCategory(newCat) }
-                        }
-                    }
-
-                    // 4. Content Switcher
-                    if !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty {
-                        renderSearchResultsView()
-                    } else if selectedFilter == "tat-ca" {
-                        renderMainCinemaCatalog()
-                    } else if selectedFilter == "lich-su" {
-                        renderMyListView()
-                    } else {
-                        renderCategoryGridView()
-                    }
-
-                    Spacer(minLength: 90)
+                    Spacer(minLength: 110)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .edgesIgnoringSafeArea(.top)
             .refreshable {
-                await selectCategory(selectedFilter)
+                await loadHomeSections()
             }
 
             if isLoading && sections.isEmpty && categoryFilms.isEmpty {
@@ -181,14 +155,14 @@ struct PhimView: View {
                     }
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 410)
+                .frame(height: 480)
                 .clipped()
 
                 // Multi-Layer Cinema Scrim Gradient
                 LinearGradient(
                     stops: [
                         .init(color: Color.clear, location: 0.0),
-                        .init(color: Color(red: 0.07, green: 0.07, blue: 0.09).opacity(0.4), location: 0.45),
+                        .init(color: Color(red: 0.07, green: 0.07, blue: 0.09).opacity(0.35), location: 0.45),
                         .init(color: Color(red: 0.07, green: 0.07, blue: 0.09).opacity(0.85), location: 0.8),
                         .init(color: Color(red: 0.07, green: 0.07, blue: 0.09), location: 1.0)
                     ],
@@ -214,19 +188,28 @@ struct PhimView: View {
                         .lineLimit(1)
                         .padding(.horizontal, 20)
 
-                    // Information Badges Row (Year · IMDb · 4K PĐ-TM)
+                    // Information Badges Row (Year · Quality · IMDb)
                     HStack(spacing: 8) {
                         // Year Pill
                         Text(hero.year)
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.system(size: 11.5, weight: .bold))
                             .foregroundColor(.white)
                             .padding(.horizontal, 9)
                             .padding(.vertical, 4.5)
                             .background(Color.black.opacity(0.65))
                             .clipShape(Capsule())
                             .overlay(
-                                Capsule().stroke(Color.white.opacity(0.25), lineWidth: 0.8)
+                                Capsule().stroke(Color.white.opacity(0.28), lineWidth: 0.8)
                             )
+
+                        // Quality Pill: Cyan Blue "Full HD (PĐ)" or Gold "4K (PĐ-TM)"
+                        Text(hero.quality.contains("4K") ? "4K (PĐ-TM)" : "Full HD (PĐ)")
+                            .font(.system(size: 11, weight: .heavy))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 4.5)
+                            .background(hero.quality.contains("4K") ? Color(red: 0.96, green: 0.77, blue: 0.10) : Color(red: 0.0, green: 0.52, blue: 0.82))
+                            .clipShape(Capsule())
 
                         // IMDb Rating Pill (Solid Gold)
                         HStack(spacing: 3) {
@@ -240,15 +223,6 @@ struct PhimView: View {
                         .padding(.vertical, 4.5)
                         .background(Color(red: 0.96, green: 0.77, blue: 0.10))
                         .clipShape(Capsule())
-
-                        // 4K Resolution Pill (Solid Gold)
-                        Text("4K (PĐ-TM)")
-                            .font(.system(size: 10.5, weight: .heavy))
-                            .foregroundColor(.black)
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 4.5)
-                            .background(Color(red: 0.96, green: 0.77, blue: 0.10))
-                            .clipShape(Capsule())
                     }
                     .padding(.top, 2)
 
@@ -260,16 +234,16 @@ struct PhimView: View {
                         selectedFilmForEpisodes = hero
                     } label: {
                         Text("Xem chi tiết")
-                            .font(.system(size: 13.5, weight: .bold))
+                            .font(.system(size: 14, weight: .bold))
                             .foregroundColor(.black)
-                            .padding(.horizontal, 28)
-                            .padding(.vertical, 10)
+                            .padding(.horizontal, 32)
+                            .padding(.vertical, 11)
                             .background(Color.white)
                             .clipShape(Capsule())
-                            .shadow(color: Color.black.opacity(0.4), radius: 8, x: 0, y: 3)
+                            .shadow(color: Color.black.opacity(0.5), radius: 8, x: 0, y: 3)
                     }
                     .buttonStyle(.plain)
-                    .padding(.top, 6)
+                    .padding(.top, 4)
 
                     // Carousel Pagination Dots (7 Dots)
                     let totalDots = min(7, max(1, featuredFilms.count))
