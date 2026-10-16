@@ -87,11 +87,8 @@ struct MainTabView: View {
             .animation(.easeInOut(duration: 0.16), value: selectedTab)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            // 2. Animated Floating Glass Dock Tab Bar (Safely Pinned to Bottom)
-            VStack {
-                Spacer()
-                renderFloatingDockTabBar()
-            }
+            // 2. Animated Floating Glass Dock Tab Bar (Safely Aligned to Bottom)
+            renderFloatingDockTabBar()
         }
         .edgesIgnoringSafeArea(.all)
         .sheet(isPresented: $isShowingTelegramSheet) {
@@ -110,10 +107,10 @@ struct MainTabView: View {
         }
     }
 
-    // MARK: - Safe Bottom Floating Dock Tab Bar (Icon-Only, Butter-Smooth)
+    // MARK: - Safe Bottom Floating Dock Tab Bar (Full Hitbox, Instant Response)
     @ViewBuilder
     private func renderFloatingDockTabBar() -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 0) {
             ForEach(KLTab.allCases) { tab in
                 let isActive = selectedTab == tab
                 Button {
@@ -135,25 +132,24 @@ struct MainTabView: View {
                                         endPoint: .bottomTrailing
                                     )
                                 )
-                                .frame(width: 38, height: 38)
+                                .frame(width: 40, height: 40)
                                 .shadow(color: Color(red: 0.90, green: 0.24, blue: 0.30).opacity(0.48), radius: 8, x: 0, y: 2)
                         }
 
                         Image(systemName: tab.iconName)
-                            .font(.system(size: isActive ? 17 : 16, weight: isActive ? .bold : .medium))
+                            .font(.system(size: isActive ? 18 : 17, weight: isActive ? .bold : .medium))
                             .foregroundColor(isActive ? .white : Color(white: 0.52))
                             .scaleEffect(isActive ? 1.15 : 1.0)
                             .animation(.spring(response: 0.28, dampingFraction: 0.65), value: isActive)
                     }
-                    .frame(width: 44, height: 44)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .frame(maxWidth: .infinity)
             }
         }
-        .frame(height: 50)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 4)
+        .frame(height: 52)
+        .padding(.horizontal, 6)
         .background(
             RoundedRectangle(cornerRadius: 30)
                 .fill(Color(red: 0.11, green: 0.11, blue: 0.13).opacity(0.96))
@@ -170,7 +166,7 @@ struct MainTabView: View {
                 )
                 .shadow(color: Color.black.opacity(0.70), radius: 18, x: 0, y: 8)
         )
-        .padding(.horizontal, 22)
+        .padding(.horizontal, 20)
         .padding(.bottom, 16)
     }
 }

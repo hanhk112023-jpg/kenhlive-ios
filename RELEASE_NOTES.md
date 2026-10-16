@@ -1,3 +1,15 @@
+# 🚀 KENHLIVE iOS v1.7.1 (Build 143) — SỬA TRIỆT ĐỂ LỖI HITBOX VÙNG CHẠM THANH DOCK ĐIỀU HƯỚNG
+
+### 🎯 1. Khắc Phục Triệt Để Lỗi Hitbox Vùng Chạm Thanh Tab Ngang (Full-Column Hitbox)
+- **Nguyên nhân**: Ở bản trước, frame cố định chỉ nằm trong icon `Image` và thiếu `.contentShape(Rectangle())`. Trong SwiftUI, đối với các vector icon khi không kích hoạt, hệ thống chỉ nhận diện cảm ứng trên các đường nét mảnh (alpha stroke) vài pixel của biểu tượng, dẫn đến việc chạm lệch nhẹ hoặc chạm vào khoảng trống xung quanh bị trượt phím (ấn không ăn).
+- **Khắc phục triệt để**:
+  - Mở rộng toàn bộ vùng chạm của mỗi nút tab ra **toàn bộ cột** (`.frame(maxWidth: .infinity, maxHeight: .infinity)` nằm ngay bên trong nội dung nút).
+  - Ép khuôn cảm ứng toàn diện bằng `.contentShape(Rectangle())` cho từng tab (kích thước vùng chạm thực tế lên đến **~70pt chiều rộng x 52pt chiều cao**).
+  - Bất kể bạn chạm vào chính giữa icon, góc trên, góc dưới hay mép trái/phải của tab, hệ thống đều nhận diện cảm ứng và chuyển tab ngay lập tức 100%.
+  - Loại bỏ hoàn toàn khối `VStack { Spacer() }` toàn màn hình để loại bỏ nguy cơ chặn cảm ứng.
+
+---
+
 # 🚀 KENHLIVE iOS v1.7.0 (Build 142) — THANH ĐIỀU HƯỚNG ICON TINH GỌN, CHUYỂN TAB 0MS MƯỢT MÀ, TÌM KIẾM GÓC PHẢI TRÊN CÙNG & BỘ NHỚ ĐỆM RAM TẢI ẢNH TỨC THÌ
 
 ### 💎 1. Thanh Dock Điều Hướng Tinh Gọn — Chỉ Giữ Icon Sắc Nét, Bỏ Chữ Rườm Rà
