@@ -68,4 +68,9 @@ final class StorageManager: ObservableObject {
     func isFavoriteChannel(id: String) -> Bool {
         favoriteChannelIds.contains(id)
     }
+
+    func clearWatchHistory() {
+        watchHistory = []
+        defaults.removeObject(forKey: keyHistory)
+    }
 }

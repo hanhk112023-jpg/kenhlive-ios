@@ -164,12 +164,12 @@ struct SearchAndSettingsView: View {
                                 KLLivePulseBadge(text: "LIVE", color: KLTheme.liveRed)
 
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(match.title)
+                                    Text(match.matchTitle)
                                         .font(.system(size: 13.5, weight: .bold))
                                         .foregroundColor(.white)
                                         .lineLimit(1)
 
-                                    Text("\(match.league) · BLV \(match.blvName) · \(match.providerBadge)")
+                                    Text("\(match.league) · BLV \(match.topRoom.blvName) · \(match.providerBadge)")
                                         .font(.system(size: 10.5, weight: .medium))
                                         .foregroundColor(KLTheme.textSecondary)
                                 }
@@ -410,7 +410,7 @@ struct SearchAndSettingsView: View {
 
                     Button {
                         KLHaptics.selection()
-                        storage.clearWatchHistory()
+                        StorageManager.shared.clearWatchHistory()
                     } label: {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
@@ -518,8 +518,8 @@ struct SearchAndSettingsView: View {
                 self.matchedFilms = films
                 let allSports = sports.socolive + sports.gavang33 + sports.cola + sports.giovang
                 self.matchedMatches = allSports.filter {
-                    $0.title.lowercased().contains(q) ||
-                    $0.blvName.lowercased().contains(q) ||
+                    $0.matchTitle.lowercased().contains(q) ||
+                    $0.topRoom.blvName.lowercased().contains(q) ||
                     $0.league.lowercased().contains(q)
                 }
                 let allChannels = iptv.flatMap { $0.channels }

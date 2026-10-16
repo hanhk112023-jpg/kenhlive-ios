@@ -147,9 +147,10 @@ struct HomeHubView: View {
 
     @ViewBuilder
     private func renderSpotlightCard(match: LiveMatchGroup) -> some View {
-        let (teamA, teamB) = DataNormalizer.extractTeams(from: match.title)
-        let logoA = TeamLogoRegistry.shared.resolveLogoUrl(for: teamA)
-        let logoB = TeamLogoRegistry.shared.resolveLogoUrl(for: teamB)
+        let teamA = match.homeTeamName
+        let teamB = match.awayTeamName
+        let logoA = match.homeLogoUrl
+        let logoB = match.awayLogoUrl
 
         Button {
             KLHaptics.medium()
@@ -447,9 +448,10 @@ struct HomeHubView: View {
 
     @ViewBuilder
     private func renderMiniMatchCard(match: LiveMatchGroup) -> some View {
-        let (teamA, teamB) = DataNormalizer.extractTeams(from: match.title)
-        let logoA = TeamLogoRegistry.shared.resolveLogoUrl(for: teamA)
-        let logoB = TeamLogoRegistry.shared.resolveLogoUrl(for: teamB)
+        let teamA = match.homeTeamName
+        let teamB = match.awayTeamName
+        let logoA = match.homeLogoUrl
+        let logoB = match.awayLogoUrl
 
         Button {
             KLHaptics.medium()
@@ -642,7 +644,7 @@ struct HomeHubView: View {
         let dummy = FilmItem(
             name: progress.filmName,
             slug: progress.filmSlug,
-            originName: "",
+            originalName: "",
             thumbUrl: progress.posterUrl,
             posterUrl: progress.posterUrl,
             year: "",

@@ -34,8 +34,8 @@ struct LiveSportsView: View {
         let q = searchQuery.trimmingCharacters(in: .whitespaces).lowercased()
         if !q.isEmpty {
             list = list.filter {
-                $0.title.lowercased().contains(q) ||
-                $0.blvName.lowercased().contains(q) ||
+                $0.matchTitle.lowercased().contains(q) ||
+                $0.topRoom.blvName.lowercased().contains(q) ||
                 $0.league.lowercased().contains(q)
             }
         }
@@ -384,9 +384,10 @@ private struct SportsHeroBanner: View {
 
     var body: some View {
         let top = group.topRoom
-        let (teamA, teamB) = DataNormalizer.extractTeams(from: group.matchTitle)
-        let logoA = TeamLogoRegistry.shared.resolveLogoUrl(for: teamA)
-        let logoB = TeamLogoRegistry.shared.resolveLogoUrl(for: teamB)
+        let teamA = group.homeTeamName
+        let teamB = group.awayTeamName
+        let logoA = group.homeLogoUrl
+        let logoB = group.awayLogoUrl
 
         VStack(alignment: .leading, spacing: 10) {
             // Header Pills
@@ -551,9 +552,10 @@ private struct SportsMatchCardView: View {
     var body: some View {
         Button(action: onTap) {
             let top = group.topRoom
-            let (teamA, teamB) = DataNormalizer.extractTeams(from: group.matchTitle)
-            let logoA = TeamLogoRegistry.shared.resolveLogoUrl(for: teamA)
-            let logoB = TeamLogoRegistry.shared.resolveLogoUrl(for: teamB)
+            let teamA = group.homeTeamName
+            let teamB = group.awayTeamName
+            let logoA = group.homeLogoUrl
+            let logoB = group.awayLogoUrl
 
             VStack(alignment: .leading, spacing: 8) {
                 // Top Header: League Pill + Live Status Pill
@@ -640,9 +642,10 @@ private struct StadiumMatchCard: View {
 
     var body: some View {
         let top = group.topRoom
-        let (teamA, teamB) = DataNormalizer.extractTeams(from: group.matchTitle)
-        let logoA = TeamLogoRegistry.shared.resolveLogoUrl(for: teamA)
-        let logoB = TeamLogoRegistry.shared.resolveLogoUrl(for: teamB)
+        let teamA = group.homeTeamName
+        let teamB = group.awayTeamName
+        let logoA = group.homeLogoUrl
+        let logoB = group.awayLogoUrl
 
         VStack(spacing: 10) {
             HStack {
@@ -758,20 +761,4 @@ struct TeamLogoView: View {
     }
 }
 
-private struct SportsShieldPlaceholder: View {
-    var size: CGFloat
 
-    var body: some View {
-        ZStack {
-            Image(systemName: "shield.fill")
-                .resizable()
-                .scaledToFit()
-                .foregroundColor(KLTheme.surfaceGlassStrong)
-                .frame(width: size, height: size)
-
-            Image(systemName: "soccerball")
-                .font(.system(size: size * 0.45))
-                .foregroundColor(KLTheme.textMuted)
-        }
-    }
-}

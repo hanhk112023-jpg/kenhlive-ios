@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 struct LiveRoom: Identifiable, Codable, Hashable {
     var id: String { roomNum + "_" + blvName + "_" + directStreamUrl }
@@ -110,6 +111,19 @@ struct LiveMatchGroup: Identifiable, Hashable {
 
     var providerDisplayName: String {
         topRoom.providerDisplayName
+    }
+
+    var providerBadge: String {
+        topRoom.providerDisplayName
+    }
+
+    var providerColor: Color {
+        switch topRoom.provider.lowercased() {
+        case "gavang", "gavang33": return Color(red: 0.95, green: 0.65, blue: 0.12)
+        case "colatv", "cola": return Color(red: 0.18, green: 0.55, blue: 0.96)
+        case "giovang", "khandai": return Color(red: 0.92, green: 0.30, blue: 0.24)
+        default: return Color(red: 1.0, green: 0.42, blue: 0.0)
+        }
     }
 }
 

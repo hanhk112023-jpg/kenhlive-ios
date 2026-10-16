@@ -251,8 +251,9 @@ struct KLFilterStrip<T: Hashable>: View {
     @Binding var selection: T
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {\n            HStack(spacing: 8) {
-                ForEach(items, id: \\.id) { item in
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(items, id: \.id) { item in
                     let isSelected = selection == item.id
                     Button {
                         KLHaptics.selection()

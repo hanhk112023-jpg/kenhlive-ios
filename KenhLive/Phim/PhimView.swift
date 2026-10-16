@@ -295,7 +295,7 @@ struct PhimView: View {
                         let film = FilmItem(
                             name: item.filmName,
                             slug: item.filmSlug,
-                            originName: "",
+                            originalName: "",
                             thumbUrl: item.posterUrl,
                             posterUrl: item.posterUrl,
                             year: "",
@@ -388,7 +388,7 @@ struct PhimView: View {
                     let film = FilmItem(
                         name: item.filmName,
                         slug: item.filmSlug,
-                        originName: "",
+                        originalName: "",
                         thumbUrl: item.posterUrl,
                         posterUrl: item.posterUrl,
                         year: "",
