@@ -82,8 +82,11 @@ struct MainTabView: View {
             .animation(.easeInOut(duration: 0.22), value: selectedTab)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            // 2. Animated Floating Glass Dock Tab Bar with Sliding Capsule Effect
-            renderFloatingDockTabBar()
+            // 2. Animated Floating Glass Dock Tab Bar (Safely Pinned to Bottom)
+            VStack {
+                Spacer()
+                renderFloatingDockTabBar()
+            }
         }
         .edgesIgnoringSafeArea(.all)
         .sheet(isPresented: $isShowingTelegramSheet) {
@@ -102,83 +105,78 @@ struct MainTabView: View {
         }
     }
 
-    // MARK: - Animated Floating Dock Tab Bar with Sliding Indicator Effect
+    // MARK: - Safe Bottom Floating Dock Tab Bar (Fixed Height, Strictly Bounded)
     @ViewBuilder
     private func renderFloatingDockTabBar() -> some View {
-        HStack(spacing: 3) {
+        HStack(spacing: 2) {
             ForEach(KLTab.allCases) { tab in
                 let isActive = selectedTab == tab
                 Button {
                     KLHaptics.selection()
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
                         selectedTab = tab
                     }
                 } label: {
-                    ZStack {
-                        // Smooth Sliding Capsule Pill via matchedGeometryEffect
+                    HStack(spacing: 4) {
+                        Image(systemName: tab.iconName)
+                            .font(.system(size: isActive ? 14.5 : 13.5, weight: isActive ? .bold : .medium))
+                            .scaleEffect(isActive ? 1.1 : 1.0)
+                            .animation(.spring(response: 0.28, dampingFraction: 0.72), value: isActive)
+
                         if isActive {
-                            Capsule()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [
-                                            Color(red: 0.62, green: 0.12, blue: 0.18),
-                                            Color(red: 0.85, green: 0.22, blue: 0.28)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .matchedGeometryEffect(id: "ACTIVE_TAB_PILL", in: tabNamespace)
-                                .shadow(color: Color(red: 0.85, green: 0.22, blue: 0.28).opacity(0.42), radius: 8, x: 0, y: 3)
+                            Text(tab.title)
+                                .font(.system(size: 11, weight: .bold))
+                                .lineLimit(1)
                         }
-
-                        HStack(spacing: 4) {
-                            Image(systemName: tab.iconName)
-                                .font(.system(size: isActive ? 15 : 14, weight: isActive ? .bold : .medium))
-                                .scaleEffect(isActive ? 1.15 : 1.0)
-                                .animation(.spring(response: 0.35, dampingFraction: 0.62), value: isActive)
-
+                    }
+                    .foregroundColor(isActive ? .white : Color(white: 0.58))
+                    .padding(.horizontal, isActive ? 10 : 6)
+                    .padding(.vertical, 7)
+                    .frame(height: 34)
+                    .background(
+                        Group {
                             if isActive {
-                                Text(tab.title)
-                                    .font(.system(size: 11, weight: .bold))
-                                    .lineLimit(1)
-                                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                                Capsule()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [
+                                                Color(red: 0.65, green: 0.12, blue: 0.18),
+                                                Color(red: 0.85, green: 0.22, blue: 0.28)
+                                            ],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .shadow(color: Color(red: 0.85, green: 0.22, blue: 0.28).opacity(0.42), radius: 6, x: 0, y: 2)
                             }
                         }
-                        .foregroundColor(
-                            isActive
-                                ? Color.white
-                                : Color(white: 0.58)
-                        )
-                        .padding(.horizontal, isActive ? 10 : 6)
-                        .padding(.vertical, 8)
-                    }
-                    .frame(minHeight: 38)
+                    )
                 }
                 .buttonStyle(.plain)
                 .frame(maxWidth: .infinity)
             }
         }
+        .frame(height: 48)
         .padding(.horizontal, 6)
-        .padding(.vertical, 5)
+        .padding(.vertical, 3)
         .background(
-            RoundedRectangle(cornerRadius: 32)
+            RoundedRectangle(cornerRadius: 28)
                 .fill(Color(red: 0.11, green: 0.11, blue: 0.13).opacity(0.96))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 32)
+                    RoundedRectangle(cornerRadius: 28)
                         .stroke(
                             LinearGradient(
-                                colors: [Color.white.opacity(0.20), Color.white.opacity(0.06)],
+                                colors: [Color.white.opacity(0.18), Color.white.opacity(0.06)],
                                 startPoint: .top,
                                 endPoint: .bottom
                             ),
                             lineWidth: 0.8
                         )
                 )
-                .shadow(color: Color.black.opacity(0.68), radius: 18, x: 0, y: 8)
+                .shadow(color: Color.black.opacity(0.70), radius: 16, x: 0, y: 6)
         )
-        .padding(.horizontal, 12)
-        .padding(.bottom, 22)
+        .padding(.horizontal, 14)
+        .padding(.bottom, 16)
     }
 }
 

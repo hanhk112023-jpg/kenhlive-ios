@@ -1,3 +1,15 @@
+# 🚀 KENHLIVE iOS v1.6.9 (Build 141) — SỬA TRIỆT ĐỂ LỖI THANH ĐIỀU HƯỚNG BỊ KÉO DÀI CHE MÀN HÌNH (FIX LAYOUT CONSTRAINT)
+
+### 🛠️ 1. Khắc Phục Triệt Để Lỗi Viên Thuốc Kéo Dài 100% Chiều Cao Màn Hình
+- **Nguyên nhân**: Ở bản trước, `Capsule()` trong `ZStack` không có giới hạn chiều cao cố định kết hợp với `matchedGeometryEffect` trong một layout toàn màn hình đã khiến SwiftUI tính toán sai kích thước, làm hình viên thuốc màu đỏ bị giãn nở dọc vô tận từ mép trên cùng (che đồng hồ 18:28) xuống tận đáy màn hình.
+- **Khắc phục triệt để**:
+  - Ghim thanh dock cố định dưới đáy màn hình bằng `VStack { Spacer(); renderFloatingDockTabBar() }`.
+  - Khóa cứng chiều cao thanh Dock là **48pt** và chiều cao nút bấm tab là **34pt**.
+  - Đưa `Capsule()` vào đúng thuộc tính `.background()` của nội dung nút, triệt tiêu 100% khả năng bị kéo dài hoặc chiếm diện tích màn hình.
+  - Loại bỏ hoàn toàn lỗi hiển thị thanh điều hướng bị đẩy lên giữa màn hình.
+
+---
+
 # 🚀 KENHLIVE iOS v1.6.8 (Build 140) — TỐI ƯU TAB TÌM KIẾM CHUYÊN BIỆT 100% CHO KHO PHIM ĐIỆN ẢNH (CINEMA 4K)
 
 ### 🎬 1. Tab Tìm Kiếm Chuyên Biệt Cho Kho Phim Điện Ảnh
