@@ -1,3 +1,18 @@
+# 🚀 KENHLIVE iOS v1.8.0 (Build 152) — TÍCH HỢP TRỌN VẸN LÕI TRÌNH PHÁT GỐC FPT PLAY (`VideoSwappingManager` & `VepisodePlayerControlStackview`)
+
+### ⚡ 1. Chuẩn Hóa Lõi Trình Phát Trích Xuất Trực Tiếp Từ Mã Nguồn FPT Play
+- **Asset Gốc FPT Play**: Thay thế toàn bộ biểu tượng hệ thống bằng asset vector gốc trích xuất từ Asset Catalog của FPT Play:
+  - Nút khay chọn tập `fp_player_episode` trên thanh tiêu đề và thanh điều khiển dưới.
+  - Phím tốc độ phát `fp_player_speed` (0.75x, 1.0x, 1.25x, 1.5x, 2.0x).
+  - Phím khóa cảm ứng chống chạm nhầm `fp_player_lock` và `fp_player_unlock`.
+  - Phím tua nhanh/lùi vector 10s `fp_player_rewind_10` & `fp_player_forward_10`.
+- **Cơ Chế VideoSwappingManager**: Áp dụng quy trình chuyển tập chuẩn FPT Play:
+  - Khi người dùng đổi tập, hệ thống lập tức tạm dừng và gọi `cancelLoading()` triệt tiêu tác vụ tải của tập cũ để giải phóng băng thông ngay lập tức.
+  - Khởi tạo `AVPlayerItem` mới với cấu hình đệm cực ngắn `preferredForwardBufferDuration = 1.0s` và tắt `automaticallyWaitsToMinimizeStalling` giúp tập mới phát ngay lập tức 0ms mà không bị khựng đệm.
+- **Thanh Điều Khiển Kép VepisodePlayerControlStackview**: Bổ sung nút chọn tập nhanh `fp_player_episode` nằm ngay cạnh phím tốc độ phát ở thanh dưới, giúp người dùng dễ dàng chuyển tập ở bất kỳ tư thế cầm máy nào.
+
+---
+
 # 🚀 KENHLIVE iOS v1.7.9 (Build 151) — KÍCH HOẠT TÍNH NĂNG CHUYỂN TẬP / DANH SÁCH TẬP KHI XEM TIẾP (CONTINUE WATCHING)
 
 ### 🎬 1. Bổ Sung Toàn Bộ Nút Chuyển Tập & Bảng Chọn Tập Khi Mở Từ \"Tiếp Tục Xem\"

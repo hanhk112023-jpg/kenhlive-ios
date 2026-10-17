@@ -416,11 +416,14 @@ struct HLSPlayerView: View {
                     KLHaptics.light()
                     isShowingEpisodeDrawer = true
                 } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "square.stack.3d.down.right.fill")
-                            .font(.system(size: 11))
+                    HStack(spacing: 5) {
+                        Image("fp_player_episode")
+                            .resizable()
+                            .renderingMode(.template)
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 13, height: 13)
                         Text("TẬP \(internalEpIndex + 1)/\(allAvailableEpisodes.count)")
-                            .font(.system(size: 10, weight: .bold))
+                            .font(.system(size: 10, weight: .heavy, design: .rounded))
                     }
                     .foregroundColor(.white)
                     .padding(.horizontal, 9)
@@ -640,6 +643,31 @@ struct HLSPlayerView: View {
 
                 Spacer()
 
+                // FPT Play VepisodePlayerControlStackview - Episode Drawer Button
+                if allAvailableEpisodes.count > 1 {
+                    Button {
+                        KLHaptics.light()
+                        isShowingEpisodeDrawer = true
+                        rescheduleAutoHide()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image("fp_player_episode")
+                                .resizable()
+                                .renderingMode(.template)
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 12, height: 12)
+                            Text("TẬP")
+                                .font(.system(size: 10, weight: .heavy, design: .rounded))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(Color.white.opacity(0.16))
+                        .cornerRadius(7)
+                    }
+                    .buttonStyle(.plain)
+                }
+
                 // Speed Selector Button (0.75x -> 1.0x -> 1.25x -> 1.5x -> 2.0x)
                 if !isLiveStream {
                     Button {
@@ -799,6 +827,11 @@ struct HLSPlayerView: View {
         onSelectEpisodeIndex?(index)
         let ep = list[index]
         currentSubtitle = ep.name
+
+        // FPT Play VideoSwappingManager: stop current playback & cancel loading
+        player?.pause()
+        player?.currentItem?.asset.cancelLoading()
+
         let urlStr = ep.m3u8.isEmpty ? ep.embed : ep.m3u8
         var target = urlStr
         if let extracted = extractDirectM3u8(from: urlStr) {
@@ -833,14 +866,23 @@ struct HLSPlayerView: View {
 
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("DANH SÁCH TẬP PHIM")
-                            .font(.system(size: 13, weight: .heavy))
-                            .foregroundColor(KLTheme.brandOrange)
-                        Text(title)
-                            .font(.system(size: 14.5, weight: .bold))
-                            .foregroundColor(.white)
-                            .lineLimit(1)
+                    HStack(spacing: 8) {
+                        Image("fp_player_episode")
+                            .resizable()
+                            .renderingMode(.template)
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 18, height: 18)
+                            .foregroundColor(KLTheme.fptOrange)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("DANH SÁCH TẬP PHIM")
+                                .font(.system(size: 13, weight: .heavy, design: .rounded))
+                                .foregroundColor(KLTheme.fptOrange)
+                            Text(title)
+                                .font(.system(size: 14.5, weight: .bold))
+                                .foregroundColor(.white)
+                                .lineLimit(1)
+                        }
                     }
 
                     Spacer()
