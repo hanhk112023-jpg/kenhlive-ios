@@ -1008,7 +1008,11 @@ struct HLSPlayerView: View {
     private func seekToTime(_ seconds: Double) {
         guard let p = player else { return }
         let targetTime = CMTime(seconds: seconds, preferredTimescale: 600)
-        p.seek(to: targetTime)
+        p.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero) { _ in
+            if self.isPlaying {
+                p.play()
+            }
+        }
         onProgressUpdate?(seconds, duration)
     }
 

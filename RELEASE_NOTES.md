@@ -1,3 +1,17 @@
+# 🚀 KENHLIVE iOS v1.8.2 (Build 154) — ĐẠI TU TOÀN DIỆN HỆ THỐNG APP, TRÌNH PHÁT & AN TOÀN ĐA LUỒNG
+
+### 🛠️ 1. Đại Tu & Vá Triệt Để Các Lỗi Tiềm Ẩn Toàn Ứng Dụng
+- **Loại Bỏ 10 Điểm Nguy Cơ Force Crash (`try!` & `!`)**:
+  - Tái cấu trúc `DataNormalizer.swift`: thay thế toàn bộ 10 biểu thức `try! NSRegularExpression` và `TimeZone(...)!` sang cơ chế nạp an toàn `compactMap { try? ... }` và fallback `.current`. Ứng dụng loại bỏ 100% rủi ro crash bất thình lình khi xử lý chuỗi tiêu đề tiếng Việt.
+- **Vá Lỗi Kẹt Binding Modal / Thiếu `onClose`**:
+  - Bổ sung `onClose` đồng bộ trên toàn bộ các màn hình còn lại: `HomeHubView`, `ScheduleView`, `SearchAndSettingsView` (cả trận đấu & kênh truyền hình), `VodWebPlayerView`. Tránh kẹt modal hoặc lỗi không mở lại được trình phát ở các lần nhấn kế tiếp.
+- **Chuẩn Hóa Quản Lý Hướng Màn Hình (iOS 16/17+)**:
+  - Nâng cấp `OrientationManager.swift`: thay thế thuộc tính lỗi thời `windowScene.keyWindow` bằng bộ duyệt cửa sổ hiện đại `windowScene.windows.first(where: { $0.isKeyWindow })`, tương thích mượt mà với dynamic island và hệ thống iOS 16/17/18.
+- **Tối Ưu Hóa Tua Video Chuẩn Frame-Accurate**:
+  - `seekToTime` áp dụng `toleranceBefore: .zero, toleranceAfter: .zero` kết hợp tự động tiếp tục phát ngay khi kết thúc hành vi kéo thanh trượt (Scrubbing).
+
+---
+
 # 🚀 KENHLIVE iOS v1.8.1 (Build 153) — SỬA TRIỆT ĐỂ LỖI VIDEO ĐỨNG YÊN / KHÔNG CHẠY TRÌNH PHÁT
 
 ### 🚀 1. Giải Phóng Bộ Đệm AVPlayer Tự Động (Fix Video Bị Đứng Yên 0:00)

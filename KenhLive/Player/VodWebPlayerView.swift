@@ -38,9 +38,12 @@ struct VodWebPlayerView: View {
             if !directHlsUrl.isEmpty {
                 HLSPlayerView(
                     title: film.name,
-                    subtitle: "\\(film.quality) · \\(episode.name)",
+                    subtitle: "\(film.quality) · \(episode.name)",
                     roomNum: nil,
-                    directUrl: directHlsUrl
+                    directUrl: directHlsUrl,
+                    onClose: {
+                        dismiss()
+                    }
                 )
             } else {
                 NguoncWebView(embedUrl: episode.embed)

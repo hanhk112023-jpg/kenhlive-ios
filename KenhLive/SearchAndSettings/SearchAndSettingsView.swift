@@ -85,14 +85,20 @@ struct SearchAndSettingsView: View {
             HLSPlayerView(
                 title: room.matchTitle,
                 subtitle: "\(room.providerDisplayName) · \(room.blvName)",
-                room: room
+                room: room,
+                onClose: {
+                    selectedMatchForPlayer = nil
+                }
             )
         }
         .fullScreenCover(item: $selectedChannelForPlayer) { ch in
             HLSPlayerView(
                 title: ch.name,
                 subtitle: ch.group,
-                directUrl: ch.streamUrl
+                directUrl: ch.streamUrl,
+                onClose: {
+                    selectedChannelForPlayer = nil
+                }
             )
         }
     }

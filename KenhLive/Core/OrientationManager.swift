@@ -44,7 +44,8 @@ enum OrientationManager {
                 windowScene.requestGeometryUpdate(preferences) { error in
                     // System rejected or already in target geometry
                 }
-                windowScene.keyWindow?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
+                let keyWindow = windowScene.windows.first(where: { $0.isKeyWindow }) ?? windowScene.windows.first
+                keyWindow?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
             } else {
                 let targetRaw = orientation?.rawValue ?? (mask == .portrait ? UIInterfaceOrientation.portrait.rawValue : UIInterfaceOrientation.landscapeRight.rawValue)
                 UIDevice.current.setValue(targetRaw, forKey: "orientation")

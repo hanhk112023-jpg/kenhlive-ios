@@ -66,7 +66,10 @@ struct HomeHubView: View {
             HLSPlayerView(
                 title: room.matchTitle,
                 subtitle: "\(room.providerDisplayName) · \(room.blvName)",
-                room: room
+                room: room,
+                onClose: {
+                    selectedMatchForPlayer = nil
+                }
             )
         }
         .sheet(item: $selectedFilmForEpisodes) { film in

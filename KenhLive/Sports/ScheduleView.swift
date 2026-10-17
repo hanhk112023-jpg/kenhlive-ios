@@ -180,7 +180,10 @@ struct ScheduleView: View {
             HLSPlayerView(
                 title: room.matchTitle,
                 subtitle: room.league,
-                room: room
+                room: room,
+                onClose: {
+                    activeRoomForPlayer = nil
+                }
             )
         }
     }

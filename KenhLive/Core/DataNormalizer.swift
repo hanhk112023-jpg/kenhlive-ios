@@ -1,7 +1,7 @@
 import Foundation
 
 enum DataNormalizer {
-    static let timeZoneVN: TimeZone = TimeZone(identifier: "Asia/Ho_Chi_Minh") ?? TimeZone(secondsFromGMT: 7 * 3600)!
+    static let timeZoneVN: TimeZone = TimeZone(identifier: "Asia/Ho_Chi_Minh") ?? TimeZone(secondsFromGMT: 7 * 3600) ?? .current
 
     private static let spamPattern = try? NSRegularExpression(
         pattern: "(nhóm|nhom|vip|zalo|tele|liên hệ|lien he|trợ lý|tro ly|lộc|loc|code|km|cược|nhà cái|@|\\d{8,})",
@@ -9,17 +9,17 @@ enum DataNormalizer {
     )
 
     private static let noisePatterns: [NSRegularExpression] = [
-        try! NSRegularExpression(pattern: "\\[HOT\\]", options: .caseInsensitive),
-        try! NSRegularExpression(pattern: "\\[VIP\\]", options: .caseInsensitive),
-        try! NSRegularExpression(pattern: "\\[FULL\\s*HD\\]", options: .caseInsensitive),
-        try! NSRegularExpression(pattern: "\\[HD\\]", options: .caseInsensitive),
-        try! NSRegularExpression(pattern: "\\(Link\\s*\\d+\\)", options: .caseInsensitive),
-        try! NSRegularExpression(pattern: "\\(Trực\\s*tiếp\\)", options: .caseInsensitive),
-        try! NSRegularExpression(pattern: "Trực\\s*tiếp:?", options: .caseInsensitive),
-        try! NSRegularExpression(pattern: "\\|\\s*BLV.*$", options: .caseInsensitive),
-        try! NSRegularExpression(pattern: "-\\s*BLV.*$", options: .caseInsensitive),
-        try! NSRegularExpression(pattern: "\\(Bình\\s*luận.*\\)", options: .caseInsensitive)
-    ]
+        "\\[HOT\\]",
+        "\\[VIP\\]",
+        "\\[FULL\\s*HD\\]",
+        "\\[HD\\]",
+        "\\(Link\\s*\\d+\\)",
+        "\\(Trực\\s*tiếp\\)",
+        "Trực\\s*tiếp:?",
+        "\\|\\s*BLV.*$",
+        "-\\s*BLV.*$",
+        "\\(Bình\\s*luận.*\\)"
+    ].compactMap { try? NSRegularExpression(pattern: $0, options: .caseInsensitive) }
 
     static func cleanTitle(_ raw: String) -> String {
         var s = raw
