@@ -1,3 +1,21 @@
+# 🚀 KENHLIVE iOS v1.7.7 (Build 149) — CỐ ĐỊNH THANH TÌM KIẾM TRANG CHỦ THEO NỘI DUNG & KÍCH HOẠT 100% BỘ SƯU TẬP \"BẠN ĐANG QUAN TÂM GÌ?\"
+
+### 🔍 1. Thanh Tìm Kiếm Cố Định Đỉnh Trang & Cuộn Tự Nhiên Theo Nội Dung
+- Xóa bỏ hoàn toàn nút tìm kiếm nổi lơ lửng cố định ở góc phải màn hình (`.overlay` góc chết) gây vướng mắt và che mất poster phim khi cuộn xuống.
+- Nút tìm kiếm giờ đây được gắn trực tiếp vào thanh tiêu đề đỉnh trang trên Hero Banner cùng logo **KENHLIVE** sắc nét. Khi người dùng cuộn xuống duyệt phim, thanh tìm kiếm sẽ **cuộn lên theo trang một cách tự nhiên**, không còn bị kẹt lại che khuất nội dung.
+
+### 🗂️ 2. Kích Hoạt 100% Các Thẻ Bộ Sưu Tập (\"Bạn Đang Quan Tâm Gì?\")
+- Sửa dứt điểm lỗi chỉ bấm được mỗi Thể thao và Truyền hình. Giờ đây toàn bộ các thẻ bộ sưu tập tuyển chọn:
+  - **Marvel / DC Comic**
+  - **Hoạt Hình & Anime**
+  - **Chiếu Rạp Bom Tấn**
+  - **K-Drama Hot**
+  - **Cổ Trang Trung Quốc**
+  - **IMDb Top 100 Movies**
+- Khi chạm vào bất kỳ thẻ nào, hệ thống lập tức mở bảng danh mục phim chuyên biệt `CuratedCollectionDetailSheet` với dải màu gradient tương ứng, hiển thị toàn bộ poster phim tuyển chọn chuẩn 3 cột để xem ngay hoặc chọn tập.
+
+---
+
 # 🚀 KENHLIVE iOS v1.7.6 (Build 148) — TỐI ƯU HIỆU NĂNG 120HZ PROMOTION & GIAO DIỆN CHUẨN FPT PLAY: BỘ ĐỆM ẢNH BẤT ĐỒNG BỘ DEDUPLICATED, TẢI LAZYVSTACK/LAZYHSTACK SIÊU MƯỢT, TRIỆT TIÊU TIÊU THỤ NỀN
 
 ### ⚡ 1. Đại Tu Hệ Thống Tải & Cache Ảnh (`KLImageDownloader` + RAM Cache 200MB)

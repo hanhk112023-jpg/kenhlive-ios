@@ -25,6 +25,7 @@ struct PhimView: View {
     @State private var autoPlayForSheet: Bool = false
     @State private var isShowingSearchSheet: Bool = false
     @State private var directResumeItem: WatchProgress? = nil
+    @State private var selectedCuratedCollection: CuratedCollection? = nil
 
     var onSelectTab: ((KLTab) -> Void)? = nil
 
@@ -146,27 +147,8 @@ struct PhimView: View {
                     .scaleEffect(1.3)
             }
         }
-        .overlay(alignment: .topTrailing) {
-            // Top-Right Floating Search Button (Góc phải trên cùng trang chủ)
-            Button {
-                KLHaptics.selection()
-                isShowingSearchSheet = true
-            } label: {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(.white)
-                    .frame(width: 40, height: 40)
-                    .background(Color.black.opacity(0.55))
-                    .clipShape(Circle())
-                    .overlay(
-                        Circle().stroke(Color.white.opacity(0.28), lineWidth: 0.8)
-                    )
-                    .contentShape(Circle())
-                    .shadow(color: Color.black.opacity(0.65), radius: 8, x: 0, y: 3)
-            }
-            .buttonStyle(.plain)
-            .padding(.trailing, 16)
-            .padding(.top, 50)
+        .sheet(item: $selectedCuratedCollection) { col in
+            CuratedCollectionDetailSheet(collection: col)
         }
         .fullScreenCover(isPresented: $isShowingSearchSheet) {
             CinemaSearchView(onDismiss: {
@@ -370,7 +352,47 @@ struct PhimView: View {
                     .padding(.bottom, 12)
                 }
             }
-            .frame(height: 410)
+            .frame(height: 420)
+            .overlay(alignment: .top) {
+                // Top Header Bar (KenhLive Brand Logo + Search Button - scrolls WITH the page!)
+                HStack(alignment: .center) {
+                    HStack(spacing: 7) {
+                        Image(systemName: "film.stack.fill")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(KLTheme.brandOrange)
+                        Text("KENHLIVE")
+                            .font(.system(size: 17, weight: .black, design: .rounded))
+                            .tracking(1.4)
+                            .foregroundColor(.white)
+                    }
+
+                    Spacer()
+
+                    Button {
+                        KLHaptics.selection()
+                        isShowingSearchSheet = true
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 12.5, weight: .bold))
+                            Text("Tìm kiếm")
+                                .font(.system(size: 12, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 7.5)
+                        .background(Color.black.opacity(0.52))
+                        .clipShape(Capsule())
+                        .overlay(
+                            Capsule().stroke(Color.white.opacity(0.25), lineWidth: 0.8)
+                        )
+                        .shadow(color: Color.black.opacity(0.5), radius: 6, x: 0, y: 2)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 54)
+            }
             .gesture(
                 DragGesture(minimumDistance: 35)
                     .onEnded { value in
@@ -466,7 +488,7 @@ struct PhimView: View {
                             } else if col.categorySlug == "iptv" {
                                 onSelectTab?(.iptv)
                             } else {
-                                Task { await selectCategory(col.categorySlug) }
+                                selectedCuratedCollection = col
                             }
                         } label: {
                             VStack(alignment: .leading) {
@@ -1231,5 +1253,125 @@ private struct ContinueWatchingRail: View {
                 .padding(.horizontal, 16)
             }
         }
+    }
+}
+
+// MARK: - Curated Collection Detail Sheet
+private struct CuratedCollectionDetailSheet: View {
+    let collection: CuratedCollection
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var storage = StorageManager.shared
+    @State private var films: [FilmItem] = []
+    @State private var isLoading: Bool = true
+    @State private var selectedFilm: FilmItem? = nil
+
+    var body: some View {
+        ZStack {
+            Color(red: 0.08, green: 0.08, blue: 0.10).ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                // Header Bar with Collection Gradient Accent
+                HStack(alignment: .center) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(collection.title.uppercased())
+                            .font(.system(size: 17, weight: .heavy, design: .rounded))
+                            .foregroundColor(.white)
+
+                        Text("\(collection.countText) · Tuyển chọn")
+                            .font(.system(size: 11.5, weight: .medium))
+                            .foregroundColor(KLTheme.textSecondary)
+                    }
+
+                    Spacer()
+
+                    Button {
+                        KLHaptics.light()
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 32, height: 32)
+                            .background(Color.white.opacity(0.18))
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+                .background(
+                    LinearGradient(
+                        colors: collection.gradient.map { $0.opacity(0.65) } + [Color.clear],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+
+                if isLoading {
+                    Spacer()
+                    ProgressView()
+                        .tint(KLTheme.brandOrange)
+                        .scaleEffect(1.2)
+                    Spacer()
+                } else if films.isEmpty {
+                    Spacer()
+                    VStack(spacing: 12) {
+                        Image(systemName: "film.stack")
+                            .font(.system(size: 38))
+                            .foregroundColor(KLTheme.textMuted)
+                        Text("Chưa có phim trong bộ sưu tập này")
+                            .font(.system(size: 13, weight: .medium))
+                            .foregroundColor(KLTheme.textSecondary)
+                    }
+                    Spacer()
+                } else {
+                    ScrollView(showsIndicators: false) {
+                        LazyVGrid(
+                            columns: [
+                                GridItem(.flexible(), spacing: 10),
+                                GridItem(.flexible(), spacing: 10),
+                                GridItem(.flexible(), spacing: 10)
+                            ],
+                            spacing: 14
+                        ) {
+                            ForEach(films) { film in
+                                Button {
+                                    KLHaptics.light()
+                                    selectedFilm = film
+                                } label: {
+                                    PosterCell(film: film)
+                                }
+                                .buttonStyle(KLScaleButtonStyle())
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 12)
+                        .padding(.bottom, 40)
+                    }
+                }
+            }
+        }
+        .task {
+            await loadCollectionFilms()
+        }
+        .sheet(item: $selectedFilm) { film in
+            EpisodePickerSheet(
+                film: film,
+                initialResumeProgress: storage.getProgress(for: film.slug)
+            )
+        }
+    }
+
+    private func loadCollectionFilms() async {
+        isLoading = true
+        var results: [FilmItem] = []
+        if !collection.searchKeyword.isEmpty {
+            results = await PhimService.shared.searchFilms(keyword: collection.searchKeyword)
+        }
+        if results.isEmpty && !collection.categorySlug.isEmpty {
+            results = await PhimService.shared.fetchCategoryFilms(slug: collection.categorySlug)
+        }
+        films = results
+        isLoading = false
     }
 }
