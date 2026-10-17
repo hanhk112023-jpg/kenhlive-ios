@@ -543,14 +543,20 @@ struct PhimView: View {
 
                 Button {
                     KLHaptics.selection()
-                    Task { await selectCategory("phim-moi") }
+                    navigateToSectionCategory(sectionTitle: "Top Phim Thịnh Hành")
                 } label: {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(width: 28, height: 28)
-                        .background(Color.white.opacity(0.12))
-                        .clipShape(Circle())
+                    HStack(spacing: 4) {
+                        Text("Xem tất cả")
+                            .font(.system(size: 11.5, weight: .bold))
+                            .foregroundColor(Color.white.opacity(0.65))
+
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.white)
+                            .frame(width: 24, height: 24)
+                            .background(Color.white.opacity(0.12))
+                            .clipShape(Circle())
+                    }
                 }
                 .buttonStyle(.plain)
             }
@@ -723,12 +729,18 @@ struct PhimView: View {
                     Spacer()
 
                     Button(action: onSeeAll) {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(.white)
-                            .frame(width: 28, height: 28)
-                            .background(Color.white.opacity(0.12))
-                            .clipShape(Circle())
+                        HStack(spacing: 4) {
+                            Text("Xem tất cả")
+                                .font(.system(size: 11.5, weight: .bold))
+                                .foregroundColor(Color.white.opacity(0.65))
+
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(width: 24, height: 24)
+                                .background(Color.white.opacity(0.12))
+                                .clipShape(Circle())
+                        }
                     }
                     .buttonStyle(.plain)
                 }
@@ -1177,17 +1189,43 @@ struct PhimView: View {
     private func navigateToSectionCategory(sectionTitle: String) {
         KLHaptics.selection()
         let targetSlug: String
-        if sectionTitle.contains("Mới") { targetSlug = "phim-moi" }
-        else if sectionTitle.contains("Bộ") { targetSlug = "phim-bo" }
-        else if sectionTitle.contains("Lẻ") { targetSlug = "phim-le" }
-        else if sectionTitle.contains("Hoạt Hình") { targetSlug = "hoat-hinh" }
-        else if sectionTitle.contains("Hàn Quốc") { targetSlug = "han-quoc" }
-        else if sectionTitle.contains("Trung Quốc") { targetSlug = "trung-quoc" }
-        else if sectionTitle.contains("Âu Mỹ") { targetSlug = "au-my" }
-        else if sectionTitle.contains("Hành Động") { targetSlug = "hanh-dong" }
-        else { targetSlug = "tat-ca" }
+        let grad: [Color]
+        if sectionTitle.contains("Mới") {
+            targetSlug = "phim-moi"
+            grad = [Color(red: 0.95, green: 0.35, blue: 0.12), Color(red: 0.88, green: 0.12, blue: 0.20)]
+        } else if sectionTitle.contains("Bộ") {
+            targetSlug = "phim-bo"
+            grad = [Color(red: 0.22, green: 0.55, blue: 0.95), Color(red: 0.12, green: 0.35, blue: 0.85)]
+        } else if sectionTitle.contains("Lẻ") {
+            targetSlug = "phim-le"
+            grad = [Color(red: 0.88, green: 0.12, blue: 0.20), Color(red: 0.95, green: 0.45, blue: 0.15)]
+        } else if sectionTitle.contains("Hoạt Hình") || sectionTitle.contains("Anime") {
+            targetSlug = "hoat-hinh"
+            grad = [Color(red: 0.95, green: 0.45, blue: 0.75), Color(red: 0.75, green: 0.20, blue: 0.85)]
+        } else if sectionTitle.contains("Hàn Quốc") {
+            targetSlug = "han-quoc"
+            grad = [Color(red: 0.15, green: 0.75, blue: 0.75), Color(red: 0.12, green: 0.45, blue: 0.85)]
+        } else if sectionTitle.contains("Trung Quốc") {
+            targetSlug = "trung-quoc"
+            grad = [Color(red: 0.85, green: 0.25, blue: 0.20), Color(red: 0.95, green: 0.65, blue: 0.15)]
+        } else if sectionTitle.contains("Âu Mỹ") {
+            targetSlug = "au-my"
+            grad = [Color(red: 0.45, green: 0.35, blue: 0.95), Color(red: 0.25, green: 0.15, blue: 0.75)]
+        } else if sectionTitle.contains("Hành Động") {
+            targetSlug = "hanh-dong"
+            grad = [Color(red: 0.95, green: 0.20, blue: 0.20), Color(red: 0.85, green: 0.45, blue: 0.15)]
+        } else {
+            targetSlug = "phim-moi"
+            grad = [Color(red: 0.95, green: 0.35, blue: 0.12), Color(red: 0.88, green: 0.12, blue: 0.20)]
+        }
 
-        Task { await selectCategory(targetSlug) }
+        selectedCuratedCollection = CuratedCollection(
+            title: sectionTitle,
+            countText: "Khám phá trọn bộ",
+            gradient: grad,
+            categorySlug: targetSlug,
+            searchKeyword: ""
+        )
     }
 
     private func performSearch(query: String) {
@@ -1337,6 +1375,9 @@ private struct CuratedCollectionDetailSheet: View {
     @State private var films: [FilmItem] = []
     @State private var isLoading: Bool = true
     @State private var selectedFilm: FilmItem? = nil
+    @State private var page: Int = 1
+    @State private var canLoadMore: Bool = true
+    @State private var isLoadingMore: Bool = false
 
     var body: some View {
         ZStack {
@@ -1350,7 +1391,7 @@ private struct CuratedCollectionDetailSheet: View {
                             .font(.system(size: 17, weight: .heavy, design: .rounded))
                             .foregroundColor(.white)
 
-                        Text("\(collection.countText) · Tuyển chọn")
+                        Text("\(films.isEmpty ? collection.countText : "\(films.count) phim") · Khám phá trọn bộ")
                             .font(.system(size: 11.5, weight: .medium))
                             .foregroundColor(KLTheme.textSecondary)
                     }
@@ -1419,7 +1460,47 @@ private struct CuratedCollectionDetailSheet: View {
                         }
                         .padding(.horizontal, 16)
                         .padding(.top, 12)
-                        .padding(.bottom, 40)
+
+                        // Infinite Load More Footer
+                        if canLoadMore && !collection.categorySlug.isEmpty {
+                            Button {
+                                KLHaptics.medium()
+                                Task { await loadMoreFilms() }
+                            } label: {
+                                HStack(spacing: 8) {
+                                    if isLoadingMore {
+                                        ProgressView().tint(.white).scaleEffect(0.85)
+                                        Text("Đang nạp thêm phim...")
+                                            .font(.system(size: 13, weight: .bold))
+                                            .foregroundColor(.white)
+                                    } else {
+                                        Image(systemName: "arrow.clockwise.circle.fill")
+                                            .font(.system(size: 14))
+                                        Text("TẢI THÊM PHIM (TRANG \(page + 1))")
+                                            .font(.system(size: 12.5, weight: .heavy))
+                                    }
+                                }
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(
+                                    LinearGradient(
+                                        colors: collection.gradient,
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .cornerRadius(12)
+                                .padding(.horizontal, 16)
+                                .padding(.top, 14)
+                            }
+                            .buttonStyle(KLScaleButtonStyle())
+                            .onAppear {
+                                Task { await loadMoreFilms() }
+                            }
+                        }
+
+                        Spacer(minLength: 40)
                     }
                 }
             }
@@ -1437,6 +1518,8 @@ private struct CuratedCollectionDetailSheet: View {
 
     private func loadCollectionFilms() async {
         isLoading = true
+        page = 1
+        canLoadMore = true
         var results: [FilmItem] = []
         if !collection.searchKeyword.isEmpty {
             results = await PhimService.shared.searchFilms(keyword: collection.searchKeyword)
@@ -1446,5 +1529,27 @@ private struct CuratedCollectionDetailSheet: View {
         }
         films = results
         isLoading = false
+    }
+
+    private func loadMoreFilms() async {
+        guard !isLoading, !isLoadingMore, canLoadMore, !collection.categorySlug.isEmpty else { return }
+        isLoadingMore = true
+        let nextPage = page + 1
+        let more = await PhimService.shared.fetchCategoryFilms(slug: collection.categorySlug, page: nextPage)
+        await MainActor.run {
+            if more.isEmpty {
+                self.canLoadMore = false
+            } else {
+                let existing = Set(self.films.map { $0.slug })
+                let unique = more.filter { !existing.contains($0.slug) }
+                if unique.isEmpty {
+                    self.canLoadMore = false
+                } else {
+                    self.films.append(contentsOf: unique)
+                    self.page = nextPage
+                }
+            }
+            self.isLoadingMore = false
+        }
     }
 }

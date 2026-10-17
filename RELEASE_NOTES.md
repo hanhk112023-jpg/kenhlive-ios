@@ -1,3 +1,13 @@
+# 🚀 KENHLIVE iOS v1.9.2 (Build 158) — BẤM MŨI TÊN ( > ) / XEM TẤT CẢ MỞ RỘNG TOÀN BỘ KHO PHIM
+
+### 🎯 1. Kích Hoạt Nút Mũi Tên `>` / \"Xem tất cả\" Mở Rộng Danh Sách
+- **Mở rộng trực tiếp toàn bộ danh mục**: Khi bấm vào nút mũi tên tròn `>` hoặc chữ \"Xem tất cả\" bên cạnh tiêu đề mỗi hàng (*Phim Bộ Đặc Sắc*, *Phim Lẻ Chiếu Rạp*, *Hoạt Hình & Anime*, *Top Phim Tuần*...), ứng dụng sẽ mở ra màn hình mở rộng trọn vẹn của danh mục đó.
+- **Lưới Poster 3 Cột Chuẩn Điện Ảnh**: Hiển thị danh sách đầy đủ với poster sắc nét, điểm IMDb, năm phát hành, chất lượng và số tập.
+- **Tải Vô Tận (Infinite Scroll) Bên Trong Màn Hình Mở Rộng**: Tự động nạp thêm trang 2, 3, 4... khi cuộn xuống dưới cùng với nút *\"TẢI THÊM PHIM\"*, duyệt liên tục hàng trăm tác phẩm cùng thể loại.
+- **Đếm Số Lượng Phim Realtime**: Header hiển thị số lượng phim hiện có và cập nhật theo thời gian thực khi nạp thêm trang mới.
+
+---
+
 # 🚀 KENHLIVE iOS v1.9.1 (Build 157) — TỐI ƯU HÓA LOAD ẢNH CỰC MƯỢT & BỘ PHIM VÔ TẬN
 
 ### ⚡ 1. Đột Phá Bộ Đệm Ảnh 2 Tầng (RAM + Disk Cache) & Triệt Tiêu Giật Lag
