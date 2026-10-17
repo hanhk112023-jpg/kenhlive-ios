@@ -49,6 +49,7 @@ struct HLSPlayerView: View {
     @State private var seekRippleText: String? = nil
     @State private var seekRippleSide: Alignment = .center
     @State private var seekRippleTask: Task<Void, Never>? = nil
+    @State private var playbackError: String? = nil
 
     var body: some View {
         ZStack {
@@ -195,6 +196,73 @@ struct HLSPlayerView: View {
                 }
                 .transition(.opacity)
                 .ignoresSafeArea(edges: [.top, .bottom])
+            }
+
+            // 5. Playback Failure / Error Overlay with Retry
+            if let error = playbackError {
+                VStack(spacing: 14) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 38))
+                        .foregroundColor(Color(red: 0.96, green: 0.77, blue: 0.10))
+
+                    Text(error)
+                        .font(.system(size: 13.5, weight: .bold))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
+
+                    HStack(spacing: 12) {
+                        Button {
+                            playbackError = nil
+                            Task { await startPlayback() }
+                        } label: {
+                            Text("Thử lại")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(.black)
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 9)
+                                .background(KLTheme.brandOrange)
+                                .cornerRadius(8)
+                        }
+                        .buttonStyle(.plain)
+
+                        if servers.count > 1 {
+                            Button {
+                                playbackError = nil
+                                let nextIdx = (currentServerIndex + 1) % servers.count
+                                switchServer(to: nextIdx)
+                            } label: {
+                                Text("Đổi Server")
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 9)
+                                    .background(Color.white.opacity(0.18))
+                                    .cornerRadius(8)
+                            }
+                            .buttonStyle(.plain)
+                        }
+
+                        Button {
+                            closePlayer()
+                        } label: {
+                            Text("Đóng")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(Color.white.opacity(0.8))
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 9)
+                                .background(Color.white.opacity(0.12))
+                                .cornerRadius(8)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(24)
+                .background(Color(red: 0.11, green: 0.11, blue: 0.14).opacity(0.95))
+                .cornerRadius(18)
+                .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.white.opacity(0.15), lineWidth: 0.8))
+                .shadow(color: Color.black.opacity(0.8), radius: 20)
+                .padding(.horizontal, 30)
             }
         }
         .onAppear {
@@ -746,6 +814,11 @@ struct HLSPlayerView: View {
             if !dur.isNaN && dur > 0 && !dur.isInfinite {
                 self.duration = dur
                 self.isLiveStream = false
+
+                // Continuous auto-save watch progress every ~5 seconds
+                if Int(sec) > 0 && Int(sec) % 5 == 0 {
+                    self.onProgressUpdate?(sec, dur)
+                }
             } else {
                 self.isLiveStream = true
             }

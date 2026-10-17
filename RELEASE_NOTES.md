@@ -1,3 +1,21 @@
+# 🚀 KENHLIVE iOS v1.7.4 (Build 146) — ĐẠI TU TOÀN DIỆN: PHÁT LẠI 0MS KHÔNG QUA TRUNG GIAN, XOÁ BỎ 100% XUNG ĐỘT MODAL, TỰ ĐỘNG LƯU TIẾN ĐỘ & BẢNG BÁO LỖI PHÁT KÈM THỬ LẠI
+
+### ⚡ 1. Khôi Phục Xem Phim Tức Thì 0ms (Bỏ Sheet Trung Gian Tránh Xung Đột)
+- Khi chạm vào card "Tiếp Tục Xem" trên **Trang chủ** hoặc tab **Cá nhân**, hệ thống sẽ **khởi chạy ngay trình phát Fullscreen Landscape 0ms** với đúng số giây đã dừng, bỏ qua bước mở sheet trung gian giúp triệt tiêu 100% tình trạng hai modal `.sheet` và `.fullScreenCover` xung đột lẫn nhau gây giật lag hay văng màn hình.
+
+### 🛡️ 2. Xử Lý Luồng Embed & Triệt Tiêu Màn Hình Đen (`VodWebPlayerView` Fallback)
+- Tự động nhận diện các tập phim chỉ có luồng nhúng HTML (`embed`) mà không có file `.m3u8` trực tiếp. Thay vì đẩy vào AVPlayer gây màn hình đen, ứng dụng tự động điều hướng sang `VodWebPlayerView` để phát mượt mà không lỗi.
+
+### 🔄 3. Bảng Báo Lỗi & Tự Động Chuyển Server Dự Phòng
+- Bổ sung bảng thông báo lỗi phát sóng Glassmorphic tinh tế trong `HLSPlayerView`: tự động phát hiện khi luồng bị gián đoạn và tự chuyển sang máy chủ dự phòng tiếp theo. Nếu mọi máy chủ đều lỗi, hiển thị nút "Thử lại" và "Đổi Server" trực tiếp trên màn hình phát.
+- Tự động lưu tiến độ phim liên tục mỗi 5 giây (`Continuous Progress Auto-Save`), đảm bảo không bị mất thời gian đã xem khi thoát app đột ngột.
+
+### 📱 4. Xoay Màn Hình Linh Hoạt Cả 2 Chiều Landscape
+- Cải tiến `OrientationManager`: hỗ trợ xoay linh hoạt cả hai chiều ngang (xoay trái lẫn xoay phải) khi xem phim/thể thao để phù hợp với tư thế cầm điện thoại của người dùng.
+- Khắc phục triệt để race condition và rò rỉ bộ nhớ trong trình phát xem trước IPTV (`setupTask cancellation`).
+
+---
+
 # 🚀 KENHLIVE iOS v1.7.3 (Build 145) — NÂNG CẤP ĐỘ MƯỢT 120HZ PROMOTION, CARD PHIM LỊCH SỬ XEM & TỐI ƯU GIAO DIỆN CINEMA LIQUID GLASS
 
 ### 🎬 1. Card Phim Lịch Sử Xem & Tiếp Tục Xem Đẳng Cấp Cinema (`KLWatchHistoryCard`)

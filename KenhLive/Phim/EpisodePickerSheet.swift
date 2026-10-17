@@ -324,32 +324,36 @@ struct EpisodePickerSheet: View {
             let epIdx = allCurrentEpisodes.firstIndex(where: { $0.id == activeEp.id }) ?? 0
             let directUrl = activeEp.m3u8.isEmpty ? activeEp.embed : activeEp.m3u8
 
-            HLSPlayerView(
-                title: film.name,
-                subtitle: "\(film.quality) · \(activeEp.name)",
-                roomNum: nil,
-                directUrl: directUrl,
-                streamReferer: nil,
-                room: nil,
-                episodes: allCurrentEpisodes,
-                currentEpisodeIndex: epIdx,
-                onSelectEpisodeIndex: { nextIdx in
-                    if nextIdx >= 0 && nextIdx < allCurrentEpisodes.count {
-                        let nextEp = allCurrentEpisodes[nextIdx]
-                        activeEpisodeForPlayer = nextEp
-                        saveProgress(episode: nextEp, currentSec: 0, durationSec: 2700)
+            if !directUrl.contains(".m3u8") && !activeEp.embed.isEmpty && activeEp.m3u8.isEmpty {
+                VodWebPlayerView(film: film, episode: activeEp)
+            } else {
+                HLSPlayerView(
+                    title: film.name,
+                    subtitle: "\(film.quality) · \(activeEp.name)",
+                    roomNum: nil,
+                    directUrl: directUrl,
+                    streamReferer: nil,
+                    room: nil,
+                    episodes: allCurrentEpisodes,
+                    currentEpisodeIndex: epIdx,
+                    onSelectEpisodeIndex: { nextIdx in
+                        if nextIdx >= 0 && nextIdx < allCurrentEpisodes.count {
+                            let nextEp = allCurrentEpisodes[nextIdx]
+                            activeEpisodeForPlayer = nextEp
+                            saveProgress(episode: nextEp, currentSec: 0, durationSec: 2700)
+                        }
+                    },
+                    initialTimeSeconds: activePlayerResumeSeconds,
+                    isFullscreen: true,
+                    onClose: {
+                        activeEpisodeForPlayer = nil
+                    },
+                    onProgressUpdate: { currentSec, durationSec in
+                        activePlayerResumeSeconds = currentSec
+                        saveProgress(episode: activeEp, currentSec: currentSec, durationSec: durationSec)
                     }
-                },
-                initialTimeSeconds: activePlayerResumeSeconds,
-                isFullscreen: true,
-                onClose: {
-                    activeEpisodeForPlayer = nil
-                },
-                onProgressUpdate: { currentSec, durationSec in
-                    activePlayerResumeSeconds = currentSec
-                    saveProgress(episode: activeEp, currentSec: currentSec, durationSec: durationSec)
-                }
-            )
+                )
+            }
         }
     }
 

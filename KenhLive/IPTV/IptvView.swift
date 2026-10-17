@@ -270,6 +270,7 @@ private struct InlinePreviewPlayerView: View {
 
     @State private var player: AVPlayer? = nil
     @State private var isMuted: Bool = true // Always muted by default on iOS preview
+    @State private var setupTask: Task<Void, Never>? = nil
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
@@ -356,23 +357,26 @@ private struct InlinePreviewPlayerView: View {
             }
         }
         .onDisappear {
+            setupTask?.cancel()
+            setupTask = nil
             player?.pause()
             player = nil
         }
     }
 
     private func setupPlayer() {
-        Task {
+        setupTask?.cancel()
+        setupTask = Task {
             let resolved = await IptvService.shared.resolveStreamUrl(channel: channel)
-            if let url = URL(string: resolved) {
-                await MainActor.run {
-                    self.player?.pause()
-                    let newPlayer = AVPlayer(url: url)
-                    newPlayer.isMuted = self.isMuted
-                    self.player = newPlayer
-                    if !self.isFullscreenActive {
-                        self.player?.play()
-                    }
+            guard !Task.isCancelled, let url = URL(string: resolved) else { return }
+            await MainActor.run {
+                guard !Task.isCancelled else { return }
+                self.player?.pause()
+                let newPlayer = AVPlayer(url: url)
+                newPlayer.isMuted = self.isMuted
+                self.player = newPlayer
+                if !self.isFullscreenActive {
+                    self.player?.play()
                 }
             }
         }

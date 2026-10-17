@@ -35,7 +35,7 @@ enum OrientationManager {
 
                 let targetMask: UIInterfaceOrientationMask
                 if mask.contains(.landscape) || mask == .landscapeRight || mask == .landscapeLeft {
-                    targetMask = .landscapeRight
+                    targetMask = .landscape
                 } else {
                     targetMask = .portrait
                 }

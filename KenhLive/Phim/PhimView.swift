@@ -24,6 +24,7 @@ struct PhimView: View {
     @State private var initialResumeProgressForSheet: WatchProgress? = nil
     @State private var autoPlayForSheet: Bool = false
     @State private var isShowingSearchSheet: Bool = false
+    @State private var directResumeItem: WatchProgress? = nil
 
     var onSelectTab: ((KLTab) -> Void)? = nil
 
@@ -168,6 +169,36 @@ struct PhimView: View {
             CinemaSearchView(onDismiss: {
                 isShowingSearchSheet = false
             })
+        }
+        .fullScreenCover(item: $directResumeItem) { item in
+            let directUrl = item.m3u8Url.isEmpty ? item.embedUrl : item.m3u8Url
+            HLSPlayerView(
+                title: item.filmName,
+                subtitle: item.episodeName.isEmpty ? "Tiếp tục xem" : item.episodeName,
+                directUrl: directUrl,
+                initialTimeSeconds: Double(item.positionMs) / 1000.0,
+                isFullscreen: true,
+                onClose: {
+                    directResumeItem = nil
+                },
+                onProgressUpdate: { currentSec, durationSec in
+                    let posMs = Int64(currentSec * 1000)
+                    let durMs = Int64(durationSec * 1000)
+                    let updated = WatchProgress(
+                        filmSlug: item.filmSlug,
+                        filmName: item.filmName,
+                        posterUrl: item.posterUrl,
+                        episodeName: item.episodeName,
+                        episodeSlug: item.episodeSlug,
+                        embedUrl: item.embedUrl,
+                        m3u8Url: item.m3u8Url,
+                        positionMs: posMs,
+                        durationMs: durMs > 0 ? durMs : item.durationMs,
+                        updatedAt: Date()
+                    )
+                    storage.saveWatchProgress(updated)
+                }
+            )
         }
         .task {
             if sections.isEmpty {
@@ -333,18 +364,7 @@ struct PhimView: View {
             if !storage.watchHistory.isEmpty {
                 ContinueWatchingRail(items: storage.watchHistory) { item in
                     KLHaptics.medium()
-                    let film = FilmItem(
-                        name: item.filmName,
-                        slug: item.filmSlug,
-                        originalName: "",
-                        thumbUrl: item.posterUrl,
-                        posterUrl: item.posterUrl,
-                        quality: "HD",
-                        year: ""
-                    )
-                    autoPlayForSheet = true
-                    initialResumeProgressForSheet = item
-                    selectedFilmForEpisodes = film
+                    directResumeItem = item
                 }
             }
 

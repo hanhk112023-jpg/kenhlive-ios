@@ -535,6 +535,7 @@ struct CinemaProfileView: View {
 
     @ObservedObject private var storage = StorageManager.shared
     @State private var selectedFilm: FilmItem? = nil
+    @State private var directResumeItem: WatchProgress? = nil
     @AppStorage("kl_stream_quality") private var selectedQuality: String = "Tự động (FHD)"
     @State private var pingResults: [String: String] = [:]
     @State private var isTestingPing: Bool = false
@@ -650,16 +651,7 @@ struct CinemaProfileView: View {
                                             item: item,
                                             onPlay: {
                                                 KLHaptics.medium()
-                                                let film = FilmItem(
-                                                    name: item.filmName,
-                                                    slug: item.filmSlug,
-                                                    originalName: "",
-                                                    thumbUrl: item.posterUrl,
-                                                    posterUrl: item.posterUrl,
-                                                    quality: "HD",
-                                                    year: ""
-                                                )
-                                                selectedFilm = film
+                                                directResumeItem = item
                                             },
                                             onDelete: {
                                                 withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
@@ -761,7 +753,7 @@ struct CinemaProfileView: View {
                         Text("KenhLive Cinema, Sports & VTV iOS")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(Color.white.opacity(0.6))
-                        Text("Phiên bản v1.7.3 (Build 145)")
+                        Text("Phiên bản v1.7.4 (Build 146)")
                             .font(.system(size: 11, weight: .regular))
                             .foregroundColor(Color.white.opacity(0.3))
                     }
@@ -776,6 +768,36 @@ struct CinemaProfileView: View {
             EpisodePickerSheet(
                 film: film,
                 initialResumeProgress: storage.getProgress(for: film.slug)
+            )
+        }
+        .fullScreenCover(item: $directResumeItem) { item in
+            let directUrl = item.m3u8Url.isEmpty ? item.embedUrl : item.m3u8Url
+            HLSPlayerView(
+                title: item.filmName,
+                subtitle: item.episodeName.isEmpty ? "Tiếp tục xem" : item.episodeName,
+                directUrl: directUrl,
+                initialTimeSeconds: Double(item.positionMs) / 1000.0,
+                isFullscreen: true,
+                onClose: {
+                    directResumeItem = nil
+                },
+                onProgressUpdate: { currentSec, durationSec in
+                    let posMs = Int64(currentSec * 1000)
+                    let durMs = Int64(durationSec * 1000)
+                    let updated = WatchProgress(
+                        filmSlug: item.filmSlug,
+                        filmName: item.filmName,
+                        posterUrl: item.posterUrl,
+                        episodeName: item.episodeName,
+                        episodeSlug: item.episodeSlug,
+                        embedUrl: item.embedUrl,
+                        m3u8Url: item.m3u8Url,
+                        positionMs: posMs,
+                        durationMs: durMs > 0 ? durMs : item.durationMs,
+                        updatedAt: Date()
+                    )
+                    storage.saveWatchProgress(updated)
+                }
             )
         }
     }
