@@ -1,3 +1,27 @@
+# 🚀 KENHLIVE iOS v1.9.3 (Build 159) — GỘP LỊCH SỬ XEM TINH GỌN, AUTO-LOAD VÔ TẬN & GIAO DIỆN TÌM KIẾM ĐẲNG CẤP
+
+### 🎬 1. Lịch Sử Xem Tinh Gọn (1 Bộ Gộp Vào 1 Card Duy Nhất)
+- **Tập trung & Chống phân mảnh**: Thay vì hiển thị mỗi tập xem là một card riêng biệt gây tràn danh sách, giờ đây **toàn bộ các tập đã xem của 1 bộ phim được tự động gộp vào 1 card duy nhất**.
+- **Hiển thị thông minh**: Card hiển thị rõ nét tên phim, tập mới nhất đang theo dõi (ví dụ: *Đang xem Tập 02*), số lượng tập đã xem (ví dụ: *Đã xem 2 tập*) và thanh % tiến độ màu đỏ gradient chuẩn Netflix.
+- **Tiếp tục xem 1 chạm**: Chạm vào card để phát tiếp ngay lập tức tập mới nhất tại đúng vị trí giây đã dừng.
+- **Quản lý xóa tiện lợi**: Nút xóa nhanh từng bộ phim khỏi lịch sử (xóa sạch toàn bộ tiến trình của bộ đó) hoặc xóa tất cả bằng một chạm.
+
+### ♾️ 2. Tự Động Tải Thêm (Auto Infinite Scroll) Không Cần Ấn Nút
+- **Bỏ hoàn toàn nút bấm thủ công**: Trong tất cả các danh mục phim rạp, thể loại, chủ đề "Bạn quan tâm" và màn hình mở rộng "Xem tất cả", người dùng chỉ cần **vuốt tới cuối màn hình là ứng dụng tự động nạp tiếp trang tiếp theo**.
+- **Hiệu ứng mượt mà 120fps**: Spinner loading nhỏ gọn, tinh tế tự kích hoạt ở chân danh sách, mang lại trải nghiệm duyệt phim bất tận, không gián đoạn.
+
+### 🔍 3. Giao Diện Cá Nhân & Tìm Kiếm / Quan Tâm Đẳng Cấp
+- **Giao diện Cá nhân (VIP Member Obsidian Glass)**:
+  - Header thành viên VIP với biểu tượng vương miện hoàng gia, viền sáng Gradient Gold sang trọng.
+  - Bộ 3 thẻ thống kê Bento: Số lượng phim đã lưu, tổng số tập đã xem, dung lượng bộ nhớ đệm thực tế.
+  - Phân nhóm cài đặt chuẩn phong cách Apple Inset Glass: Lịch thi đấu bóng đá 7 ngày, Chất lượng video ưu tiên (FHD/1080p/720p), Dọn dẹp bộ nhớ đệm (xóa sạch RAM + Disk cache + URLCache), Báo lỗi Telegram.
+- **Giao diện Tìm Kiếm & "Bạn Quan Tâm" Mới**:
+  - Thanh tìm kiếm Apple Spotlight viền sáng, hỗ trợ gõ tìm tức thì.
+  - Dải từ khóa Hot thịnh hành: *One Piece*, *Conan*, *Solo Leveling*, *Bleach*, *Marvel*, *Batman*, *Doraemon*, *Avengers*...
+  - Bento Grid 2 cột "Chủ đề bạn quan tâm": *Chiếu Rạp Bom Tấn*, *Phim Bộ Châu Á*, *Anime & Hoạt Hình*, *Võ Thuật & Hành Động* với icon SF Symbols rực rỡ và liên kết trực tiếp vào kho phim tự động cuộn vô tận.
+
+---
+
 # 🚀 KENHLIVE iOS v1.9.2 (Build 158) — BẤM MŨI TÊN ( > ) / XEM TẤT CẢ MỞ RỘNG TOÀN BỘ KHO PHIM
 
 ### 🎯 1. Kích Hoạt Nút Mũi Tên `>` / \"Xem tất cả\" Mở Rộng Danh Sách

@@ -52,66 +52,75 @@ struct PhimView: View {
     private let curatedCollections: [CuratedCollection] = [
         CuratedCollection(
             title: "Thể Thao Live",
-            countText: "4 Nhà Đài",
+            countText: "4 Đài Trực Tiếp",
             gradient: [Color(red: 0.95, green: 0.35, blue: 0.12), Color(red: 0.98, green: 0.55, blue: 0.15)],
             categorySlug: "sports",
-            searchKeyword: ""
+            searchKeyword: "",
+            iconName: "sportscourt.fill",
+            subtitle: "Socolive · Cola · Gà Vàng"
         ),
         CuratedCollection(
             title: "Chiếu Rạp Hot",
-            countText: "48 phim",
+            countText: "48+ Bom Tấn",
             gradient: [Color(red: 0.12, green: 0.45, blue: 0.85), Color(red: 0.25, green: 0.65, blue: 0.95)],
             categorySlug: "phim-chieu-rap",
-            searchKeyword: "Chiếu rạp"
+            searchKeyword: "Chiếu rạp",
+            iconName: "film.fill",
+            subtitle: "Phòng vé mới nhất"
         ),
         CuratedCollection(
-            title: "Marvel",
-            countText: "32 phim",
-            gradient: [Color(red: 0.48, green: 0.17, blue: 0.75), Color(red: 0.62, green: 0.31, blue: 0.87)],
-            categorySlug: "au-my",
-            searchKeyword: "Marvel"
+            title: "Phim Bộ Châu Á",
+            countText: "K-Drama & Hoa Ngữ",
+            gradient: [Color(red: 0.97, green: 0.18, blue: 0.45), Color(red: 0.65, green: 0.08, blue: 0.75)],
+            categorySlug: "phim-bo",
+            searchKeyword: "Hàn Quốc",
+            iconName: "sparkles.tv.fill",
+            subtitle: "Gây sốt màn ảnh"
         ),
         CuratedCollection(
-            title: "IMDb Top 100 Movies",
-            countText: "52 phim",
-            gradient: [Color(red: 0.91, green: 0.44, blue: 0.32), Color(red: 0.90, green: 0.22, blue: 0.27)],
-            categorySlug: "phim-le",
-            searchKeyword: "Top"
-        ),
-        CuratedCollection(
-            title: "DC Comic",
-            countText: "39 phim",
-            gradient: [Color(red: 0.11, green: 0.21, blue: 0.34), Color(red: 0.27, green: 0.48, blue: 0.62)],
-            categorySlug: "au-my",
-            searchKeyword: "Batman"
-        ),
-        CuratedCollection(
-            title: "Hoạt Hình & Anime",
-            countText: "48 phim",
-            gradient: [Color(red: 0.16, green: 0.62, blue: 0.56), Color(red: 0.15, green: 0.27, blue: 0.33)],
+            title: "Anime & Hoạt Hình",
+            countText: "Vietsub 4K",
+            gradient: [Color(red: 0.16, green: 0.68, blue: 0.56), Color(red: 0.10, green: 0.85, blue: 0.65)],
             categorySlug: "hoat-hinh",
-            searchKeyword: "Anime"
+            searchKeyword: "Anime",
+            iconName: "sparkles",
+            subtitle: "Cập nhật tập mới nhất"
         ),
         CuratedCollection(
-            title: "Chiếu Rạp Bom Tấn",
-            countText: "48 phim",
-            gradient: [Color(red: 0.96, green: 0.64, blue: 0.38), Color(red: 0.83, green: 0.64, blue: 0.45)],
+            title: "Siêu Anh Hùng",
+            countText: "Vũ Trụ Marvel & DC",
+            gradient: [Color(red: 0.48, green: 0.17, blue: 0.78), Color(red: 0.68, green: 0.25, blue: 0.92)],
+            categorySlug: "au-my",
+            searchKeyword: "Marvel",
+            iconName: "shield.lefthalf.filled",
+            subtitle: "Kỹ xảo đỉnh cao"
+        ),
+        CuratedCollection(
+            title: "IMDb Top 100",
+            countText: "Kinh Điển Thế Giới",
+            gradient: [Color(red: 0.95, green: 0.65, blue: 0.15), Color(red: 0.98, green: 0.82, blue: 0.25)],
             categorySlug: "phim-le",
-            searchKeyword: "Chiếu Rạp"
+            searchKeyword: "Top",
+            iconName: "star.fill",
+            subtitle: "Điểm đánh giá cao nhất"
         ),
         CuratedCollection(
-            title: "K-Drama Hot",
-            countText: "48 phim",
-            gradient: [Color(red: 0.97, green: 0.15, blue: 0.52), Color(red: 0.45, green: 0.04, blue: 0.72)],
-            categorySlug: "han-quoc",
-            searchKeyword: "Hàn Quốc"
+            title: "Hành Động Bom Tấn",
+            countText: "Võ Thuật & Đua Xe",
+            gradient: [Color(red: 0.92, green: 0.22, blue: 0.18), Color(red: 0.98, green: 0.45, blue: 0.22)],
+            categorySlug: "hanh-dong",
+            searchKeyword: "Hành Động",
+            iconName: "flame.fill",
+            subtitle: "Kịch tính đến nghẹt thở"
         ),
         CuratedCollection(
-            title: "Cổ Trang Trung Quốc",
-            countText: "48 phim",
-            gradient: [Color(red: 0.62, green: 0.16, blue: 0.17), Color(red: 0.33, green: 0.04, blue: 0.05)],
-            categorySlug: "trung-quoc",
-            searchKeyword: "Cổ Trang"
+            title: "Kinh Dị & Giật Gân",
+            countText: "Ám Ảnh Cực Độ",
+            gradient: [Color(red: 0.28, green: 0.12, blue: 0.45), Color(red: 0.45, green: 0.15, blue: 0.65)],
+            categorySlug: "kinh-di",
+            searchKeyword: "Kinh Dị",
+            iconName: "eye.trianglebadge.exclamationmark.fill",
+            subtitle: "Rùng rợn thót tim"
         )
     ]
 
@@ -493,21 +502,42 @@ struct PhimView: View {
                                 selectedCuratedCollection = col
                             }
                         } label: {
-                            VStack(alignment: .leading) {
+                            VStack(alignment: .leading, spacing: 0) {
+                                HStack {
+                                    ZStack {
+                                        Circle()
+                                            .fill(Color.white.opacity(0.22))
+                                            .frame(width: 32, height: 32)
+                                        Image(systemName: col.iconName)
+                                            .font(.system(size: 14, weight: .bold))
+                                            .foregroundColor(.white)
+                                    }
+
+                                    Spacer()
+
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 10, weight: .heavy))
+                                        .foregroundColor(Color.white.opacity(0.70))
+                                        .frame(width: 22, height: 22)
+                                        .background(Color.white.opacity(0.14))
+                                        .clipShape(Circle())
+                                }
+
+                                Spacer(minLength: 8)
+
                                 Text(col.title)
-                                    .font(.system(size: 15, weight: .heavy))
+                                    .font(.system(size: 14.5, weight: .heavy, design: .rounded))
                                     .foregroundColor(.white)
-                                    .lineLimit(2)
-                                    .multilineTextAlignment(.leading)
+                                    .lineLimit(1)
 
-                                Spacer()
-
-                                Text(col.countText)
-                                    .font(.system(size: 11.5, weight: .semibold))
+                                Text("\(col.subtitle) · \(col.countText)")
+                                    .font(.system(size: 10.5, weight: .medium))
                                     .foregroundColor(Color.white.opacity(0.85))
+                                    .lineLimit(1)
+                                    .padding(.top, 2)
                             }
-                            .padding(14)
-                            .frame(width: 155, height: 86, alignment: .leading)
+                            .padding(12)
+                            .frame(width: 172, height: 102, alignment: .leading)
                             .background(
                                 LinearGradient(
                                     colors: col.gradient,
@@ -515,16 +545,18 @@ struct PhimView: View {
                                     endPoint: .bottomTrailing
                                 )
                             )
-                            .cornerRadius(18)
+                            .cornerRadius(16)
                             .overlay(
-                                RoundedRectangle(cornerRadius: 18)
-                                    .stroke(Color.white.opacity(0.18), lineWidth: 0.8)
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(Color.white.opacity(0.24), lineWidth: 0.8)
                             )
+                            .shadow(color: col.gradient.first?.opacity(0.35) ?? .clear, radius: 8, x: 0, y: 4)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(KLScaleButtonStyle())
                     }
                 }
                 .padding(.horizontal, 16)
+                .padding(.vertical, 4)
             }
         }
     }
@@ -932,43 +964,27 @@ struct PhimView: View {
                 }
                 .padding(.horizontal, 16)
 
-                // High-Capacity Infinite Load More Footer
+                // Auto-Trigger Infinite Scroll on Reach Bottom
                 if canLoadMoreCategory && selectedFilter != "lich-su" {
-                    Button {
-                        KLHaptics.medium()
-                        Task { await loadMoreCategoryFilms() }
-                    } label: {
-                        HStack(spacing: 8) {
-                            if isLoadingMoreCategory {
-                                ProgressView().tint(.white).scaleEffect(0.85)
-                                Text("Đang nạp thêm phim...")
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundColor(.white)
-                            } else {
-                                Image(systemName: "arrow.clockwise.circle.fill")
-                                    .font(.system(size: 14))
-                                Text("TẢI THÊM PHIM (TRANG \(categoryPage + 1))")
-                                    .font(.system(size: 12.5, weight: .heavy))
-                            }
-                        }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(
-                            LinearGradient(
-                                colors: [KLTheme.brandOrange, KLTheme.netflixRed],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                        .cornerRadius(12)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 10)
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .tint(KLTheme.brandOrange)
+                            .scaleEffect(0.9)
+                        Text("Đang nạp thêm phim trang \(categoryPage + 1)...")
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(KLTheme.textSecondary)
                     }
-                    .buttonStyle(KLScaleButtonStyle())
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 22)
                     .onAppear {
                         Task { await loadMoreCategoryFilms() }
                     }
+                } else if !categoryFilms.isEmpty && selectedFilter != "lich-su" {
+                    Text("Đã hiển thị toàn bộ danh sách")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(KLTheme.textMuted)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 20)
                 }
             }
         }
@@ -1258,6 +1274,8 @@ private struct CuratedCollection: Identifiable {
     let gradient: [Color]
     let categorySlug: String
     let searchKeyword: String
+    var iconName: String = "film.fill"
+    var subtitle: String = "Tuyển chọn"
 }
 
 // MARK: - Standard Poster Cell (2:3 Aspect Ratio)
@@ -1461,43 +1479,27 @@ private struct CuratedCollectionDetailSheet: View {
                         .padding(.horizontal, 16)
                         .padding(.top, 12)
 
-                        // Infinite Load More Footer
+                        // Auto Infinite Load More Footer (Vuốt xuống tự load)
                         if canLoadMore && !collection.categorySlug.isEmpty {
-                            Button {
-                                KLHaptics.medium()
-                                Task { await loadMoreFilms() }
-                            } label: {
-                                HStack(spacing: 8) {
-                                    if isLoadingMore {
-                                        ProgressView().tint(.white).scaleEffect(0.85)
-                                        Text("Đang nạp thêm phim...")
-                                            .font(.system(size: 13, weight: .bold))
-                                            .foregroundColor(.white)
-                                    } else {
-                                        Image(systemName: "arrow.clockwise.circle.fill")
-                                            .font(.system(size: 14))
-                                        Text("TẢI THÊM PHIM (TRANG \(page + 1))")
-                                            .font(.system(size: 12.5, weight: .heavy))
-                                    }
-                                }
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                                .background(
-                                    LinearGradient(
-                                        colors: collection.gradient,
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                                .cornerRadius(12)
-                                .padding(.horizontal, 16)
-                                .padding(.top, 14)
+                            HStack(spacing: 8) {
+                                ProgressView()
+                                    .tint(KLTheme.brandOrange)
+                                    .scaleEffect(0.9)
+                                Text("Đang tải thêm phim trang \(page + 1)...")
+                                    .font(.system(size: 12, weight: .semibold))
+                                    .foregroundColor(KLTheme.textSecondary)
                             }
-                            .buttonStyle(KLScaleButtonStyle())
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 22)
                             .onAppear {
                                 Task { await loadMoreFilms() }
                             }
+                        } else if !films.isEmpty {
+                            Text("Đã hiển thị toàn bộ danh sách")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(KLTheme.textMuted)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 20)
                         }
 
                         Spacer(minLength: 40)

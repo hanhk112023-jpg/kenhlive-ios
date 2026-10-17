@@ -639,7 +639,7 @@ struct HomeHubView: View {
         let (sportsRes, phimRes) = await (sportsTask, phimTask)
         liveMatches = (sportsRes.socolive + sportsRes.gavang33 + sportsRes.cola + sportsRes.giovang)
         trendingFilms = phimRes.first?.films ?? []
-        continueWatchingList = StorageManager.shared.watchHistory
+        continueWatchingList = StorageManager.shared.consolidatedWatchHistory.map { $0.latestProgress }
         isLoading = false
     }
 

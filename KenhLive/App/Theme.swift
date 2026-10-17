@@ -438,6 +438,10 @@ final class KLImageCache {
         let cost = Int(image.size.width * image.size.height * 4)
         cache.setObject(image, forKey: urlString as NSString, cost: cost)
     }
+
+    func clear() {
+        cache.removeAllObjects()
+    }
 }
 
 // MARK: - Persistent Disk Cache for Zero-Latency App-Wide Image Restores
@@ -473,6 +477,26 @@ final class KLDiskImageCache {
         guard !key.isEmpty, !data.isEmpty else { return }
         let file = cacheDir.appendingPathComponent(filename(for: key))
         try? data.write(to: file, options: .atomic)
+    }
+
+    func clear() {
+        if let files = try? FileManager.default.contentsOfDirectory(at: cacheDir, includingPropertiesForKeys: nil) {
+            for file in files {
+                try? FileManager.default.removeItem(at: file)
+            }
+        }
+    }
+
+    func diskUsageBytes() -> Int64 {
+        var total: Int64 = 0
+        if let files = try? FileManager.default.contentsOfDirectory(at: cacheDir, includingPropertiesForKeys: [.fileSizeKey]) {
+            for file in files {
+                if let size = try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize {
+                    total += Int64(size)
+                }
+            }
+        }
+        return total
     }
 }
 
@@ -731,6 +755,130 @@ struct KLWatchHistoryCard: View {
                     .lineLimit(1)
                 }
                 .frame(width: 175, alignment: .leading)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Cinema Consolidated Widescreen History Card (1 Bộ Phim Tinh Gọn)
+struct KLCinemaConsolidatedHistoryCard: View {
+    let item: ConsolidatedWatchItem
+    let onPlay: () -> Void
+    var onDelete: (() -> Void)? = nil
+
+    var body: some View {
+        Button(action: onPlay) {
+            VStack(alignment: .leading, spacing: 8) {
+                // 1. Poster Art (16:9 Cinema Widescreen with Gradient & Badges)
+                ZStack(alignment: .bottom) {
+                    KLAsyncImage(
+                        url: item.posterUrl,
+                        contentMode: .fill
+                    )
+                    .frame(width: 180, height: 110)
+                    .clipped()
+
+                    // Subtle Dark Gradient Overlay
+                    LinearGradient(
+                        colors: [.clear, Color.black.opacity(0.40), Color.black.opacity(0.92)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+
+                    // Centered Frosted Play Icon
+                    Circle()
+                        .fill(Color.black.opacity(0.55))
+                        .frame(width: 38, height: 38)
+                        .overlay(
+                            Circle().stroke(Color.white.opacity(0.35), lineWidth: 0.8)
+                        )
+                        .overlay(
+                            Image(systemName: "play.fill")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.white)
+                                .offset(x: 1.5)
+                        )
+                        .shadow(color: Color.black.opacity(0.6), radius: 6, x: 0, y: 2)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+
+                    // Top Bar (Left: Latest Episode Badge, Right: Delete or Total Episodes Pill)
+                    VStack {
+                        HStack {
+                            Text(item.latestEpisodeName.isEmpty ? "Đang xem" : item.latestEpisodeName)
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 3.5)
+                                .background(Color.black.opacity(0.75))
+                                .clipShape(Capsule())
+
+                            Spacer()
+
+                            if let onDelete = onDelete {
+                                Button(action: onDelete) {
+                                    Image(systemName: "xmark")
+                                        .font(.system(size: 9.5, weight: .bold))
+                                        .foregroundColor(.white.opacity(0.85))
+                                        .frame(width: 24, height: 24)
+                                        .background(Color.black.opacity(0.75))
+                                        .clipShape(Circle())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        Spacer()
+                    }
+                    .padding(6)
+
+                    // Bottom Crimson Progress Bar
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Rectangle()
+                                .fill(Color.white.opacity(0.25))
+                                .frame(height: 3.5)
+
+                            Rectangle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color(red: 0.85, green: 0.22, blue: 0.28), Color(red: 1.0, green: 0.40, blue: 0.45)],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .frame(width: geo.size.width * max(0.06, min(1.0, item.progressPercent)), height: 3.5)
+                        }
+                    }
+                    .frame(height: 3.5)
+                }
+                .frame(width: 180, height: 110)
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.white.opacity(0.12), lineWidth: 0.8)
+                )
+
+                // 2. Movie Title & Consolidated Subtitle Info
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(item.filmName)
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+
+                    HStack(spacing: 4) {
+                        Image(systemName: "play.circle.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(KLTheme.brandOrange)
+
+                        let epText = item.latestEpisodeName.isEmpty ? "Tiếp tục xem" : item.latestEpisodeName
+                        let infoText = item.totalEpisodesWatched > 1 ? "\(epText) · \(item.totalEpisodesWatched) tập đã xem" : "\(epText) · \(Int(item.progressPercent * 100))%"
+                        Text(infoText)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(KLTheme.textMuted)
+                    }
+                    .lineLimit(1)
+                }
+                .frame(width: 180, alignment: .leading)
             }
         }
         .buttonStyle(.plain)

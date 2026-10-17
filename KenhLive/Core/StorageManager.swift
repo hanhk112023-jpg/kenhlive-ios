@@ -114,4 +114,65 @@ final class StorageManager: ObservableObject {
             defaults.set(encoded, forKey: keyHistory)
         }
     }
+
+    // MARK: - Consolidated Grouped History (1 bộ gộp vào 1 card duy nhất)
+    var consolidatedWatchHistory: [ConsolidatedWatchItem] {
+        var grouped: [String: [WatchProgress]] = [:]
+        var order: [String] = []
+        for item in watchHistory {
+            if grouped[item.filmSlug] == nil {
+                grouped[item.filmSlug] = []
+                order.append(item.filmSlug)
+            }
+            grouped[item.filmSlug]?.append(item)
+        }
+
+        return order.compactMap { slug in
+            guard let items = grouped[slug], let latest = items.first else { return nil }
+            return ConsolidatedWatchItem(
+                filmSlug: slug,
+                filmName: latest.filmName,
+                posterUrl: latest.posterUrl,
+                latestEpisodeName: latest.episodeName,
+                latestEpisodeSlug: latest.episodeSlug,
+                latestProgress: latest,
+                totalEpisodesWatched: items.count,
+                progressPercent: latest.progressPercent,
+                updatedAt: latest.updatedAt
+            )
+        }
+    }
+
+    func getFormattedCacheSize() -> String {
+        let diskBytes = KLDiskImageCache.shared.diskUsageBytes()
+        let urlBytes = Int64(URLCache.shared.currentDiskUsage)
+        let total = diskBytes + urlBytes
+        if total < 1024 * 1024 {
+            return String(format: "%.1f KB", Double(max(0, total)) / 1024.0)
+        } else if total < 1024 * 1024 * 1024 {
+            return String(format: "%.1f MB", Double(total) / (1024.0 * 1024.0))
+        } else {
+            return String(format: "%.2f GB", Double(total) / (1024.0 * 1024.0 * 1024.0))
+        }
+    }
+
+    func clearAllCaches() {
+        URLCache.shared.removeAllCachedResponses()
+        KLImageCache.shared.clear()
+        KLDiskImageCache.shared.clear()
+    }
+}
+
+// MARK: - Consolidated Watch Item (1 Bộ Phim Tinh Gọn)
+struct ConsolidatedWatchItem: Identifiable, Hashable {
+    var id: String { filmSlug }
+    let filmSlug: String
+    let filmName: String
+    let posterUrl: String
+    let latestEpisodeName: String
+    let latestEpisodeSlug: String
+    let latestProgress: WatchProgress
+    let totalEpisodesWatched: Int
+    let progressPercent: Double
+    let updatedAt: Date
 }
