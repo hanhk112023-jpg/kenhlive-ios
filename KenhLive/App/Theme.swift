@@ -514,7 +514,9 @@ actor KLImageDownloader {
 
                 // Downsample to poster display dimensions (~360x540) to drastically cut GPU/RAM pressure
                 let targetSize = CGSize(width: 360, height: 540)
-                let displayImage = await rawImage.byPreparingThumbnail(ofSize: targetSize) ?? (await rawImage.byPreparingForDisplay() ?? rawImage)
+                let preparedThumb = await rawImage.byPreparingThumbnail(ofSize: targetSize)
+                let preparedDisplay = await rawImage.byPreparingForDisplay()
+                let displayImage = preparedThumb ?? (preparedDisplay ?? rawImage)
 
                 KLImageCache.shared.set(displayImage, for: urlString)
                 return displayImage
