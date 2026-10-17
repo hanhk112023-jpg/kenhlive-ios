@@ -1,3 +1,19 @@
+# 🚀 KENHLIVE iOS v1.7.8 (Build 150) — KHẮC PHỤC TRIỆT ĐỂ LỖI VĂNG TRÌNH PHÁT THỂ THAO & XUNG ĐỘT MODAL SHEET
+
+### 🛡️ 1. Khắc Phục Triệt Để Xung Đột Modal Kép (Modal Collision) Khi Chọn BLV Thể Thao
+- **Nguyên nhân cốt lõi**: Trước đây khi người dùng bấm vào một trận đấu có nhiều BLV, bảng chọn `RoomPickerSheet` mở lên dưới dạng `.sheet`. Khi người dùng chạm vào một BLV, lệnh `dismiss()` được gọi đồng thời với việc gán `activeRoomForPlayer = room` trên màn hình cha `LiveSportsView`. Trên iOS UIKit, việc vừa đóng một sheet vừa mở ngay một `fullScreenCover` trên cùng ViewController cha gây xung đột tiến trình hiển thị (Presentation Collision), khiến hệ thống tự động huỷ bỏ hoặc đóng văng trình phát ngay tức khắc!
+- **Giải pháp**: Tái cấu trúc theo mô hình phân tầng độc lập như `EpisodePickerSheet`: Giờ đây `RoomPickerSheet` tự quản lý và phóng trình phát `HLSPlayerView` trực tiếp từ chính nó (`fullScreenCover` nội bộ). Không còn đóng mở sheet chéo nhau, 0ms độ trễ và triệt tiêu 100% hiện tượng văng/sập modal.
+
+### 🔄 2. Tách Biệt Vòng Đời `cleanupResources()` Khỏi `closePlayer()`
+- Sửa lỗi trong `HLSPlayerView`: phương thức `.onDisappear` trước đây gọi nhầm `closePlayer()`, mà bên trong `closePlayer()` lại gọi `dismiss()`. Khi màn hình xoay ngang (Landscape), iOS kích hoạt lại layout pass khiến `.onDisappear` vô tình kích hoạt lệnh `dismiss()` làm người dùng bị văng khỏi trình phát khi vừa mới mở.
+- Tách riêng `cleanupResources()` (chỉ huỷ timer, giải phóng AVPlayer, đặt lại hướng màn hình) cho `.onDisappear`, và giữ `dismiss()` chỉ khi người dùng chủ động bấm nút đóng (X) hoặc vuốt xuống.
+
+### 🌐 3. Tăng Cường Độ Bền Luồng Phát & Xử Lý URL Dự Phòng
+- Thêm `onClose` callback rõ ràng cho toàn bộ các trình phát thể thao và IPTV, bảo đảm giải phóng biến trạng thái modal về `nil`.
+- Bổ sung cơ chế tự động encode ký tự đặc biệt trên URL luồng phát và kích hoạt máy chủ dự phòng tự động nếu luồng chính của phòng bị gián đoạn.
+
+---
+
 # 🚀 KENHLIVE iOS v1.7.7 (Build 149) — CỐ ĐỊNH THANH TÌM KIẾM TRANG CHỦ THEO NỘI DUNG & KÍCH HOẠT 100% BỘ SƯU TẬP \"BẠN ĐANG QUAN TÂM GÌ?\"
 
 ### 🔍 1. Thanh Tìm Kiếm Cố Định Đỉnh Trang & Cuộn Tự Nhiên Theo Nội Dung

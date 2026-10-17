@@ -518,7 +518,7 @@ final class SportsService {
 
                     // Chỉ lấy các luồng HLS .m3u8 từ tên miền máy chủ sống zhwpg.app
                     // Loại bỏ hoàn toàn miekgo.app (chết/timeout) và định dạng .flv
-                    if streamUrl.hasSuffix(".m3u8") && streamUrl.contains("zhwpg.app") {
+                    if streamUrl.contains(".m3u8") && streamUrl.contains("zhwpg.app") {
                         let rawTitle: String
                         if let commaIdx = inf.lastIndex(of: ",") {
                             rawTitle = String(inf[inf.index(after: commaIdx)...]).trimmingCharacters(in: .whitespaces)

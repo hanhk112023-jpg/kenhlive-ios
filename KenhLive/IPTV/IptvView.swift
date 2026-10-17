@@ -124,7 +124,10 @@ struct IptvView: View {
                 title: channel.name,
                 subtitle: channel.group,
                 roomNum: nil,
-                directUrl: channel.streamUrl
+                directUrl: channel.streamUrl,
+                onClose: {
+                    activeChannelForPlayer = nil
+                }
             )
         }
         .onDisappear {

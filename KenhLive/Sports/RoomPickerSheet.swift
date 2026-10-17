@@ -2,8 +2,9 @@ import SwiftUI
 
 struct RoomPickerSheet: View {
     let matchGroup: LiveMatchGroup
-    let onSelectRoom: (LiveRoom) -> Void
+    var onSelectRoom: ((LiveRoom) -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
+    @State private var activeRoomForPlayer: LiveRoom? = nil
 
     var body: some View {
         ZStack {
@@ -30,7 +31,7 @@ struct RoomPickerSheet: View {
                         .lineLimit(2)
                         .padding(.horizontal, 20)
 
-                    Text("\\(matchGroup.rooms.count) PHÒNG BÌNH LUẬN TRỰC TIẾP · \\(DataNormalizer.formatViewers(matchGroup.totalViewers)) NGƯỜI XEM")
+                    Text("\(matchGroup.rooms.count) PHÒNG BÌNH LUẬN TRỰC TIẾP · \(DataNormalizer.formatViewers(matchGroup.totalViewers)) NGƯỜI XEM")
                         .font(.system(size: 10.5, weight: .semibold, design: .monospaced))
                         .foregroundColor(KLTheme.textMuted)
                         .padding(.top, 2)
@@ -46,8 +47,8 @@ struct RoomPickerSheet: View {
                         ForEach(matchGroup.rooms) { room in
                             Button {
                                 KLHaptics.selection()
-                                dismiss()
-                                onSelectRoom(room)
+                                activeRoomForPlayer = room
+                                onSelectRoom?(room)
                             } label: {
                                 HStack(spacing: 12) {
                                     // Avatar / Initial Icon
@@ -146,6 +147,16 @@ struct RoomPickerSheet: View {
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
+        .fullScreenCover(item: $activeRoomForPlayer) { room in
+            HLSPlayerView(
+                title: room.matchTitle,
+                subtitle: "\(room.providerDisplayName) · \(room.blvName)",
+                room: room,
+                onClose: {
+                    activeRoomForPlayer = nil
+                }
+            )
+        }
     }
 
     private func roomProviderColor(_ p: String) -> Color {

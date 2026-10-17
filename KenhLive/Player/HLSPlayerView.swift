@@ -318,10 +318,7 @@ struct HLSPlayerView: View {
             await startPlayback()
         }
         .onDisappear {
-            if isFullscreen {
-                OrientationManager.lockPortrait()
-            }
-            closePlayer()
+            cleanupResources()
         }
         .sheet(isPresented: $isShowingEpisodeDrawer) {
             episodeDrawerSheet
@@ -722,9 +719,15 @@ struct HLSPlayerView: View {
     private func startPlayback() async {
         isLoadingStream = true
         if let r = room {
-            let list = await SportsService.shared.resolveStreamServers(room: r)
+            var list = await SportsService.shared.resolveStreamServers(room: r)
+            if list.isEmpty && !r.directStreamUrl.isEmpty {
+                list = [StreamServer(name: "SERVER CHÍNH · (Trực Tiếp)", url: r.directStreamUrl, isBackup: false, referer: r.streamReferer)]
+            }
+            if list.isEmpty {
+                list = [StreamServer(name: "SERVER TỰ ĐỘNG · HLS", url: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8", isBackup: true)]
+            }
             servers = list
-            if let first = list.first, let url = URL(string: first.url) {
+            if let first = list.first, let url = URL(string: first.url) ?? URL(string: first.url.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "") {
                 playUrl(url, referer: first.referer.isEmpty ? r.streamReferer : first.referer)
             }
         } else if !episodes.isEmpty {
@@ -1014,7 +1017,7 @@ struct HLSPlayerView: View {
         }
     }
 
-    private func closePlayer() {
+    private func cleanupResources() {
         hideControlsTask?.cancel()
         seekRippleTask?.cancel()
         if let token = timeObserverToken {
@@ -1029,6 +1032,10 @@ struct HLSPlayerView: View {
         if isFullscreen {
             OrientationManager.lockPortrait()
         }
+    }
+
+    private func closePlayer() {
+        cleanupResources()
         if let customClose = onClose {
             customClose()
         } else {

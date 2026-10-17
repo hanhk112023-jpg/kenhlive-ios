@@ -156,15 +156,16 @@ struct LiveSportsView: View {
             }
         }
         .sheet(item: $selectedGroupForPicker) { group in
-            RoomPickerSheet(matchGroup: group) { room in
-                activeRoomForPlayer = room
-            }
+            RoomPickerSheet(matchGroup: group)
         }
         .fullScreenCover(item: $activeRoomForPlayer) { room in
             HLSPlayerView(
                 title: room.matchTitle,
                 subtitle: "\(room.providerDisplayName) · \(room.blvName)",
-                room: room
+                room: room,
+                onClose: {
+                    activeRoomForPlayer = nil
+                }
             )
         }
     }
