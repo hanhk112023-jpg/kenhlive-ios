@@ -374,6 +374,7 @@ private struct InlinePreviewPlayerView: View {
             setupTask?.cancel()
             setupTask = nil
             player?.pause()
+            player?.replaceCurrentItem(with: nil)
             player = nil
         }
     }
@@ -386,7 +387,11 @@ private struct InlinePreviewPlayerView: View {
             await MainActor.run {
                 guard !Task.isCancelled else { return }
                 self.player?.pause()
-                let newPlayer = AVPlayer(url: url)
+                self.player?.replaceCurrentItem(with: nil)
+                let item = AVPlayerItem(url: url)
+                item.preferredForwardBufferDuration = 10.0
+                let newPlayer = AVPlayer(playerItem: item)
+                newPlayer.automaticallyWaitsToMinimizeStalling = true
                 newPlayer.isMuted = self.isMuted
                 self.player = newPlayer
                 if !self.isFullscreenActive {
