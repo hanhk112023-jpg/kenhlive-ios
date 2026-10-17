@@ -323,16 +323,15 @@ struct HLSPlayerView: View {
         .task {
             configureAudioSession()
             if allAvailableEpisodes.isEmpty, let slug = filmSlug, !slug.isEmpty {
-                if let d = await PhimService.shared.fetchFilmDetail(slug: slug) {
-                    let all = d.allEpisodes
-                    if !all.isEmpty {
-                        loadedEpisodes = all
-                        let match = currentSubtitle ?? subtitle
-                        if let found = all.firstIndex(where: {
-                            $0.name == match || $0.slug == match || (!match.isEmpty && $0.name.contains(match)) || (!match.isEmpty && match.contains($0.name))
-                        }) {
-                            internalEpIndex = found
-                        }
+                let d = await PhimService.shared.fetchFilmDetail(slug: slug)
+                let all = d.allEpisodes
+                if !all.isEmpty {
+                    loadedEpisodes = all
+                    let match = currentSubtitle ?? subtitle
+                    if let found = all.firstIndex(where: {
+                        $0.name == match || $0.slug == match || (!match.isEmpty && $0.name.contains(match)) || (!match.isEmpty && match.contains($0.name))
+                    }) {
+                        internalEpIndex = found
                     }
                 }
             }
