@@ -473,6 +473,7 @@ struct CinemaSearchView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 22)
+                    .id("search_footer_\(categoryPage)_\(displayFilms.count)")
                     .onAppear {
                         Task { await loadMoreCategoryFilms() }
                     }
@@ -488,7 +489,7 @@ struct CinemaSearchView: View {
             GridItem(.flexible(), spacing: 10),
             GridItem(.flexible(), spacing: 10)
         ], spacing: 14) {
-            ForEach(films) { film in
+            ForEach(Array(films.enumerated()), id: \.element.id) { index, film in
                 Button {
                     KLHaptics.light()
                     selectedFilm = film
@@ -560,6 +561,11 @@ struct CinemaSearchView: View {
                     }
                 }
                 .buttonStyle(KLScaleButtonStyle())
+                .onAppear {
+                    if index >= films.count - 4 {
+                        Task { await loadMoreCategoryFilms() }
+                    }
+                }
             }
         }
         .padding(.horizontal, 16)
@@ -624,11 +630,12 @@ struct CinemaSearchView: View {
             } else {
                 let existing = Set(self.categoryFilms.map { $0.slug })
                 let unique = more.filter { !existing.contains($0.slug) }
-                if unique.isEmpty {
-                    self.canLoadMoreCategory = false
-                } else {
+                if !unique.isEmpty {
                     self.categoryFilms.append(contentsOf: unique)
-                    self.categoryPage = nextPage
+                }
+                self.categoryPage = nextPage
+                if more.count < 8 {
+                    self.canLoadMoreCategory = false
                 }
             }
             self.isLoadingMoreCategory = false
@@ -1094,7 +1101,7 @@ struct CinemaProfileView: View {
             Text("KenhLive Cinema & Sports iOS")
                 .font(.system(size: 12, weight: .bold))
                 .foregroundColor(Color.white.opacity(0.6))
-            Text("Phiên bản v1.9.3 (Build 159)")
+            Text("Phiên bản v1.9.4 (Build 160)")
                 .font(.system(size: 11, weight: .regular))
                 .foregroundColor(Color.white.opacity(0.3))
         }

@@ -135,9 +135,11 @@ final class PhimService {
 
     // MARK: - 2. Category / Country / Genre Feed (Multi-Page / Large Batch)
     func fetchCategoryFilms(slug: String, page: Int = 1) async -> [FilmItem] {
+        let cleanSlug = slug.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
         if page == 1 {
             cacheLock.lock()
-            if let cached = cachedCategoryFilms[slug], !cached.isEmpty {
+            if let cached = cachedCategoryFilms[cleanSlug], !cached.isEmpty {
                 cacheLock.unlock()
                 return cached
             }
@@ -145,59 +147,63 @@ final class PhimService {
         }
 
         let endpoint: String
-        switch slug {
+        switch cleanSlug {
         case "phim-moi":
-            if page == 1 {
-                async let p1 = fetchKKPhimList(endpoint: "danh-sach/phim-moi-cap-nhat?page=1")
-                async let p2 = fetchKKPhimList(endpoint: "danh-sach/phim-moi-cap-nhat?page=2")
-                let (list1, list2) = await (p1, p2)
-                let combined = list1 + list2
-                if !combined.isEmpty {
-                    cacheLock.lock()
-                    cachedCategoryFilms[slug] = combined
-                    cacheLock.unlock()
-                }
-                return combined
-            } else {
-                let actualPage = page + 1
-                return await fetchKKPhimList(endpoint: "danh-sach/phim-moi-cap-nhat?page=\(actualPage)")
-            }
-        case "phim-bo", "phim-le", "hoat-hinh", "tv-shows":
-            endpoint = "danh-sach/\(slug)?page=\(page)&limit=36"
-        case "han-quoc", "trung-quoc", "au-my", "nhat-ban", "viet-nam", "thai-lan":
-            endpoint = "quoc-gia/\(slug)?page=\(page)&limit=36"
+            let actualPage = page
+            return await fetchKKPhimList(endpoint: "danh-sach/phim-moi-cap-nhat?page=\(actualPage)")
+        case "phim-bo", "phim-le", "hoat-hinh", "tv-shows", "phim-chieu-rap", "phim-sap-chieu", "subteam":
+            endpoint = "danh-sach/\(cleanSlug)?page=\(page)&limit=36"
+        case "han-quoc", "trung-quoc", "au-my", "nhat-ban", "viet-nam", "thai-lan", "an-do", "dai-loan", "hong-kong", "phap", "anh", "duc", "nga", "canada":
+            endpoint = "quoc-gia/\(cleanSlug)?page=\(page)&limit=36"
         default:
-            endpoint = "the-loai/\(slug)?page=\(page)&limit=36"
+            endpoint = "the-loai/\(cleanSlug)?page=\(page)&limit=36"
         }
 
-        let list = await fetchKKPhimV1List(endpoint: endpoint)
+        var list = await fetchKKPhimV1List(endpoint: endpoint)
+        if list.isEmpty {
+            // Smart Multi-Prefix Fallback (prevents 404 on any misrouted category)
+            if !endpoint.contains("danh-sach") {
+                list = await fetchKKPhimV1List(endpoint: "danh-sach/\(cleanSlug)?page=\(page)&limit=36")
+            }
+            if list.isEmpty && !endpoint.contains("the-loai") {
+                list = await fetchKKPhimV1List(endpoint: "the-loai/\(cleanSlug)?page=\(page)&limit=36")
+            }
+            if list.isEmpty && !endpoint.contains("quoc-gia") {
+                list = await fetchKKPhimV1List(endpoint: "quoc-gia/\(cleanSlug)?page=\(page)&limit=36")
+            }
+        }
+
         if !list.isEmpty {
             if page == 1 {
                 cacheLock.lock()
-                cachedCategoryFilms[slug] = list
+                if cachedCategoryFilms.count > 6 {
+                    cachedCategoryFilms.removeAll() // Prevent RAM bloating
+                }
+                cachedCategoryFilms[cleanSlug] = list
                 cacheLock.unlock()
             }
             return list
         }
 
         // Fallback NguonC
-        let fallback = await fetchNguonCCategoryFilms(slug: slug)
-        if page == 1 {
+        let fallback = await fetchNguonCCategoryFilms(slug: cleanSlug)
+        if page == 1 && !fallback.isEmpty {
             cacheLock.lock()
-            cachedCategoryFilms[slug] = fallback
+            cachedCategoryFilms[cleanSlug] = fallback
             cacheLock.unlock()
         }
         return fallback
     }
 
     // MARK: - 3. Instant Search API (Multi-result Realtime Search)
-    func searchFilms(keyword: String) async -> [FilmItem] {
+    func searchFilms(keyword: String, page: Int = 1) async -> [FilmItem] {
         let trimmed = keyword.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }
 
         var components = URLComponents(string: "\(kkphimApi)/v1/api/tim-kiem")
         components?.queryItems = [
             URLQueryItem(name: "keyword", value: trimmed),
+            URLQueryItem(name: "page", value: "\(page)"),
             URLQueryItem(name: "limit", value: "36")
         ]
         guard let url = components?.url else {
@@ -213,13 +219,13 @@ final class PhimService {
             guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                   let dataObj = json["data"] as? [String: Any],
                   let items = dataObj["items"] as? [[String: Any]] else {
-                return await searchNguonC(keyword: trimmed)
+                return page == 1 ? await searchNguonC(keyword: trimmed) : []
             }
 
             let results = items.compactMap { parseKKPhimItem($0) }
-            return results.isEmpty ? await searchNguonC(keyword: trimmed) : results
+            return (results.isEmpty && page == 1) ? await searchNguonC(keyword: trimmed) : results
         } catch {
-            return await searchNguonC(keyword: trimmed)
+            return page == 1 ? await searchNguonC(keyword: trimmed) : []
         }
     }
 

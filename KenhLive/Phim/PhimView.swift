@@ -30,6 +30,12 @@ struct PhimView: View {
     @State private var directResumeItem: WatchProgress? = nil
     @State private var selectedCuratedCollection: CuratedCollection? = nil
 
+    // Home Infinite Feed
+    @State private var infiniteHomeFilms: [FilmItem] = []
+    @State private var homePage: Int = 2
+    @State private var canLoadMoreHome: Bool = true
+    @State private var isLoadingHomeMore: Bool = false
+
     var onSelectTab: ((KLTab) -> Void)? = nil
 
     private let filterPills: [KLFilterItem<String>] = [
@@ -64,7 +70,7 @@ struct PhimView: View {
             countText: "48+ Bom Tấn",
             gradient: [Color(red: 0.12, green: 0.45, blue: 0.85), Color(red: 0.25, green: 0.65, blue: 0.95)],
             categorySlug: "phim-chieu-rap",
-            searchKeyword: "Chiếu rạp",
+            searchKeyword: "",
             iconName: "film.fill",
             subtitle: "Phòng vé mới nhất"
         ),
@@ -73,7 +79,7 @@ struct PhimView: View {
             countText: "K-Drama & Hoa Ngữ",
             gradient: [Color(red: 0.97, green: 0.18, blue: 0.45), Color(red: 0.65, green: 0.08, blue: 0.75)],
             categorySlug: "phim-bo",
-            searchKeyword: "Hàn Quốc",
+            searchKeyword: "",
             iconName: "sparkles.tv.fill",
             subtitle: "Gây sốt màn ảnh"
         ),
@@ -82,7 +88,7 @@ struct PhimView: View {
             countText: "Vietsub 4K",
             gradient: [Color(red: 0.16, green: 0.68, blue: 0.56), Color(red: 0.10, green: 0.85, blue: 0.65)],
             categorySlug: "hoat-hinh",
-            searchKeyword: "Anime",
+            searchKeyword: "",
             iconName: "sparkles",
             subtitle: "Cập nhật tập mới nhất"
         ),
@@ -91,7 +97,7 @@ struct PhimView: View {
             countText: "Vũ Trụ Marvel & DC",
             gradient: [Color(red: 0.48, green: 0.17, blue: 0.78), Color(red: 0.68, green: 0.25, blue: 0.92)],
             categorySlug: "au-my",
-            searchKeyword: "Marvel",
+            searchKeyword: "",
             iconName: "shield.lefthalf.filled",
             subtitle: "Kỹ xảo đỉnh cao"
         ),
@@ -100,7 +106,7 @@ struct PhimView: View {
             countText: "Kinh Điển Thế Giới",
             gradient: [Color(red: 0.95, green: 0.65, blue: 0.15), Color(red: 0.98, green: 0.82, blue: 0.25)],
             categorySlug: "phim-le",
-            searchKeyword: "Top",
+            searchKeyword: "",
             iconName: "star.fill",
             subtitle: "Điểm đánh giá cao nhất"
         ),
@@ -109,7 +115,7 @@ struct PhimView: View {
             countText: "Võ Thuật & Đua Xe",
             gradient: [Color(red: 0.92, green: 0.22, blue: 0.18), Color(red: 0.98, green: 0.45, blue: 0.22)],
             categorySlug: "hanh-dong",
-            searchKeyword: "Hành Động",
+            searchKeyword: "",
             iconName: "flame.fill",
             subtitle: "Kịch tính đến nghẹt thở"
         ),
@@ -118,7 +124,7 @@ struct PhimView: View {
             countText: "Ám Ảnh Cực Độ",
             gradient: [Color(red: 0.28, green: 0.12, blue: 0.45), Color(red: 0.45, green: 0.15, blue: 0.65)],
             categorySlug: "kinh-di",
-            searchKeyword: "Kinh Dị",
+            searchKeyword: "",
             iconName: "eye.trianglebadge.exclamationmark.fill",
             subtitle: "Rùng rợn thót tim"
         )
@@ -460,6 +466,102 @@ struct PhimView: View {
                     }
                 )
             }
+
+            // Section E: Infinite Discover Grid at bottom of Home Screen
+            if !sections.isEmpty {
+                renderHomeInfiniteFeedSection()
+            }
+        }
+    }
+
+    // MARK: - Section E: Home Infinite Feed
+    @ViewBuilder
+    private func renderHomeInfiniteFeedSection() -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                HStack(spacing: 6) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(KLTheme.brandOrange)
+
+                    Text("KHÁM PHÁ THÊM PHIM MỚI")
+                        .font(.system(size: 14, weight: .heavy, design: .rounded))
+                        .foregroundColor(.white)
+                }
+
+                Spacer()
+
+                if isLoadingHomeMore {
+                    ProgressView().tint(KLTheme.brandOrange).scaleEffect(0.8)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 10)
+
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: 10),
+                    GridItem(.flexible(), spacing: 10),
+                    GridItem(.flexible(), spacing: 10)
+                ],
+                spacing: 14
+            ) {
+                ForEach(Array(infiniteHomeFilms.enumerated()), id: \.element.id) { index, film in
+                    Button {
+                        KLHaptics.light()
+                        autoPlayForSheet = false
+                        initialResumeProgressForSheet = nil
+                        selectedFilmForEpisodes = film
+                    } label: {
+                        PosterCell(film: film)
+                    }
+                    .buttonStyle(KLScaleButtonStyle())
+                    .onAppear {
+                        if index >= infiniteHomeFilms.count - 4 {
+                            Task { await loadMoreHomeFilms() }
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+
+            if canLoadMoreHome {
+                HStack(spacing: 8) {
+                    ProgressView().tint(KLTheme.brandOrange).scaleEffect(0.9)
+                    Text("Đang tải thêm phim...")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(KLTheme.textSecondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 22)
+                .id("home_inf_footer_\(homePage)_\(infiniteHomeFilms.count)")
+                .onAppear {
+                    Task { await loadMoreHomeFilms() }
+                }
+            }
+        }
+    }
+
+    private func loadMoreHomeFilms() async {
+        guard !isLoadingHomeMore, canLoadMoreHome else { return }
+        isLoadingHomeMore = true
+        let nextPage = homePage + 1
+        let more = await PhimService.shared.fetchCategoryFilms(slug: "phim-moi", page: nextPage)
+        await MainActor.run {
+            if more.isEmpty {
+                self.canLoadMoreHome = false
+            } else {
+                let existing = Set(self.infiniteHomeFilms.map { $0.slug })
+                let unique = more.filter { !existing.contains($0.slug) }
+                if !unique.isEmpty {
+                    self.infiniteHomeFilms.append(contentsOf: unique)
+                }
+                self.homePage = nextPage
+                if more.count < 8 {
+                    self.canLoadMoreHome = false
+                }
+            }
+            self.isLoadingHomeMore = false
         }
     }
 
@@ -1466,7 +1568,7 @@ private struct CuratedCollectionDetailSheet: View {
                             ],
                             spacing: 14
                         ) {
-                            ForEach(films) { film in
+                            ForEach(Array(films.enumerated()), id: \.element.id) { index, film in
                                 Button {
                                     KLHaptics.light()
                                     selectedFilm = film
@@ -1474,13 +1576,18 @@ private struct CuratedCollectionDetailSheet: View {
                                     PosterCell(film: film)
                                 }
                                 .buttonStyle(KLScaleButtonStyle())
+                                .onAppear {
+                                    if index >= films.count - 4 {
+                                        Task { await loadMoreFilms() }
+                                    }
+                                }
                             }
                         }
                         .padding(.horizontal, 16)
                         .padding(.top, 12)
 
                         // Auto Infinite Load More Footer (Vuốt xuống tự load)
-                        if canLoadMore && !collection.categorySlug.isEmpty {
+                        if canLoadMore && (!collection.categorySlug.isEmpty || !collection.searchKeyword.isEmpty) {
                             HStack(spacing: 8) {
                                 ProgressView()
                                     .tint(KLTheme.brandOrange)
@@ -1491,6 +1598,7 @@ private struct CuratedCollectionDetailSheet: View {
                             }
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 22)
+                            .id("coll_footer_\(page)_\(films.count)")
                             .onAppear {
                                 Task { await loadMoreFilms() }
                             }
@@ -1523,32 +1631,40 @@ private struct CuratedCollectionDetailSheet: View {
         page = 1
         canLoadMore = true
         var results: [FilmItem] = []
-        if !collection.searchKeyword.isEmpty {
-            results = await PhimService.shared.searchFilms(keyword: collection.searchKeyword)
-        }
-        if results.isEmpty && !collection.categorySlug.isEmpty {
+        if !collection.categorySlug.isEmpty {
             results = await PhimService.shared.fetchCategoryFilms(slug: collection.categorySlug, page: 1)
+        }
+        if results.isEmpty && !collection.searchKeyword.isEmpty {
+            results = await PhimService.shared.searchFilms(keyword: collection.searchKeyword, page: 1)
         }
         films = results
         isLoading = false
     }
 
     private func loadMoreFilms() async {
-        guard !isLoading, !isLoadingMore, canLoadMore, !collection.categorySlug.isEmpty else { return }
+        guard !isLoading, !isLoadingMore, canLoadMore else { return }
+        guard !collection.categorySlug.isEmpty || !collection.searchKeyword.isEmpty else { return }
         isLoadingMore = true
         let nextPage = page + 1
-        let more = await PhimService.shared.fetchCategoryFilms(slug: collection.categorySlug, page: nextPage)
+        let more: [FilmItem]
+        if !collection.categorySlug.isEmpty {
+            more = await PhimService.shared.fetchCategoryFilms(slug: collection.categorySlug, page: nextPage)
+        } else {
+            more = await PhimService.shared.searchFilms(keyword: collection.searchKeyword, page: nextPage)
+        }
+
         await MainActor.run {
             if more.isEmpty {
                 self.canLoadMore = false
             } else {
                 let existing = Set(self.films.map { $0.slug })
                 let unique = more.filter { !existing.contains($0.slug) }
-                if unique.isEmpty {
-                    self.canLoadMore = false
-                } else {
+                if !unique.isEmpty {
                     self.films.append(contentsOf: unique)
-                    self.page = nextPage
+                }
+                self.page = nextPage
+                if more.count < 8 {
+                    self.canLoadMore = false
                 }
             }
             self.isLoadingMore = false

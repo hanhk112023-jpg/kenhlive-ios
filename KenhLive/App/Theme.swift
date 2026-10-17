@@ -424,8 +424,16 @@ final class KLImageCache {
     private let cache = NSCache<NSString, UIImage>()
 
     private init() {
-        cache.countLimit = 800
-        cache.totalCostLimit = 250 * 1024 * 1024 // 250 MB RAM
+        // Ultra-compact memory footprint: max 80 thumbnails, max 25 MB RAM
+        cache.countLimit = 80
+        cache.totalCostLimit = 25 * 1024 * 1024
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.clear()
+        }
     }
 
     func get(for urlString: String) -> UIImage? {
@@ -448,6 +456,7 @@ final class KLImageCache {
 final class KLDiskImageCache {
     static let shared = KLDiskImageCache()
     private let cacheDir: URL
+    private let maxDiskBytes: Int64 = 45 * 1024 * 1024 // 45 MB Disk Cap
 
     private init() {
         let urls = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)
@@ -461,7 +470,7 @@ final class KLDiskImageCache {
     private func filename(for key: String) -> String {
         let safe = key.replacingOccurrences(of: "[^a-zA-Z0-9_.-]", with: "_", options: .regularExpression)
         let hash = abs(key.hashValue)
-        let suffix = safe.count > 30 ? String(safe.suffix(30)) : safe
+        let suffix = safe.count > 25 ? String(safe.suffix(25)) : safe
         return "\(hash)_\(suffix).jpg"
     }
 
@@ -477,6 +486,28 @@ final class KLDiskImageCache {
         guard !key.isEmpty, !data.isEmpty else { return }
         let file = cacheDir.appendingPathComponent(filename(for: key))
         try? data.write(to: file, options: .atomic)
+        pruneIfOverQuota()
+    }
+
+    private func pruneIfOverQuota() {
+        if diskUsageBytes() > maxDiskBytes {
+            guard let files = try? FileManager.default.contentsOfDirectory(
+                at: cacheDir,
+                includingPropertiesForKeys: [.contentModificationDateKey]
+            ) else { return }
+
+            let sorted = files.sorted {
+                let d1 = (try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? Date.distantPast
+                let d2 = (try? $1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? Date.distantPast
+                return d1 < d2
+            }
+
+            // Prune oldest 35% files to keep disk footprint tight
+            let toDelete = sorted.prefix(max(1, sorted.count / 3))
+            for f in toDelete {
+                try? FileManager.default.removeItem(at: f)
+            }
+        }
     }
 
     func clear() {
@@ -533,14 +564,17 @@ actor KLImageDownloader {
                 let (data, _) = try await URLSession.shared.data(for: req)
                 guard !Task.isCancelled, let rawImage = UIImage(data: data) else { return nil }
 
-                // Save raw file bytes to disk cache asynchronously
-                KLDiskImageCache.shared.set(data, for: urlString)
-
-                // Downsample to poster display dimensions (~360x540) to drastically cut GPU/RAM pressure
-                let targetSize = CGSize(width: 360, height: 540)
+                // Aggressive Downsampling to compact thumbnail (~220x330)
+                let targetSize = CGSize(width: 220, height: 330)
                 let preparedThumb = await rawImage.byPreparingThumbnail(ofSize: targetSize)
-                let preparedDisplay = await rawImage.byPreparingForDisplay()
-                let displayImage = preparedThumb ?? (preparedDisplay ?? rawImage)
+                let displayImage = preparedThumb ?? rawImage
+
+                // Re-encode to highly-compressed JPEG (quality 0.65) to cut 90% disk & RAM usage (~25KB/poster)
+                if let compressedData = displayImage.jpegData(compressionQuality: 0.65) {
+                    KLDiskImageCache.shared.set(compressedData, for: urlString)
+                } else {
+                    KLDiskImageCache.shared.set(data, for: urlString)
+                }
 
                 KLImageCache.shared.set(displayImage, for: urlString)
                 return displayImage
