@@ -1,3 +1,17 @@
+# 🚀 KENHLIVE iOS v1.8.1 (Build 153) — SỬA TRIỆT ĐỂ LỖI VIDEO ĐỨNG YÊN / KHÔNG CHẠY TRÌNH PHÁT
+
+### 🚀 1. Giải Phóng Bộ Đệm AVPlayer Tự Động (Fix Video Bị Đứng Yên 0:00)
+- **Nguyên nhân cốt lõi**:
+  - Ở bản trước, cấu hình thử nghiệm `automaticallyWaitsToMinimizeStalling = false` và `preferredForwardBufferDuration = 1.0s` (vốn chỉ dành cho video ngắn 5 giây) đã bị áp dụng nhầm lên toàn bộ phim dài HLS và truyền hình.
+  - Các phân đoạn HLS (.ts) của KKPhim, Socolive và VTV thường dài từ 6–10 giây. Khi tắt cơ chế tự động chờ đệm của AVPlayer và bóp dung lượng đệm xuống 1 giây, AVPlayer ngay lập tức rơi vào trạng thái `stalled` (rate = 0) do chưa tải kịp phân đoạn đầu tiên, dẫn đến việc **video bị đứng yên hoàn toàn ở 00:00**.
+- **Giải pháp**:
+  - Gỡ bỏ hoàn toàn `automaticallyWaitsToMinimizeStalling = false` và `preferredForwardBufferDuration = 1.0s`.
+  - Khôi phục cơ chế đệm tiêu chuẩn mượt mà tự nhiên của Apple AVFoundation: tự động nạp phân đoạn mượt mà, sẵn sàng là phát ngay.
+  - Sử dụng lệnh `player.play()` chuẩn kết hợp đồng bộ `player.rate` linh hoạt cho tính năng chỉnh tốc độ (0.75x – 2.0x).
+  - Tự động tắt vòng xoay loading `isLoadingStream = false` chính xác ngay khi khung hình đầu tiên hiển thị (`currentTime > 0`).
+
+---
+
 # 🚀 KENHLIVE iOS v1.8.0 (Build 152) — TÍCH HỢP TRỌN VẸN LÕI TRÌNH PHÁT GỐC FPT PLAY (`VideoSwappingManager` & `VepisodePlayerControlStackview`)
 
 ### ⚡ 1. Chuẩn Hóa Lõi Trình Phát Trích Xuất Trực Tiếp Từ Mã Nguồn FPT Play

@@ -783,7 +783,7 @@ struct HLSPlayerView: View {
             if let extracted = extractDirectM3u8(from: direct) {
                 targetUrlStr = extracted
             }
-            if let url = URL(string: targetUrlStr) {
+            if let url = URL(string: targetUrlStr) ?? URL(string: targetUrlStr.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "") {
                 let ref = streamReferer ?? ""
                 servers = [StreamServer(name: "MÁY CHỦ CHÍNH", url: targetUrlStr, isBackup: false, referer: ref)]
                 playUrl(url, referer: ref)
@@ -797,7 +797,7 @@ struct HLSPlayerView: View {
             if let extracted = extractDirectM3u8(from: urlStr) {
                 target = extracted
             }
-            if let url = URL(string: target) {
+            if let url = URL(string: target) ?? URL(string: target.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "") {
                 servers = [StreamServer(name: ep.name, url: target, isBackup: false, referer: "")]
                 playUrl(url, referer: "")
             }
@@ -805,11 +805,13 @@ struct HLSPlayerView: View {
             let dummy = LiveRoom(roomNum: num, blvName: "BLV", avatar: "", viewers: 0, matchTitle: title, league: subtitle, cover: "", category: "Bóng đá", blvLevel: "", score: 0, notice: "")
             let list = await SportsService.shared.resolveStreamServers(room: dummy)
             servers = list
-            if let first = list.first, let url = URL(string: first.url) {
+            if let first = list.first, let url = URL(string: first.url) ?? URL(string: first.url.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "") {
                 playUrl(url, referer: first.referer)
             }
         }
-        isLoadingStream = false
+        if servers.isEmpty {
+            isLoadingStream = false
+        }
     }
 
     private func switchServer(to index: Int) {
@@ -828,9 +830,8 @@ struct HLSPlayerView: View {
         let ep = list[index]
         currentSubtitle = ep.name
 
-        // FPT Play VideoSwappingManager: stop current playback & cancel loading
+        // Stop previous playback
         player?.pause()
-        player?.currentItem?.asset.cancelLoading()
 
         let urlStr = ep.m3u8.isEmpty ? ep.embed : ep.m3u8
         var target = urlStr
@@ -944,6 +945,7 @@ struct HLSPlayerView: View {
     }
 
     private func playUrl(_ url: URL, referer: String) {
+        isLoadingStream = true
         var headers: [String: String] = [
             "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)"
         ]
@@ -955,13 +957,9 @@ struct HLSPlayerView: View {
             "AVURLAssetHTTPHeaderFieldsKey": headers
         ])
         let item = AVPlayerItem(asset: asset)
-        // FPT Play PlayerEngine Core Optimizations
-        item.preferredForwardBufferDuration = 1.0
-        item.canUseNetworkResourcesForLiveStreamingWhilePaused = false
 
         if player == nil {
             let p = AVPlayer(playerItem: item)
-            p.automaticallyWaitsToMinimizeStalling = false
             self.player = p
             setupTimeObserver(for: p)
         } else {
@@ -970,14 +968,13 @@ struct HLSPlayerView: View {
 
         if initialTimeSeconds > 0 {
             let target = CMTime(seconds: initialTimeSeconds, preferredTimescale: 600)
-            player?.seek(to: target)
+            player?.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero)
         }
 
         player?.isMuted = isMuted
+        player?.play()
         if playbackRate != 1.0 {
-            player?.playImmediately(atRate: playbackRate)
-        } else {
-            player?.play()
+            player?.rate = playbackRate
         }
         isPlaying = true
         scheduleAutoHide()
@@ -992,6 +989,7 @@ struct HLSPlayerView: View {
 
             if !sec.isNaN {
                 self.currentTime = sec
+                self.isLoadingStream = false
             }
             if !dur.isNaN && dur > 0 && !dur.isInfinite {
                 self.duration = dur
