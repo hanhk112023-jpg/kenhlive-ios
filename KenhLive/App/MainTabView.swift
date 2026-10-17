@@ -1,15 +1,15 @@
 import SwiftUI
 
-// MARK: - Cinema Netflix / Liquid Glass 4-Tab Navigation
+// MARK: - Cinema Netflix / Liquid Glass 3-Tab Navigation (Focus Phim & Thể Thao)
 enum KLTab: Int, CaseIterable, Identifiable {
-    case home = 0       // "Trang chủ" (Kho Phim Cinema)
+    case home = 0       // "Rạp Phim" (Kho Phim Cinema)
     case sports = 1     // "Thể thao" (Socolive, ColaTV, Gà Vàng, Giờ Vàng)
-    case iptv = 2       // "Truyền hình" (VTV1-6, K+ Sport, HTV)
-    case profile = 3    // "Cá nhân" (Tiếp tục xem, Lịch đá, Báo lỗi, Cài đặt)
+    case profile = 2    // "Cá nhân" (Tiếp tục xem, Lịch đá, Báo lỗi, Cài đặt)
 
     // Backward-compatibility aliases for legacy portals & services
     static let live = KLTab.sports
     static let phim = KLTab.home
+    static let iptv = KLTab.sports
     static let search = KLTab.home
     static let library = KLTab.profile
     static let settings = KLTab.profile
@@ -18,18 +18,16 @@ enum KLTab: Int, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .home: return "Trang chủ"
+        case .home: return "Rạp Phim"
         case .sports: return "Thể thao"
-        case .iptv: return "Truyền hình"
         case .profile: return "Cá nhân"
         }
     }
 
     var iconName: String {
         switch self {
-        case .home: return "house.fill"
+        case .home: return "film.fill"
         case .sports: return "sportscourt.fill"
-        case .iptv: return "tv.fill"
         case .profile: return "person.fill"
         }
     }
@@ -61,10 +59,6 @@ struct MainTabView: View {
                 LiveSportsView(isActive: selectedTab == .sports)
                     .opacity(selectedTab == .sports ? 1 : 0)
                     .allowsHitTesting(selectedTab == .sports)
-
-                IptvView(isActive: selectedTab == .iptv)
-                    .opacity(selectedTab == .iptv ? 1 : 0)
-                    .allowsHitTesting(selectedTab == .iptv)
 
                 CinemaProfileView(
                     onOpenSchedule: { isShowingSchedule = true },
@@ -570,7 +564,7 @@ struct CinemaProfileView: View {
                                 .font(.system(size: 18, weight: .heavy, design: .rounded))
                                 .foregroundColor(.white)
 
-                            Text("VIP Cinema, Sports & VTV Access")
+                            Text("VIP Cinema & Sports Access")
                                 .font(.system(size: 12, weight: .medium))
                                 .foregroundColor(Color(red: 0.96, green: 0.77, blue: 0.10))
                         }
@@ -750,10 +744,10 @@ struct CinemaProfileView: View {
 
                     // App Version Footer
                     VStack(spacing: 4) {
-                        Text("KenhLive Cinema, Sports & VTV iOS")
+                        Text("KenhLive Cinema & Sports iOS")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(Color.white.opacity(0.6))
-                        Text("Phiên bản v1.8.3 (Build 155)")
+                        Text("Phiên bản v1.9.0 (Build 156)")
                             .font(.system(size: 11, weight: .regular))
                             .foregroundColor(Color.white.opacity(0.3))
                     }

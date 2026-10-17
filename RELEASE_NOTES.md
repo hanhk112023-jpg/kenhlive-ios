@@ -1,3 +1,23 @@
+# 🚀 KENHLIVE iOS v1.9.0 (Build 156) — TINH GỌN CỐT LÕI: TẬP TRUNG 100% PHIM RẠP & BÓNG ĐÁ TRỰC TIẾP
+
+### 🎯 1. Loại Bỏ Hoàn Toàn VTV & Truyền Hình IPTV
+- **Loại bỏ phân đoạn IPTV**: Toàn bộ hệ thống được tinh gọn triệt để, loại bỏ hoàn toàn các kênh truyền hình IPTV truyền thống (VTV, HTV...).
+- **Tập trung 100% vào 2 trụ cột giải trí đỉnh cao**:
+  - 🎬 **Kho Phim Rạp & Phim Bộ Đồ Sộ**: Hơn 33.000+ tựa phim chuẩn KKPhim HLS 4K/FHD, phân loại thông minh, hỗ trợ lưu tiến trình riêng từng tập và tự động khôi phục vị trí phát.
+  - ⚽ **Thể Thao & Bóng Đá Trực Tiếp**: Trực tiếp full HD từ 4 nhà đài lớn nhất (Socolive, ColaTV, Gà Vàng, Giờ Vàng) kèm tỷ số trực tiếp real-time và bình luận viên tiếng Việt.
+
+### 📱 2. Dock Điều Hướng 3 Tab Chuẩn Liquid Glass
+- Thanh điều hướng rút gọn còn 3 tab trọng tâm:
+  - 🎬 **Rạp Phim** (Tab 0): Khám phá kho phim, bảng xếp hạng Netflix, lọc phim lẻ, phim bộ, hoạt hình, anime.
+  - ⚽ **Thể Thao** (Tab 1): Trực tiếp các giải đấu hàng đầu Ngoại hạng Anh, C1, La Liga, V-League với 4 nguồn trực tiếp.
+  - 👤 **Cá Nhân** (Tab 2): Quản lý lịch sử xem riêng từng tập, lịch thi đấu, báo lỗi & hỗ trợ Telegram 24/7.
+
+### 🔍 3. Tối Ưu Hóa Thanh Tìm Kiếm Đa Năng
+- Lược bỏ scope tìm kiếm TV, tối ưu tốc độ tìm kiếm với độ trễ phản hồi cực thấp.
+- Tìm kiếm song song tức thì cả 2 nguồn: Phim truyện & Trận đấu trực tiếp.
+
+---
+
 # 🚀 KENHLIVE iOS v1.8.3 (Build 155) — TIẾN TRÌNH XEM RIÊNG TỪNG TẬP & ĐÁNH DẤU TẬP ĐÃ XEM
 
 ### 🎬 1. Lưu Tiến Trình Xem Riêng Biệt Cho Từng Tập Phim (Per-Episode Watch History)

@@ -389,15 +389,15 @@ struct HomeHubView: View {
                     action: { currentTab = .live }
                 )
 
-                // Portal 2: Truyền Hình TV
+                // Portal 2: Hỗ Trợ & Báo Lỗi
                 PortalGridTile(
-                    title: "Truyền Hình",
-                    subtitle: "VTV · K+ · HTV · Quốc Tế",
-                    badge: "FHD 1080P",
+                    title: "Hỗ Trợ",
+                    subtitle: "Báo lỗi Telegram 24/7",
+                    badge: "ONLINE",
                     badgeColor: KLTheme.accentCyan,
-                    icon: "tv.fill",
+                    icon: "paperplane.fill",
                     accentColor: KLTheme.accentCyan,
-                    action: { currentTab = .iptv }
+                    action: onOpenTelegram
                 )
 
                 // Portal 3: Kho Phim Bom Tấn

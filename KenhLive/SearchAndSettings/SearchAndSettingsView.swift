@@ -8,14 +8,12 @@ struct SearchAndSettingsView: View {
     @State private var searchScope: String = "all"
     @State private var matchedFilms: [FilmItem] = []
     @State private var matchedMatches: [LiveMatchGroup] = []
-    @State private var matchedChannels: [IptvChannel] = []
     @State private var isSearching: Bool = false
     @State private var searchTask: Task<Void, Never>? = nil
 
     // Sheets & Playback
     @State private var selectedFilm: FilmItem? = nil
     @State private var selectedMatchForPlayer: LiveRoom? = nil
-    @State private var selectedChannelForPlayer: IptvChannel? = nil
     @State private var isShowingTelegramSheet: Bool = false
 
     // Network & Ping Diagnostics
@@ -31,8 +29,7 @@ struct SearchAndSettingsView: View {
     private let searchScopePills: [KLFilterItem<String>] = [
         KLFilterItem(id: "all", title: "Tất Cả"),
         KLFilterItem(id: "phim", title: "Phim Rạp & Bộ", icon: "film.fill"),
-        KLFilterItem(id: "thethao", title: "Trận Đấu Live", icon: "sportscourt.fill"),
-        KLFilterItem(id: "tv", title: "Kênh Truyền Hình", icon: "tv.fill")
+        KLFilterItem(id: "thethao", title: "Trận Đấu Live", icon: "sportscourt.fill")
     ]
 
     var body: some View {
@@ -47,7 +44,7 @@ struct SearchAndSettingsView: View {
                     // 2. Global Universal Search Bar
                     KLGlassSearchBar(
                         text: $searchKeyword,
-                        placeholder: "Tìm kiếm trận đấu, kênh TV, hoặc tên phim..."
+                        placeholder: "Tìm kiếm trận đấu live hoặc tên phim rạp, bộ..."
                     )
                     .padding(.horizontal, 16)
                     .onChange(of: searchKeyword) { kw in
@@ -88,16 +85,6 @@ struct SearchAndSettingsView: View {
                 room: room,
                 onClose: {
                     selectedMatchForPlayer = nil
-                }
-            )
-        }
-        .fullScreenCover(item: $selectedChannelForPlayer) { ch in
-            HLSPlayerView(
-                title: ch.name,
-                subtitle: ch.group,
-                directUrl: ch.streamUrl,
-                onClose: {
-                    selectedChannelForPlayer = nil
                 }
             )
         }
@@ -195,55 +182,6 @@ struct SearchAndSettingsView: View {
                 }
             }
 
-            // TV Channels Matches
-            if (searchScope == "all" || searchScope == "tv") && !matchedChannels.isEmpty {
-                VStack(alignment: .leading, spacing: 10) {
-                    KLSectionHeader(
-                        title: "Kênh Truyền Hình",
-                        trailingText: "\(matchedChannels.count) KÊNH",
-                        accentColor: KLTheme.accentCyan
-                    )
-
-                    ForEach(matchedChannels) { ch in
-                        Button {
-                            KLHaptics.medium()
-                            selectedChannelForPlayer = ch
-                        } label: {
-                            HStack(spacing: 12) {
-                                Image(systemName: "tv.fill")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(KLTheme.accentCyan)
-
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(ch.name)
-                                        .font(.system(size: 13.5, weight: .bold))
-                                        .foregroundColor(.white)
-                                        .lineLimit(1)
-
-                                    Text(ch.group)
-                                        .font(.system(size: 10.5, weight: .regular))
-                                        .foregroundColor(KLTheme.textMuted)
-                                }
-
-                                Spacer()
-
-                                Text(ch.resolution)
-                                    .font(.system(size: 9.5, weight: .bold))
-                                    .foregroundColor(KLTheme.accentCyan)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(KLTheme.accentCyan.opacity(0.12))
-                                    .cornerRadius(4)
-                            }
-                            .padding(12)
-                            .klGlassCard(cornerRadius: 10)
-                        }
-                        .buttonStyle(KLScaleButtonStyle())
-                    }
-                    .padding(.horizontal, 16)
-                }
-            }
-
             // Cinema Films Matches
             if (searchScope == "all" || searchScope == "phim") && !matchedFilms.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
@@ -289,7 +227,7 @@ struct SearchAndSettingsView: View {
                 }
             }
 
-            if matchedMatches.isEmpty && matchedChannels.isEmpty && matchedFilms.isEmpty && !isSearching {
+            if matchedMatches.isEmpty && matchedFilms.isEmpty && !isSearching {
                 VStack(spacing: 12) {
                     Image(systemName: "magnifyingglass")
                         .font(.system(size: 36))
@@ -504,7 +442,6 @@ struct SearchAndSettingsView: View {
         guard !q.isEmpty else {
             matchedFilms = []
             matchedMatches = []
-            matchedChannels = []
             isSearching = false
             return
         }
@@ -516,9 +453,8 @@ struct SearchAndSettingsView: View {
 
             async let filmsTask = PhimService.shared.searchFilms(keyword: q)
             async let sportsTask = SportsService.shared.fetchLiveMatches()
-            async let iptvTask = IptvService.shared.fetchCuratedChannels()
 
-            let (films, sports, iptv) = await (filmsTask, sportsTask, iptvTask)
+            let (films, sports) = await (filmsTask, sportsTask)
 
             if !Task.isCancelled {
                 self.matchedFilms = films
@@ -527,11 +463,6 @@ struct SearchAndSettingsView: View {
                     $0.matchTitle.lowercased().contains(q) ||
                     $0.topRoom.blvName.lowercased().contains(q) ||
                     $0.league.lowercased().contains(q)
-                }
-                let allChannels = iptv.flatMap { $0.channels }
-                self.matchedChannels = allChannels.filter {
-                    $0.name.lowercased().contains(q) ||
-                    $0.group.lowercased().contains(q)
                 }
                 self.isSearching = false
             }

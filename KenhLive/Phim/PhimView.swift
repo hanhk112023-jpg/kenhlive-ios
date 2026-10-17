@@ -55,11 +55,11 @@ struct PhimView: View {
             searchKeyword: ""
         ),
         CuratedCollection(
-            title: "Truyền Hình VTV",
-            countText: "VTV, K+, HTV",
+            title: "Chiếu Rạp Hot",
+            countText: "48 phim",
             gradient: [Color(red: 0.12, green: 0.45, blue: 0.85), Color(red: 0.25, green: 0.65, blue: 0.95)],
-            categorySlug: "iptv",
-            searchKeyword: ""
+            categorySlug: "phim-chieu-rap",
+            searchKeyword: "Chiếu rạp"
         ),
         CuratedCollection(
             title: "Marvel",
@@ -486,8 +486,6 @@ struct PhimView: View {
                             KLHaptics.medium()
                             if col.categorySlug == "sports" {
                                 onSelectTab?(.sports)
-                            } else if col.categorySlug == "iptv" {
-                                onSelectTab?(.iptv)
                             } else {
                                 selectedCuratedCollection = col
                             }
