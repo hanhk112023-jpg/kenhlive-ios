@@ -424,71 +424,55 @@ final class KLImageCache {
     private let cache = NSCache<NSString, UIImage>()
 
     private init() {
-        cache.countLimit = 350
-        cache.totalCostLimit = 150 * 1024 * 1024 // 150 MB RAM
+        cache.countLimit = 500
+        cache.totalCostLimit = 200 * 1024 * 1024 // 200 MB RAM
     }
 
     func get(for urlString: String) -> UIImage? {
-        cache.object(forKey: urlString as NSString)
+        guard !urlString.isEmpty else { return nil }
+        return cache.object(forKey: urlString as NSString)
     }
 
     func set(_ image: UIImage, for urlString: String) {
+        guard !urlString.isEmpty else { return }
         let cost = Int(image.size.width * image.size.height * 4)
         cache.setObject(image, forKey: urlString as NSString, cost: cost)
     }
 }
 
-final class KLImageLoader: ObservableObject {
-    @Published var image: UIImage? = nil
-    @Published var isLoading: Bool = false
-    private var currentUrl: String = ""
-    private var downloadTask: Task<Void, Never>? = nil
+actor KLImageDownloader {
+    static let shared = KLImageDownloader()
+    private var inFlight: [String: Task<UIImage?, Never>] = [:]
 
-    func load(urlString: String) {
-        guard !urlString.isEmpty else { return }
+    func fetch(urlString: String) async -> UIImage? {
+        guard !urlString.isEmpty, let url = URL(string: urlString) else { return nil }
         if let cached = KLImageCache.shared.get(for: urlString) {
-            self.image = cached
-            self.isLoading = false
-            return
+            return cached
+        }
+        if let ongoing = inFlight[urlString] {
+            return await ongoing.value
         }
 
-        guard urlString != currentUrl else { return }
-        currentUrl = urlString
-        isLoading = true
-
-        downloadTask?.cancel()
-        downloadTask = Task(priority: .userInitiated) {
-            guard let url = URL(string: urlString) else {
-                await MainActor.run { self.isLoading = false }
-                return
-            }
-
+        let downloadTask = Task<UIImage?, Never> {
             var req = URLRequest(url: url)
             req.timeoutInterval = 12
             req.cachePolicy = .returnCacheDataElseLoad
 
             do {
                 let (data, _) = try await URLSession.shared.data(for: req)
-                guard !Task.isCancelled, let downloaded = UIImage(data: data) else {
-                    await MainActor.run { self.isLoading = false }
-                    return
-                }
-                let displayImage = await downloaded.byPreparingForDisplay() ?? downloaded
+                guard !Task.isCancelled, let rawImage = UIImage(data: data) else { return nil }
+                let displayImage = await rawImage.byPreparingForDisplay() ?? rawImage
                 KLImageCache.shared.set(displayImage, for: urlString)
-                await MainActor.run {
-                    self.image = displayImage
-                    self.isLoading = false
-                }
+                return displayImage
             } catch {
-                if !Task.isCancelled {
-                    await MainActor.run { self.isLoading = false }
-                }
+                return nil
             }
         }
-    }
 
-    func cancel() {
-        downloadTask?.cancel()
+        inFlight[urlString] = downloadTask
+        let result = await downloadTask.value
+        inFlight.removeValue(forKey: urlString)
+        return result
     }
 }
 
@@ -496,31 +480,42 @@ struct KLAsyncImage: View {
     let url: String
     var contentMode: ContentMode = .fill
 
-    @StateObject private var loader = KLImageLoader()
+    @State private var image: UIImage? = nil
+    @State private var isLoading: Bool = false
 
     var body: some View {
         ZStack {
-            if let img = loader.image {
+            if let img = image {
                 Image(uiImage: img)
                     .resizable()
                     .aspectRatio(contentMode: contentMode)
-            } else if loader.isLoading {
-                ZStack {
-                    Color(red: 0.14, green: 0.14, blue: 0.18)
-                    ProgressView().tint(KLTheme.brandOrange).scaleEffect(0.7)
-                }
             } else {
-                Color(red: 0.14, green: 0.14, blue: 0.18)
+                Color(red: 0.11, green: 0.11, blue: 0.14)
             }
         }
         .onAppear {
-            loader.load(urlString: url)
+            loadImage()
         }
-        .onChange(of: url) { newUrl in
-            loader.load(urlString: newUrl)
+        .onChange(of: url) { _ in
+            loadImage()
         }
-        .onDisappear {
-            loader.cancel()
+    }
+
+    private func loadImage() {
+        guard !url.isEmpty else { return }
+        if let cached = KLImageCache.shared.get(for: url) {
+            self.image = cached
+            self.isLoading = false
+            return
+        }
+
+        self.isLoading = true
+        Task {
+            let fetched = await KLImageDownloader.shared.fetch(urlString: url)
+            await MainActor.run {
+                self.image = fetched
+                self.isLoading = false
+            }
         }
     }
 }

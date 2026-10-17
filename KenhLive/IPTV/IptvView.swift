@@ -2,6 +2,7 @@ import SwiftUI
 import AVKit
 
 struct IptvView: View {
+    var isActive: Bool = true
     @ObservedObject private var storage = StorageManager.shared
     @State private var categories: [IptvCategory] = []
     @State private var selectedCategory: String = "VTV Quốc Gia"
@@ -52,6 +53,7 @@ struct IptvView: View {
                     InlinePreviewPlayerView(
                         channel: preview,
                         isFullscreenActive: activeChannelForPlayer != nil,
+                        isActive: isActive,
                         onExpandFullscreen: {
                             activeChannelForPlayer = preview
                         }
@@ -266,6 +268,7 @@ struct IptvView: View {
 private struct InlinePreviewPlayerView: View {
     let channel: IptvChannel
     let isFullscreenActive: Bool
+    let isActive: Bool
     let onExpandFullscreen: () -> Void
 
     @State private var player: AVPlayer? = nil
@@ -350,8 +353,16 @@ private struct InlinePreviewPlayerView: View {
             if active {
                 // Instantly pause and silence preview when fullscreen is active
                 player?.pause()
-            } else {
+            } else if isActive {
                 // Resume preview (remains muted) when fullscreen is dismissed
+                player?.isMuted = isMuted
+                player?.play()
+            }
+        }
+        .onChange(of: isActive) { active in
+            if !active {
+                player?.pause()
+            } else if !isFullscreenActive {
                 player?.isMuted = isMuted
                 player?.play()
             }

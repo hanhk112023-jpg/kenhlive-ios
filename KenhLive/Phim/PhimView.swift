@@ -124,7 +124,7 @@ struct PhimView: View {
             KLAmbientHeaderGlow(color: KLTheme.fptOrange, height: 320, opacity: 0.28)
 
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 22) {
+                LazyVStack(alignment: .leading, spacing: 22) {
                     // 1. Full-Bleed Cinema Hero Banner (Featured Title, Subtitle, Badges & "Xem chi tiết" CTA)
                     renderHeroCarouselBanner()
 
@@ -299,23 +299,55 @@ struct PhimView: View {
                     }
                     .padding(.top, 2)
 
-                    // Call-To-Action Button: "Xem chi tiết"
-                    Button {
-                        KLHaptics.medium()
-                        autoPlayForSheet = false
-                        initialResumeProgressForSheet = storage.getProgress(for: hero.slug)
-                        selectedFilmForEpisodes = hero
-                    } label: {
-                        Text("Xem chi tiết")
-                            .font(.system(size: 14, weight: .bold))
+                    // Dual Call-To-Action Buttons (FPT Play Style: "Xem Ngay" & "Chi tiết")
+                    HStack(spacing: 12) {
+                        Button {
+                            KLHaptics.medium()
+                            autoPlayForSheet = true
+                            initialResumeProgressForSheet = storage.getProgress(for: hero.slug)
+                            selectedFilmForEpisodes = hero
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "play.fill")
+                                    .font(.system(size: 13, weight: .bold))
+                                Text("Xem Ngay")
+                                    .font(.system(size: 13.5, weight: .bold))
+                            }
                             .foregroundColor(.black)
-                            .padding(.horizontal, 32)
-                            .padding(.vertical, 11)
-                            .background(Color.white)
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 10)
+                            .background(
+                                LinearGradient(
+                                    colors: [Color(red: 1.0, green: 0.58, blue: 0.20), Color(red: 1.0, green: 0.38, blue: 0.05)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
                             .clipShape(Capsule())
-                            .shadow(color: Color.black.opacity(0.5), radius: 8, x: 0, y: 3)
+                            .shadow(color: Color(red: 1.0, green: 0.38, blue: 0.05).opacity(0.45), radius: 8, y: 2)
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            KLHaptics.light()
+                            autoPlayForSheet = false
+                            initialResumeProgressForSheet = storage.getProgress(for: hero.slug)
+                            selectedFilmForEpisodes = hero
+                        } label: {
+                            HStack(spacing: 5) {
+                                Image(systemName: "info.circle")
+                                    .font(.system(size: 13, weight: .medium))
+                                Text("Chi tiết")
+                                    .font(.system(size: 13, weight: .semibold))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 10)
+                            .background(Color.white.opacity(0.18))
+                            .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                     .padding(.top, 4)
 
                     // Carousel Pagination Dots (7 Dots)
@@ -425,7 +457,7 @@ struct PhimView: View {
 
             // Horizontal Scroll of Gradient Cards
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
+                LazyHStack(spacing: 12) {
                     ForEach(curatedCollections) { col in
                         Button {
                             KLHaptics.medium()
@@ -502,7 +534,7 @@ struct PhimView: View {
 
             // Horizontal Scroll of Leaderboard Poster Cards
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 14) {
+                LazyHStack(spacing: 14) {
                     ForEach(Array(section.films.prefix(10).enumerated()), id: \.element.id) { index, film in
                         let rank = index + 1
                         Button {
@@ -680,7 +712,7 @@ struct PhimView: View {
 
                 // Horizontal Scroll
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
+                    LazyHStack(spacing: 12) {
                         ForEach(films) { film in
                             Button {
                                 onSelectFilm(film)
@@ -1188,7 +1220,7 @@ private struct ContinueWatchingRail: View {
             )
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 14) {
+                LazyHStack(spacing: 14) {
                     ForEach(items) { item in
                         KLWatchHistoryCard(
                             item: item,

@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct LiveSportsView: View {
+    var isActive: Bool = true
     @State private var socoliveMatches: [LiveMatchGroup] = []
     @State private var colaMatches: [LiveMatchGroup] = []
     @State private var gavang33Matches: [LiveMatchGroup] = []
@@ -72,7 +73,7 @@ struct LiveSportsView: View {
             )
 
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 18) {
+                LazyVStack(alignment: .leading, spacing: 18) {
                     // 1. Editorial Header Bar
                     renderHeaderBar()
 
@@ -145,6 +146,14 @@ struct LiveSportsView: View {
         .onDisappear {
             autoRefreshTask?.cancel()
             autoRefreshTask = nil
+        }
+        .onChange(of: isActive) { active in
+            if active {
+                startAutoRefresh()
+            } else {
+                autoRefreshTask?.cancel()
+                autoRefreshTask = nil
+            }
         }
         .sheet(item: $selectedGroupForPicker) { group in
             RoomPickerSheet(matchGroup: group) { room in
@@ -521,7 +530,7 @@ private struct SportsProviderRail: View {
             )
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
+                LazyHStack(spacing: 12) {
                     ForEach(matches) { group in
                         SportsMatchCardView(group: group, badgeColor: badgeColor) {
                             onTapMatch(group)

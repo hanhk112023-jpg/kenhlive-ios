@@ -58,11 +58,11 @@ struct MainTabView: View {
                 .opacity(selectedTab == .home ? 1 : 0)
                 .allowsHitTesting(selectedTab == .home)
 
-                LiveSportsView()
+                LiveSportsView(isActive: selectedTab == .sports)
                     .opacity(selectedTab == .sports ? 1 : 0)
                     .allowsHitTesting(selectedTab == .sports)
 
-                IptvView()
+                IptvView(isActive: selectedTab == .iptv)
                     .opacity(selectedTab == .iptv ? 1 : 0)
                     .allowsHitTesting(selectedTab == .iptv)
 
@@ -753,7 +753,7 @@ struct CinemaProfileView: View {
                         Text("KenhLive Cinema, Sports & VTV iOS")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(Color.white.opacity(0.6))
-                        Text("Phiên bản v1.7.5 (Build 147)")
+                        Text("Phiên bản v1.7.6 (Build 148)")
                             .font(.system(size: 11, weight: .regular))
                             .foregroundColor(Color.white.opacity(0.3))
                     }
