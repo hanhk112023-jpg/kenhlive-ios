@@ -334,6 +334,7 @@ struct EpisodePickerSheet: View {
                     directUrl: directUrl,
                     streamReferer: nil,
                     room: nil,
+                    filmSlug: film.slug,
                     episodes: allCurrentEpisodes,
                     currentEpisodeIndex: epIdx,
                     onSelectEpisodeIndex: { nextIdx in

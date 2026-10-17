@@ -1,3 +1,15 @@
+# 🚀 KENHLIVE iOS v1.7.9 (Build 151) — KÍCH HOẠT TÍNH NĂNG CHUYỂN TẬP / DANH SÁCH TẬP KHI XEM TIẾP (CONTINUE WATCHING)
+
+### 🎬 1. Bổ Sung Toàn Bộ Nút Chuyển Tập & Bảng Chọn Tập Khi Mở Từ \"Tiếp Tục Xem\"
+- **Nguyên nhân**: Khi mở phim từ kệ \"Tiếp tục xem\" (Watch History), trình phát chỉ nhận thông tin tập phim đã lưu (`directUrl`, `positionMs`) mà không có danh sách các tập còn lại (`episodes: []`). Do đó, các nút \"TẬP TIẾP THEO\", \"TẬP TRƯỚC ĐÓ\" và nút mở danh sách tập (\"TẬP X/Y\") bị ẩn đi.
+- **Giải pháp tối ưu**:
+  - Tích hợp `filmSlug` trực tiếp vào `HLSPlayerView`. Trình phát vẫn **phát ngay lập tức 0ms** đúng giây phim đã xem dở thông qua `directUrl`.
+  - Đồng thời ở luồng nền, `HLSPlayerView` tự động tải toàn bộ danh sách tập của bộ phim (`allAvailableEpisodes`) và tự động định vị đúng số thứ tự tập hiện tại.
+  - Ngay khi nạp xong, nút **\"TẬP X/Y\"** trên thanh tiêu đề và cụm phím chuyển tập **Tập Trước (`backward.end.fill`) / Tập Kế Tiếp (`forward.end.fill`)** sẽ lập tức xuất hiện!
+  - Người dùng có thể nhấn vào để mở khay chọn tập dạng lưới (`episodeDrawerSheet`), chuyển sang tập mới bất kỳ lúc nào và hệ thống sẽ tự động lưu lại tiến trình xem của tập mới.
+
+---
+
 # 🚀 KENHLIVE iOS v1.7.8 (Build 150) — KHẮC PHỤC TRIỆT ĐỂ LỖI VĂNG TRÌNH PHÁT THỂ THAO & XUNG ĐỘT MODAL SHEET
 
 ### 🛡️ 1. Khắc Phục Triệt Để Xung Đột Modal Kép (Modal Collision) Khi Chọn BLV Thể Thao

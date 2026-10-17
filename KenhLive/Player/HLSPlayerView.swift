@@ -10,6 +10,7 @@ struct HLSPlayerView: View {
     var directUrl: String? = nil
     var streamReferer: String? = nil
     var room: LiveRoom? = nil
+    var filmSlug: String? = nil
     var episodes: [EpisodeItem] = []
     var currentEpisodeIndex: Int = 0
     var onSelectEpisodeIndex: ((Int) -> Void)? = nil
@@ -27,6 +28,12 @@ struct HLSPlayerView: View {
     @State private var currentServerIndex: Int = 0
     @State private var internalEpIndex: Int = 0
     @State private var isShowingEpisodeDrawer: Bool = false
+    @State private var loadedEpisodes: [EpisodeItem] = []
+    @State private var currentSubtitle: String? = nil
+
+    private var allAvailableEpisodes: [EpisodeItem] {
+        episodes.isEmpty ? loadedEpisodes : episodes
+    }
     @State private var isLoadingStream: Bool = true
     @State private var isPlaying: Bool = true
     @State private var isMuted: Bool = false
@@ -315,6 +322,20 @@ struct HLSPlayerView: View {
         }
         .task {
             configureAudioSession()
+            if allAvailableEpisodes.isEmpty, let slug = filmSlug, !slug.isEmpty {
+                if let d = await PhimService.shared.fetchFilmDetail(slug: slug) {
+                    let all = d.allEpisodes
+                    if !all.isEmpty {
+                        loadedEpisodes = all
+                        let match = currentSubtitle ?? subtitle
+                        if let found = all.firstIndex(where: {
+                            $0.name == match || $0.slug == match || (!match.isEmpty && $0.name.contains(match)) || (!match.isEmpty && match.contains($0.name))
+                        }) {
+                            internalEpIndex = found
+                        }
+                    }
+                }
+            }
             await startPlayback()
         }
         .onDisappear {
@@ -349,7 +370,7 @@ struct HLSPlayerView: View {
                     .foregroundColor(.white)
                     .lineLimit(1)
 
-                Text(subtitle)
+                Text(currentSubtitle ?? subtitle)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(KLTheme.textSecondary)
                     .lineLimit(1)
@@ -391,7 +412,7 @@ struct HLSPlayerView: View {
             }
 
             // Episode Drawer Selector (For VOD / Phim)
-            if episodes.count > 1 {
+            if allAvailableEpisodes.count > 1 {
                 Button {
                     KLHaptics.light()
                     isShowingEpisodeDrawer = true
@@ -399,7 +420,7 @@ struct HLSPlayerView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "square.stack.3d.down.right.fill")
                             .font(.system(size: 11))
-                        Text("TẬP \(internalEpIndex + 1)/\(episodes.count)")
+                        Text("TẬP \(internalEpIndex + 1)/\(allAvailableEpisodes.count)")
                             .font(.system(size: 10, weight: .bold))
                     }
                     .foregroundColor(.white)
@@ -468,7 +489,7 @@ struct HLSPlayerView: View {
     private var centerControlsView: some View {
         HStack(spacing: 28) {
             // Previous Episode Button (if available)
-            if episodes.count > 1 {
+            if allAvailableEpisodes.count > 1 {
                 Button {
                     KLHaptics.medium()
                     if internalEpIndex > 0 {
@@ -539,22 +560,22 @@ struct HLSPlayerView: View {
             .buttonStyle(.plain)
 
             // Next Episode Button (if available)
-            if episodes.count > 1 {
+            if allAvailableEpisodes.count > 1 {
                 Button {
                     KLHaptics.medium()
-                    if internalEpIndex + 1 < episodes.count {
+                    if internalEpIndex + 1 < allAvailableEpisodes.count {
                         switchToEpisode(index: internalEpIndex + 1)
                     }
                 } label: {
                     Image(systemName: "forward.end.fill")
                         .font(.system(size: 19, weight: .bold))
-                        .foregroundColor(internalEpIndex + 1 < episodes.count ? .white : Color.white.opacity(0.25))
+                        .foregroundColor(internalEpIndex + 1 < allAvailableEpisodes.count ? .white : Color.white.opacity(0.25))
                         .frame(width: 44, height: 44)
                         .background(Color.black.opacity(0.55))
                         .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
-                .disabled(internalEpIndex + 1 >= episodes.count)
+                .disabled(internalEpIndex + 1 >= allAvailableEpisodes.count)
             }
         }
     }
@@ -730,20 +751,7 @@ struct HLSPlayerView: View {
             if let first = list.first, let url = URL(string: first.url) ?? URL(string: first.url.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "") {
                 playUrl(url, referer: first.referer.isEmpty ? r.streamReferer : first.referer)
             }
-        } else if !episodes.isEmpty {
-            let safeIdx = min(max(0, internalEpIndex), episodes.count - 1)
-            internalEpIndex = safeIdx
-            let ep = episodes[safeIdx]
-            let urlStr = ep.m3u8.isEmpty ? ep.embed : ep.m3u8
-            var target = urlStr
-            if let extracted = extractDirectM3u8(from: urlStr) {
-                target = extracted
-            }
-            if let url = URL(string: target) {
-                servers = [StreamServer(name: ep.name, url: target, isBackup: false, referer: "")]
-                playUrl(url, referer: "")
-            }
-        } else if let direct = directUrl {
+        } else if let direct = directUrl, !direct.isEmpty {
             var targetUrlStr = direct
             if let extracted = extractDirectM3u8(from: direct) {
                 targetUrlStr = extracted
@@ -752,6 +760,19 @@ struct HLSPlayerView: View {
                 let ref = streamReferer ?? ""
                 servers = [StreamServer(name: "MÁY CHỦ CHÍNH", url: targetUrlStr, isBackup: false, referer: ref)]
                 playUrl(url, referer: ref)
+            }
+        } else if !allAvailableEpisodes.isEmpty {
+            let safeIdx = min(max(0, internalEpIndex), allAvailableEpisodes.count - 1)
+            internalEpIndex = safeIdx
+            let ep = allAvailableEpisodes[safeIdx]
+            let urlStr = ep.m3u8.isEmpty ? ep.embed : ep.m3u8
+            var target = urlStr
+            if let extracted = extractDirectM3u8(from: urlStr) {
+                target = extracted
+            }
+            if let url = URL(string: target) {
+                servers = [StreamServer(name: ep.name, url: target, isBackup: false, referer: "")]
+                playUrl(url, referer: "")
             }
         } else if let num = roomNum {
             let dummy = LiveRoom(roomNum: num, blvName: "BLV", avatar: "", viewers: 0, matchTitle: title, league: subtitle, cover: "", category: "Bóng đá", blvLevel: "", score: 0, notice: "")
@@ -772,11 +793,13 @@ struct HLSPlayerView: View {
     }
 
     private func switchToEpisode(index: Int) {
-        guard index >= 0 && index < episodes.count else { return }
+        let list = allAvailableEpisodes
+        guard index >= 0 && index < list.count else { return }
         KLHaptics.medium()
         internalEpIndex = index
         onSelectEpisodeIndex?(index)
-        let ep = episodes[index]
+        let ep = list[index]
+        currentSubtitle = ep.name
         let urlStr = ep.m3u8.isEmpty ? ep.embed : ep.m3u8
         var target = urlStr
         if let extracted = extractDirectM3u8(from: urlStr) {
@@ -785,6 +808,21 @@ struct HLSPlayerView: View {
         if let url = URL(string: target) {
             servers = [StreamServer(name: ep.name, url: target, isBackup: false, referer: "")]
             playUrl(url, referer: "")
+        }
+        if let slug = filmSlug, !slug.isEmpty {
+            let prog = WatchProgress(
+                filmSlug: slug,
+                filmName: title,
+                posterUrl: "",
+                episodeName: ep.name,
+                episodeSlug: ep.slug,
+                embedUrl: ep.embed,
+                m3u8Url: ep.m3u8,
+                positionMs: 0,
+                durationMs: 2700_000,
+                updatedAt: Date()
+            )
+            StorageManager.shared.saveWatchProgress(prog)
         }
         rescheduleAutoHide()
     }
@@ -830,7 +868,7 @@ struct HLSPlayerView: View {
                         GridItem(.flexible(), spacing: 10),
                         GridItem(.flexible(), spacing: 10)
                     ], spacing: 10) {
-                        ForEach(Array(episodes.enumerated()), id: \.offset) { idx, ep in
+                        ForEach(Array(allAvailableEpisodes.enumerated()), id: \.offset) { idx, ep in
                             let isCurrent = idx == internalEpIndex
                             Button {
                                 isShowingEpisodeDrawer = false
@@ -876,9 +914,13 @@ struct HLSPlayerView: View {
             "AVURLAssetHTTPHeaderFieldsKey": headers
         ])
         let item = AVPlayerItem(asset: asset)
+        // FPT Play PlayerEngine Core Optimizations
+        item.preferredForwardBufferDuration = 1.0
+        item.canUseNetworkResourcesForLiveStreamingWhilePaused = false
 
         if player == nil {
             let p = AVPlayer(playerItem: item)
+            p.automaticallyWaitsToMinimizeStalling = false
             self.player = p
             setupTimeObserver(for: p)
         } else {
@@ -891,7 +933,11 @@ struct HLSPlayerView: View {
         }
 
         player?.isMuted = isMuted
-        player?.play()
+        if playbackRate != 1.0 {
+            player?.playImmediately(atRate: playbackRate)
+        } else {
+            player?.play()
+        }
         isPlaying = true
         scheduleAutoHide()
     }

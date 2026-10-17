@@ -161,6 +161,7 @@ struct PhimView: View {
                 title: item.filmName,
                 subtitle: item.episodeName.isEmpty ? "Tiếp tục xem" : item.episodeName,
                 directUrl: directUrl,
+                filmSlug: item.filmSlug,
                 initialTimeSeconds: Double(item.positionMs) / 1000.0,
                 isFullscreen: true,
                 onClose: {
