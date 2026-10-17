@@ -117,8 +117,11 @@ struct PhimView: View {
     }
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .top) {
             Color(red: 0.07, green: 0.07, blue: 0.09).ignoresSafeArea()
+
+            // FPT Play Ambient Radiant Header Glow
+            KLAmbientHeaderGlow(color: KLTheme.fptOrange, height: 320, opacity: 0.28)
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 22) {

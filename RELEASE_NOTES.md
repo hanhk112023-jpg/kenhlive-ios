@@ -1,3 +1,24 @@
+# 🚀 KENHLIVE iOS v1.7.5 (Build 147) — TÍCH HỢP HỆ THỐNG THIẾT KẾ FPT PLAY: KHÓA MÀN HÌNH CHỐNG CHẠM NHẦM, TÙY CHỈNH TỐC ĐỘ PHÁT, NÚT TUA 10S & HIỆU ỨNG AMBIENT RADIANT GLOW
+
+### 🔒 1. Khóa Cảm Ứng Trình Phát Chống Chạm Nhầm (Screen Lock / Unlock)
+- Trích xuất và tích hợp trực tiếp bộ icon `player_ic_lock` và `player_ic_unlock` từ hệ thống thiết kế gốc của FPT Play.
+- Khi bật chế độ Khóa màn hình, toàn bộ thanh điều khiển (thanh trên, thanh dưới, nút tập, đổi server) và các cử chỉ vuốt vô tình đều được ẩn hoàn toàn để người dùng thoải mái cầm điện thoại nằm xem phim/thể thao mà không sợ chạm nhầm.
+- Nút "MỞ KHÓA" viên thuốc kính mờ hiển thị tinh tế ở góc trên cùng bên trái khi người dùng chạm vào màn hình.
+
+### ⚡ 2. Bộ Chọn Tốc Độ Phát Video (Playback Speed Control)
+- Bổ sung nút điều chỉnh tốc độ phát thông minh (`1.0X`, `1.25X`, `1.5X`, `2.0X`) tại thanh điều khiển đáy trình phát `HLSPlayerView`, sử dụng icon tốc độ vector `fp_player_speed`.
+
+### ⏩ 3. Nút Tua Nhanh / Lùi 10 Giây Vector FPT Play
+- Thay thế các icon SF Symbol thông thường bằng bộ icon tua nhanh 10 giây (`fp_player_forward_10`) và tua lùi 10 giây (`fp_player_rewind_10`) sắc nét được trích xuất từ Asset Catalog.
+
+### 🌅 4. Hiệu Ứng Ánh Sáng Ambient Header Glow Đỉnh Màn Hình
+- Ứng dụng dải tỏa sáng `KLAmbientHeaderGlow`:
+  - **Trang chủ & Rạp phim**: Dải ánh sáng Cam hoàng hôn ấm (`#FF9D5C`) tỏa từ mép trên màn hình đè lên nền đen sâu Obsidian OLED.
+  - **Thể thao 4 Đài**: Dải ánh sáng Xanh cỏ sân vận động (`#14A673`) mang lại cảm giác sống động và sang trọng chuẩn phong cách OTT hàng đầu.
+- Thanh Dock Tabbar đáy được nâng cấp hiệu ứng vầng sáng Sunset Tangerine Gradient nổi bật cho tab đang chọn.
+
+---
+
 # 🚀 KENHLIVE iOS v1.7.4 (Build 146) — ĐẠI TU TOÀN DIỆN: PHÁT LẠI 0MS KHÔNG QUA TRUNG GIAN, XOÁ BỎ 100% XUNG ĐỘT MODAL, TỰ ĐỘNG LƯU TIẾN ĐỘ & BẢNG BÁO LỖI PHÁT KÈM THỬ LẠI
 
 ### ⚡ 1. Khôi Phục Xem Phim Tức Thì 0ms (Bỏ Sheet Trung Gian Tránh Xung Đột)

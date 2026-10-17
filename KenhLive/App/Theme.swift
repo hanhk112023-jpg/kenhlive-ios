@@ -16,6 +16,8 @@ enum KLTheme {
 
     // Brand & Functional Accents
     static let brandOrange = Color(red: 1.0, green: 0.396, blue: 0.0)      // #FF6500 Neon Orange
+    static let fptOrange = Color(red: 1.0, green: 0.616, blue: 0.361)       // #FF9D5C FPT Tangerine
+    static let fptNeonGreen = Color(red: 0.145, green: 1.0, blue: 0.486)    // #25FF7C FPT Neon Status
     static let brandOrangeGradient = LinearGradient(
         colors: [Color(red: 1.0, green: 0.42, blue: 0.0), Color(red: 1.0, green: 0.22, blue: 0.0)],
         startPoint: .topLeading,
@@ -235,6 +237,59 @@ struct KLSectionHeader: View {
             }
         }
         .padding(.horizontal, 16)
+    }
+}
+
+// MARK: - Ambient Radiant Header Glow (FPT Play / Cinema Aesthetic)
+struct KLAmbientHeaderGlow: View {
+    var color: Color = KLTheme.fptOrange
+    var height: CGFloat = 280
+    var opacity: Double = 0.22
+
+    var body: some View {
+        RadialGradient(
+            colors: [color.opacity(opacity), color.opacity(0.0)],
+            center: .top,
+            startRadius: 0,
+            endRadius: height
+        )
+        .frame(height: height)
+        .allowsHitTesting(false)
+        .ignoresSafeArea(edges: .top)
+    }
+}
+
+// MARK: - Sports Match Action Badge
+enum KLMatchActionType {
+    case goal, yellowCard, redCard, varDecision
+}
+
+struct KLMatchActionBadge: View {
+    let type: KLMatchActionType
+    var size: CGFloat = 18
+
+    var body: some View {
+        Group {
+            switch type {
+            case .goal:
+                Image("fp_action_ban_thang")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            case .yellowCard:
+                Image("fp_action_the_vang")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            case .redCard:
+                Image("fp_action_the_do")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            case .varDecision:
+                Image("fp_action_var")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            }
+        }
+        .frame(width: size, height: size)
     }
 }
 

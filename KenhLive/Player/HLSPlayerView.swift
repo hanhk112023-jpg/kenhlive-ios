@@ -31,6 +31,8 @@ struct HLSPlayerView: View {
     @State private var isPlaying: Bool = true
     @State private var isMuted: Bool = false
     @State private var isAspectFill: Bool = false
+    @State private var isScreenLocked: Bool = false
+    @State private var playbackRate: Float = 1.0
 
     // Screen Orientation State
     @State private var isOrientationLockedLandscape: Bool = true
@@ -66,6 +68,7 @@ struct HLSPlayerView: View {
                 Color.clear
                     .contentShape(Rectangle())
                     .onTapGesture(count: 2) { location in
+                        guard !isScreenLocked else { return }
                         let width = geo.size.width
                         if location.x < width * 0.40 {
                             performQuickSeek(seconds: -10, side: .leading)
@@ -81,6 +84,7 @@ struct HLSPlayerView: View {
                     .gesture(
                         DragGesture(minimumDistance: 35)
                             .onEnded { value in
+                                guard !isScreenLocked else { return }
                                 // Swipe down to dismiss (Standard iOS Modal Gesture)
                                 if value.translation.height > 85 && abs(value.translation.width) < 140 {
                                     closePlayer()
@@ -90,6 +94,7 @@ struct HLSPlayerView: View {
                     .gesture(
                         MagnificationGesture()
                             .onEnded { scale in
+                                guard !isScreenLocked else { return }
                                 withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                                     isAspectFill = scale > 1.05
                                 }
@@ -165,7 +170,43 @@ struct HLSPlayerView: View {
             }
 
             // 5. iOS Cinema On-Screen Display (OSD) Overlay
-            if isControlsVisible {
+            if isScreenLocked {
+                if isControlsVisible {
+                    VStack {
+                        HStack {
+                            Button {
+                                KLHaptics.medium()
+                                isScreenLocked = false
+                                rescheduleAutoHide()
+                            } label: {
+                                HStack(spacing: 6) {
+                                    Image("fp_player_unlock")
+                                        .resizable()
+                                        .renderingMode(.template)
+                                        .aspectRatio(contentMode: .fit)
+                                        .frame(width: 17, height: 17)
+                                    Text("MỞ KHÓA")
+                                        .font(.system(size: 11, weight: .bold))
+                                }
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(Color.black.opacity(0.75))
+                                .clipShape(Capsule())
+                                .overlay(Capsule().stroke(Color.white.opacity(0.25), lineWidth: 0.8))
+                                .shadow(color: Color.black.opacity(0.6), radius: 8)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.top, isFullscreen ? 24 : 16)
+                            .padding(.leading, isFullscreen ? 40 : 20)
+
+                            Spacer()
+                        }
+                        Spacer()
+                    }
+                    .transition(.opacity)
+                }
+            } else if isControlsVisible {
                 VStack(spacing: 0) {
                     // Top Bar with Gradient Vignette Protection
                     topBarView
@@ -399,6 +440,26 @@ struct HLSPlayerView: View {
                     .cornerRadius(7)
                 }
                 .buttonStyle(.plain)
+
+                // Screen Lock Button (Anti-accidental touch)
+                Button {
+                    KLHaptics.medium()
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isScreenLocked = true
+                    }
+                    rescheduleAutoHide()
+                } label: {
+                    Image("fp_player_lock")
+                        .resizable()
+                        .renderingMode(.template)
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 17, height: 17)
+                        .foregroundColor(.white)
+                        .frame(width: 34, height: 34)
+                        .background(Color.white.opacity(0.18))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, isFullscreen ? 36 : 16) // Safe area clearance in landscape
@@ -432,8 +493,11 @@ struct HLSPlayerView: View {
             Button {
                 performQuickSeek(seconds: -10, side: .leading)
             } label: {
-                Image(systemName: "gobackward.10")
-                    .font(.system(size: 24, weight: .semibold))
+                Image("fp_player_rewind_10")
+                    .resizable()
+                    .renderingMode(.template)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 25, height: 25)
                     .foregroundColor(.white)
                     .frame(width: 46, height: 46)
                     .background(Color.black.opacity(0.55))
@@ -465,8 +529,11 @@ struct HLSPlayerView: View {
             Button {
                 performQuickSeek(seconds: 10, side: .trailing)
             } label: {
-                Image(systemName: "goforward.10")
-                    .font(.system(size: 24, weight: .semibold))
+                Image("fp_player_forward_10")
+                    .resizable()
+                    .renderingMode(.template)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 25, height: 25)
                     .foregroundColor(.white)
                     .frame(width: 46, height: 46)
                     .background(Color.black.opacity(0.55))
@@ -555,6 +622,31 @@ struct HLSPlayerView: View {
                 }
 
                 Spacer()
+
+                // Speed Selector Button (0.75x -> 1.0x -> 1.25x -> 1.5x -> 2.0x)
+                if !isLiveStream {
+                    Button {
+                        KLHaptics.selection()
+                        cyclePlaybackRate()
+                        rescheduleAutoHide()
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image("fp_player_speed")
+                                .resizable()
+                                .renderingMode(.template)
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 12, height: 12)
+                            Text(playbackRate == 1.0 ? "1.0X" : String(format: "%.2gX", playbackRate))
+                                .font(.system(size: 10, weight: .heavy, design: .rounded))
+                        }
+                        .foregroundColor(playbackRate != 1.0 ? KLTheme.fptOrange : .white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(Color.white.opacity(0.16))
+                        .cornerRadius(7)
+                    }
+                    .buttonStyle(.plain)
+                }
 
                 // Aspect Ratio Toggle (Fit vs Fill)
                 Button {
@@ -856,6 +948,19 @@ struct HLSPlayerView: View {
         }
 
         rescheduleAutoHide()
+    }
+
+    private func cyclePlaybackRate() {
+        if playbackRate == 1.0 {
+            playbackRate = 1.25
+        } else if playbackRate == 1.25 {
+            playbackRate = 1.5
+        } else if playbackRate == 1.5 {
+            playbackRate = 2.0
+        } else {
+            playbackRate = 1.0
+        }
+        player?.rate = playbackRate
     }
 
     private func togglePlayPause() {

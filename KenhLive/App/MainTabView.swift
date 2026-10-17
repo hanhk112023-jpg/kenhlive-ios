@@ -114,15 +114,15 @@ struct MainTabView: View {
                                 .fill(
                                     LinearGradient(
                                         colors: [
-                                            Color(red: 0.72, green: 0.12, blue: 0.18),
-                                            Color(red: 0.90, green: 0.24, blue: 0.30)
+                                            Color(red: 1.0, green: 0.38, blue: 0.16),
+                                            Color(red: 0.88, green: 0.10, blue: 0.16)
                                         ],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     )
                                 )
                                 .frame(width: 40, height: 40)
-                                .shadow(color: Color(red: 0.90, green: 0.24, blue: 0.30).opacity(0.48), radius: 8, x: 0, y: 2)
+                                .shadow(color: Color(red: 1.0, green: 0.38, blue: 0.16).opacity(0.45), radius: 8, x: 0, y: 2)
                         }
 
                         Image(systemName: tab.iconName)
@@ -753,7 +753,7 @@ struct CinemaProfileView: View {
                         Text("KenhLive Cinema, Sports & VTV iOS")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(Color.white.opacity(0.6))
-                        Text("Phiên bản v1.7.4 (Build 146)")
+                        Text("Phiên bản v1.7.5 (Build 147)")
                             .font(.system(size: 11, weight: .regular))
                             .foregroundColor(Color.white.opacity(0.3))
                     }

@@ -61,8 +61,15 @@ struct LiveSportsView: View {
     }
 
     var body: some View {
-        ZStack {
+        ZStack(alignment: .top) {
             KLTheme.bgDeep.ignoresSafeArea()
+
+            // FPT Play Emerald Stadium Ambient Glow
+            KLAmbientHeaderGlow(
+                color: Color(red: 0.08, green: 0.65, blue: 0.45),
+                height: 280,
+                opacity: 0.20
+            )
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {

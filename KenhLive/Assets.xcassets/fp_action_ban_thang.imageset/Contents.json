@@ -1,0 +1,23 @@
+{
+  "images": [
+    {
+      "idiom": "universal",
+      "scale": "1x",
+      "filename": "fp_action_ban_thang.png"
+    },
+    {
+      "idiom": "universal",
+      "scale": "2x",
+      "filename": "fp_action_ban_thang@2x.png"
+    },
+    {
+      "idiom": "universal",
+      "scale": "3x",
+      "filename": "fp_action_ban_thang@3x.png"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
