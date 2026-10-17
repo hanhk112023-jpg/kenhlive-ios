@@ -52,6 +52,7 @@ struct HLSPlayerView: View {
     @State private var sliderValue: Double = 0
     @State private var timeObserverToken: Any? = nil
     @State private var hasPerformedInitialSeek: Bool = false
+    @State private var targetResumeSeconds: Double = 0
 
     // OSD Overlay & Interaction
     @State private var isControlsVisible: Bool = true
@@ -316,6 +317,7 @@ struct HLSPlayerView: View {
         }
         .onAppear {
             internalEpIndex = currentEpisodeIndex
+            targetResumeSeconds = initialTimeSeconds
             if isFullscreen {
                 OrientationManager.lockLandscape()
                 isOrientationLockedLandscape = true
@@ -856,7 +858,7 @@ struct HLSPlayerView: View {
             }
         }
 
-        self.initialTimeSeconds = resumeSec
+        self.targetResumeSeconds = resumeSec
         self.hasPerformedInitialSeek = false
 
         let urlStr = ep.m3u8.isEmpty ? ep.embed : ep.m3u8
@@ -1002,8 +1004,8 @@ struct HLSPlayerView: View {
             player?.replaceCurrentItem(with: item)
         }
 
-        if initialTimeSeconds > 0 {
-            let target = CMTime(seconds: initialTimeSeconds, preferredTimescale: 600)
+        if targetResumeSeconds > 0 {
+            let target = CMTime(seconds: targetResumeSeconds, preferredTimescale: 600)
             player?.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero)
         }
 
@@ -1032,9 +1034,9 @@ struct HLSPlayerView: View {
                 self.isLiveStream = false
 
                 // Khôi phục chính xác vị trí phát của tập này khi thời lượng đã sẵn sàng
-                if !self.hasPerformedInitialSeek && self.initialTimeSeconds > 0 {
+                if !self.hasPerformedInitialSeek && self.targetResumeSeconds > 0 {
                     self.hasPerformedInitialSeek = true
-                    let target = CMTime(seconds: self.initialTimeSeconds, preferredTimescale: 600)
+                    let target = CMTime(seconds: self.targetResumeSeconds, preferredTimescale: 600)
                     p?.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero) { _ in
                         if self.isPlaying {
                             p?.play()
