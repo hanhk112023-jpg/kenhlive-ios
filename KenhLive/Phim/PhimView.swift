@@ -10,9 +10,12 @@ struct PhimView: View {
     @State private var heroIndex: Int = 0
     @State private var isLoading: Bool = true
 
-    // Category Loading State
+    // Category Loading & Pagination State
     @State private var isLoadingCategory: Bool = false
     @State private var categoryLoadingTask: Task<Void, Never>? = nil
+    @State private var categoryPage: Int = 1
+    @State private var canLoadMoreCategory: Bool = true
+    @State private var isLoadingMoreCategory: Bool = false
 
     // Search state
     @State private var searchQuery: String = ""
@@ -138,7 +141,7 @@ struct PhimView: View {
             }
             .edgesIgnoringSafeArea(.top)
             .refreshable {
-                await loadHomeSections()
+                await loadHomeSections(forceRefresh: true)
             }
 
             if isLoading && sections.isEmpty && categoryFilms.isEmpty {
@@ -556,7 +559,7 @@ struct PhimView: View {
             // Horizontal Scroll of Leaderboard Poster Cards
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 14) {
-                    ForEach(Array(section.films.prefix(10).enumerated()), id: \.element.id) { index, film in
+                    ForEach(Array(section.films.prefix(20).enumerated()), id: \.element.id) { index, film in
                         let rank = index + 1
                         Button {
                             KLHaptics.light()
@@ -916,6 +919,45 @@ struct PhimView: View {
                     }
                 }
                 .padding(.horizontal, 16)
+
+                // High-Capacity Infinite Load More Footer
+                if canLoadMoreCategory && selectedFilter != "lich-su" {
+                    Button {
+                        KLHaptics.medium()
+                        Task { await loadMoreCategoryFilms() }
+                    } label: {
+                        HStack(spacing: 8) {
+                            if isLoadingMoreCategory {
+                                ProgressView().tint(.white).scaleEffect(0.85)
+                                Text("Đang nạp thêm phim...")
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundColor(.white)
+                            } else {
+                                Image(systemName: "arrow.clockwise.circle.fill")
+                                    .font(.system(size: 14))
+                                Text("TẢI THÊM PHIM (TRANG \(categoryPage + 1))")
+                                    .font(.system(size: 12.5, weight: .heavy))
+                            }
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(
+                            LinearGradient(
+                                colors: [KLTheme.brandOrange, KLTheme.netflixRed],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .cornerRadius(12)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 10)
+                    }
+                    .buttonStyle(KLScaleButtonStyle())
+                    .onAppear {
+                        Task { await loadMoreCategoryFilms() }
+                    }
+                }
             }
         }
     }
@@ -1045,6 +1087,8 @@ struct PhimView: View {
     private func selectCategory(_ slug: String) async {
         selectedFilter = slug
         categoryLoadingTask?.cancel()
+        categoryPage = 1
+        canLoadMoreCategory = true
 
         if slug == "tat-ca" {
             if sections.isEmpty {
@@ -1064,6 +1108,7 @@ struct PhimView: View {
                 )
             }
             self.isLoadingCategory = false
+            self.canLoadMoreCategory = false
         } else {
             isLoadingCategory = true
 
@@ -1074,7 +1119,7 @@ struct PhimView: View {
             }
 
             categoryLoadingTask = Task {
-                let list = await PhimService.shared.fetchCategoryFilms(slug: slug)
+                let list = await PhimService.shared.fetchCategoryFilms(slug: slug, page: 1)
                 if !Task.isCancelled {
                     await MainActor.run {
                         self.categoryFilms = list
@@ -1085,22 +1130,46 @@ struct PhimView: View {
         }
     }
 
-    private func loadHomeSections() async {
+    private func loadMoreCategoryFilms() async {
+        guard !isLoadingCategory, !isLoadingMoreCategory, canLoadMoreCategory else { return }
+        guard selectedFilter != "tat-ca" && selectedFilter != "lich-su" else { return }
+
+        isLoadingMoreCategory = true
+        let nextPage = categoryPage + 1
+        let moreFilms = await PhimService.shared.fetchCategoryFilms(slug: selectedFilter, page: nextPage)
+        await MainActor.run {
+            if moreFilms.isEmpty {
+                self.canLoadMoreCategory = false
+            } else {
+                let existingSlugs = Set(self.categoryFilms.map { $0.slug })
+                let newUnique = moreFilms.filter { !existingSlugs.contains($0.slug) }
+                if newUnique.isEmpty {
+                    self.canLoadMoreCategory = false
+                } else {
+                    self.categoryFilms.append(contentsOf: newUnique)
+                    self.categoryPage = nextPage
+                }
+            }
+            self.isLoadingMoreCategory = false
+        }
+    }
+
+    private func loadHomeSections(forceRefresh: Bool = false) async {
         isLoading = true
-        let initial = await PhimService.shared.fetchQuickInitialSections()
-        if !initial.isEmpty {
-            sections = initial
-            featuredFilms = Array((initial.first?.films ?? []).prefix(10))
-            heroIndex = 0
-            isLoading = false
+        if !forceRefresh {
+            let initial = await PhimService.shared.fetchQuickInitialSections()
+            if !initial.isEmpty {
+                sections = initial
+                featuredFilms = Array((initial.first?.films ?? []).prefix(15))
+                heroIndex = 0
+                isLoading = false
+            }
         }
 
-        let full = await PhimService.shared.fetchHomeSections()
+        let full = await PhimService.shared.fetchHomeSections(forceRefresh: forceRefresh)
         if !full.isEmpty {
             sections = full
-            if featuredFilms.isEmpty {
-                featuredFilms = Array((full.first?.films ?? []).prefix(10))
-            }
+            featuredFilms = Array((full.first?.films ?? []).prefix(15))
         }
         isLoading = false
     }
@@ -1373,7 +1442,7 @@ private struct CuratedCollectionDetailSheet: View {
             results = await PhimService.shared.searchFilms(keyword: collection.searchKeyword)
         }
         if results.isEmpty && !collection.categorySlug.isEmpty {
-            results = await PhimService.shared.fetchCategoryFilms(slug: collection.categorySlug)
+            results = await PhimService.shared.fetchCategoryFilms(slug: collection.categorySlug, page: 1)
         }
         films = results
         isLoading = false

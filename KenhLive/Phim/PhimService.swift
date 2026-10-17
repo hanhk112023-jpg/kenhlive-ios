@@ -24,16 +24,18 @@ final class PhimService {
             cacheLock.unlock()
         }
 
-        async let moiTask = fetchKKPhimList(endpoint: "danh-sach/phim-moi-cap-nhat?page=1")
-        async let boTask = fetchKKPhimV1List(endpoint: "danh-sach/phim-bo?limit=24")
-        async let leTask = fetchKKPhimV1List(endpoint: "danh-sach/phim-le?limit=24")
-        async let animeTask = fetchKKPhimV1List(endpoint: "danh-sach/hoat-hinh?limit=24")
-        async let hanQuocTask = fetchKKPhimV1List(endpoint: "quoc-gia/han-quoc?limit=24")
-        async let trungQuocTask = fetchKKPhimV1List(endpoint: "quoc-gia/trung-quoc?limit=24")
-        async let auMyTask = fetchKKPhimV1List(endpoint: "quoc-gia/au-my?limit=24")
-        async let hanhDongTask = fetchKKPhimV1List(endpoint: "the-loai/hanh-dong?limit=24")
+        async let moiTaskP1 = fetchKKPhimList(endpoint: "danh-sach/phim-moi-cap-nhat?page=1")
+        async let moiTaskP2 = fetchKKPhimList(endpoint: "danh-sach/phim-moi-cap-nhat?page=2")
+        async let boTask = fetchKKPhimV1List(endpoint: "danh-sach/phim-bo?limit=36")
+        async let leTask = fetchKKPhimV1List(endpoint: "danh-sach/phim-le?limit=36")
+        async let animeTask = fetchKKPhimV1List(endpoint: "danh-sach/hoat-hinh?limit=36")
+        async let hanQuocTask = fetchKKPhimV1List(endpoint: "quoc-gia/han-quoc?limit=36")
+        async let trungQuocTask = fetchKKPhimV1List(endpoint: "quoc-gia/trung-quoc?limit=36")
+        async let auMyTask = fetchKKPhimV1List(endpoint: "quoc-gia/au-my?limit=36")
+        async let hanhDongTask = fetchKKPhimV1List(endpoint: "the-loai/hanh-dong?limit=36")
 
-        let (moi, bo, le, anime, hq, tq, am, hd) = await (moiTask, boTask, leTask, animeTask, hanQuocTask, trungQuocTask, auMyTask, hanhDongTask)
+        let (moi1, moi2, bo, le, anime, hq, tq, am, hd) = await (moiTaskP1, moiTaskP2, boTask, leTask, animeTask, hanQuocTask, trungQuocTask, auMyTask, hanhDongTask)
+        let moi = moi1 + moi2
 
         var sections: [PhimSection] = []
         if !moi.isEmpty { sections.append(PhimSection(title: "Phim Mới Cập Nhật", subtitle: "Kho phim điện ảnh mới nhất hôm nay", films: moi)) }
@@ -77,9 +79,11 @@ final class PhimService {
         }
         cacheLock.unlock()
 
-        async let moiTask = fetchKKPhimList(endpoint: "danh-sach/phim-moi-cap-nhat?page=1")
-        async let boTask = fetchKKPhimV1List(endpoint: "danh-sach/phim-bo?limit=24")
-        let (moi, bo) = await (moiTask, boTask)
+        async let moiTaskP1 = fetchKKPhimList(endpoint: "danh-sach/phim-moi-cap-nhat?page=1")
+        async let moiTaskP2 = fetchKKPhimList(endpoint: "danh-sach/phim-moi-cap-nhat?page=2")
+        async let boTask = fetchKKPhimV1List(endpoint: "danh-sach/phim-bo?limit=36")
+        let (moi1, moi2, bo) = await (moiTaskP1, moiTaskP2, boTask)
+        let moi = moi1 + moi2
 
         var sections: [PhimSection] = []
         if !moi.isEmpty { sections.append(PhimSection(title: "Phim Mới Cập Nhật", subtitle: "Kho phim điện ảnh mới nhất hôm nay", films: moi)) }
@@ -95,12 +99,12 @@ final class PhimService {
 
     // Load remaining shelves concurrently
     func fetchRemainingSections() async -> [PhimSection] {
-        async let leTask = fetchKKPhimV1List(endpoint: "danh-sach/phim-le?limit=24")
-        async let animeTask = fetchKKPhimV1List(endpoint: "danh-sach/hoat-hinh?limit=24")
-        async let hanQuocTask = fetchKKPhimV1List(endpoint: "quoc-gia/han-quoc?limit=24")
-        async let trungQuocTask = fetchKKPhimV1List(endpoint: "quoc-gia/trung-quoc?limit=24")
-        async let auMyTask = fetchKKPhimV1List(endpoint: "quoc-gia/au-my?limit=24")
-        async let hanhDongTask = fetchKKPhimV1List(endpoint: "the-loai/hanh-dong?limit=24")
+        async let leTask = fetchKKPhimV1List(endpoint: "danh-sach/phim-le?limit=36")
+        async let animeTask = fetchKKPhimV1List(endpoint: "danh-sach/hoat-hinh?limit=36")
+        async let hanQuocTask = fetchKKPhimV1List(endpoint: "quoc-gia/han-quoc?limit=36")
+        async let trungQuocTask = fetchKKPhimV1List(endpoint: "quoc-gia/trung-quoc?limit=36")
+        async let auMyTask = fetchKKPhimV1List(endpoint: "quoc-gia/au-my?limit=36")
+        async let hanhDongTask = fetchKKPhimV1List(endpoint: "the-loai/hanh-dong?limit=36")
 
         let (le, anime, hq, tq, am, hd) = await (leTask, animeTask, hanQuocTask, trungQuocTask, auMyTask, hanhDongTask)
         var sections: [PhimSection] = []
@@ -130,43 +134,59 @@ final class PhimService {
     }
 
     // MARK: - 2. Category / Country / Genre Feed (Multi-Page / Large Batch)
-    func fetchCategoryFilms(slug: String) async -> [FilmItem] {
-        cacheLock.lock()
-        if let cached = cachedCategoryFilms[slug], !cached.isEmpty {
+    func fetchCategoryFilms(slug: String, page: Int = 1) async -> [FilmItem] {
+        if page == 1 {
+            cacheLock.lock()
+            if let cached = cachedCategoryFilms[slug], !cached.isEmpty {
+                cacheLock.unlock()
+                return cached
+            }
             cacheLock.unlock()
-            return cached
         }
-        cacheLock.unlock()
 
         let endpoint: String
         switch slug {
         case "phim-moi":
-            let list = await fetchKKPhimList(endpoint: "danh-sach/phim-moi-cap-nhat?page=1")
-            cacheLock.lock()
-            cachedCategoryFilms[slug] = list
-            cacheLock.unlock()
-            return list
+            if page == 1 {
+                async let p1 = fetchKKPhimList(endpoint: "danh-sach/phim-moi-cap-nhat?page=1")
+                async let p2 = fetchKKPhimList(endpoint: "danh-sach/phim-moi-cap-nhat?page=2")
+                let (list1, list2) = await (p1, p2)
+                let combined = list1 + list2
+                if !combined.isEmpty {
+                    cacheLock.lock()
+                    cachedCategoryFilms[slug] = combined
+                    cacheLock.unlock()
+                }
+                return combined
+            } else {
+                let actualPage = page + 1
+                return await fetchKKPhimList(endpoint: "danh-sach/phim-moi-cap-nhat?page=\(actualPage)")
+            }
         case "phim-bo", "phim-le", "hoat-hinh", "tv-shows":
-            endpoint = "danh-sach/\(slug)?limit=48"
+            endpoint = "danh-sach/\(slug)?page=\(page)&limit=36"
         case "han-quoc", "trung-quoc", "au-my", "nhat-ban", "viet-nam", "thai-lan":
-            endpoint = "quoc-gia/\(slug)?limit=48"
+            endpoint = "quoc-gia/\(slug)?page=\(page)&limit=36"
         default:
-            endpoint = "the-loai/\(slug)?limit=48"
+            endpoint = "the-loai/\(slug)?page=\(page)&limit=36"
         }
 
         let list = await fetchKKPhimV1List(endpoint: endpoint)
         if !list.isEmpty {
-            cacheLock.lock()
-            cachedCategoryFilms[slug] = list
-            cacheLock.unlock()
+            if page == 1 {
+                cacheLock.lock()
+                cachedCategoryFilms[slug] = list
+                cacheLock.unlock()
+            }
             return list
         }
 
         // Fallback NguonC
         let fallback = await fetchNguonCCategoryFilms(slug: slug)
-        cacheLock.lock()
-        cachedCategoryFilms[slug] = fallback
-        cacheLock.unlock()
+        if page == 1 {
+            cacheLock.lock()
+            cachedCategoryFilms[slug] = fallback
+            cacheLock.unlock()
+        }
         return fallback
     }
 

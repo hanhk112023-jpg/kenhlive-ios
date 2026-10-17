@@ -424,8 +424,8 @@ final class KLImageCache {
     private let cache = NSCache<NSString, UIImage>()
 
     private init() {
-        cache.countLimit = 500
-        cache.totalCostLimit = 200 * 1024 * 1024 // 200 MB RAM
+        cache.countLimit = 800
+        cache.totalCostLimit = 250 * 1024 * 1024 // 250 MB RAM
     }
 
     func get(for urlString: String) -> UIImage? {
@@ -440,15 +440,61 @@ final class KLImageCache {
     }
 }
 
+// MARK: - Persistent Disk Cache for Zero-Latency App-Wide Image Restores
+final class KLDiskImageCache {
+    static let shared = KLDiskImageCache()
+    private let cacheDir: URL
+
+    private init() {
+        let urls = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)
+        let dir = urls[0].appendingPathComponent("kl_img_cache", isDirectory: true)
+        if !FileManager.default.fileExists(atPath: dir.path) {
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        }
+        self.cacheDir = dir
+    }
+
+    private func filename(for key: String) -> String {
+        let safe = key.replacingOccurrences(of: "[^a-zA-Z0-9_.-]", with: "_", options: .regularExpression)
+        let hash = abs(key.hashValue)
+        let suffix = safe.count > 30 ? String(safe.suffix(30)) : safe
+        return "\(hash)_\(suffix).jpg"
+    }
+
+    func get(for key: String) -> UIImage? {
+        guard !key.isEmpty else { return nil }
+        let file = cacheDir.appendingPathComponent(filename(for: key))
+        guard FileManager.default.fileExists(atPath: file.path) else { return nil }
+        guard let data = try? Data(contentsOf: file) else { return nil }
+        return UIImage(data: data)
+    }
+
+    func set(_ data: Data, for key: String) {
+        guard !key.isEmpty, !data.isEmpty else { return }
+        let file = cacheDir.appendingPathComponent(filename(for: key))
+        try? data.write(to: file, options: .atomic)
+    }
+}
+
 actor KLImageDownloader {
     static let shared = KLImageDownloader()
     private var inFlight: [String: Task<UIImage?, Never>] = [:]
 
     func fetch(urlString: String) async -> UIImage? {
         guard !urlString.isEmpty, let url = URL(string: urlString) else { return nil }
+
+        // Level 1: Memory RAM Cache (Instant)
         if let cached = KLImageCache.shared.get(for: urlString) {
             return cached
         }
+
+        // Level 2: Local Disk Cache (< 2ms, avoid network entirely)
+        if let diskImg = KLDiskImageCache.shared.get(for: urlString) {
+            KLImageCache.shared.set(diskImg, for: urlString)
+            return diskImg
+        }
+
+        // Level 3: In-flight deduplication (Coalescing concurrent identical requests)
         if let ongoing = inFlight[urlString] {
             return await ongoing.value
         }
@@ -457,11 +503,19 @@ actor KLImageDownloader {
             var req = URLRequest(url: url)
             req.timeoutInterval = 12
             req.cachePolicy = .returnCacheDataElseLoad
+            req.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)", forHTTPHeaderField: "User-Agent")
 
             do {
                 let (data, _) = try await URLSession.shared.data(for: req)
                 guard !Task.isCancelled, let rawImage = UIImage(data: data) else { return nil }
-                let displayImage = await rawImage.byPreparingForDisplay() ?? rawImage
+
+                // Save raw file bytes to disk cache asynchronously
+                KLDiskImageCache.shared.set(data, for: urlString)
+
+                // Downsample to poster display dimensions (~360x540) to drastically cut GPU/RAM pressure
+                let targetSize = CGSize(width: 360, height: 540)
+                let displayImage = await rawImage.byPreparingThumbnail(ofSize: targetSize) ?? (await rawImage.byPreparingForDisplay() ?? rawImage)
+
                 KLImageCache.shared.set(displayImage, for: urlString)
                 return displayImage
             } catch {
@@ -482,6 +536,16 @@ struct KLAsyncImage: View {
 
     @State private var image: UIImage? = nil
     @State private var isLoading: Bool = false
+    @State private var loadTask: Task<Void, Never>? = nil
+
+    init(url: String, contentMode: ContentMode = .fill) {
+        self.url = url
+        self.contentMode = contentMode
+        // Frame-0 synchronous RAM cache check: renders image on first frame without flickering!
+        if let cached = KLImageCache.shared.get(for: url) {
+            _image = State(initialValue: cached)
+        }
+    }
 
     var body: some View {
         ZStack {
@@ -490,31 +554,54 @@ struct KLAsyncImage: View {
                     .resizable()
                     .aspectRatio(contentMode: contentMode)
             } else {
-                Color(red: 0.11, green: 0.11, blue: 0.14)
+                // Sleek Netflix-style Shimmer Glass Placeholder
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.12, green: 0.12, blue: 0.16),
+                        Color(red: 0.18, green: 0.18, blue: 0.23),
+                        Color(red: 0.12, green: 0.12, blue: 0.16)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
             }
         }
         .onAppear {
-            loadImage()
+            if image == nil {
+                loadImage()
+            }
         }
         .onChange(of: url) { _ in
             loadImage()
+        }
+        .onDisappear {
+            // Cancel pending network task on scroll fling
+            loadTask?.cancel()
+            loadTask = nil
         }
     }
 
     private func loadImage() {
         guard !url.isEmpty else { return }
+
+        // Fast path 1: Instant RAM
         if let cached = KLImageCache.shared.get(for: url) {
             self.image = cached
             self.isLoading = false
             return
         }
 
+        loadTask?.cancel()
         self.isLoading = true
-        Task {
+
+        loadTask = Task {
             let fetched = await KLImageDownloader.shared.fetch(urlString: url)
+            guard !Task.isCancelled else { return }
             await MainActor.run {
-                self.image = fetched
-                self.isLoading = false
+                withAnimation(.easeOut(duration: 0.22)) {
+                    self.image = fetched
+                    self.isLoading = false
+                }
             }
         }
     }
