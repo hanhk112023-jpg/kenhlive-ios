@@ -174,7 +174,7 @@ struct FilmDetailResult {
 }
 
 struct WatchProgress: Identifiable, Codable, Hashable {
-    var id: String { "\(filmSlug)_\(episodeSlug)" }
+    var id: String { "\(filmSlug)_\(episodeSlug.isEmpty ? episodeName : episodeSlug)" }
     let filmSlug: String
     let filmName: String
     let posterUrl: String

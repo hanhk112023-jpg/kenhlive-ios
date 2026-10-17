@@ -51,6 +51,7 @@ struct HLSPlayerView: View {
     @State private var isDraggingSlider: Bool = false
     @State private var sliderValue: Double = 0
     @State private var timeObserverToken: Any? = nil
+    @State private var hasPerformedInitialSeek: Bool = false
 
     // OSD Overlay & Interaction
     @State private var isControlsVisible: Bool = true
@@ -833,6 +834,31 @@ struct HLSPlayerView: View {
         // Stop previous playback
         player?.pause()
 
+        // Kiểm tra xem tập này đã có tiến trình xem trước đó chưa
+        var resumeSec: Double = 0
+        if let slug = filmSlug, !slug.isEmpty {
+            if let saved = StorageManager.shared.getProgress(for: slug, episodeSlug: ep.slug, episodeName: ep.name), saved.positionMs > 0 {
+                resumeSec = Double(saved.positionMs) / 1000.0
+            } else {
+                let prog = WatchProgress(
+                    filmSlug: slug,
+                    filmName: title,
+                    posterUrl: "",
+                    episodeName: ep.name,
+                    episodeSlug: ep.slug,
+                    embedUrl: ep.embed,
+                    m3u8Url: ep.m3u8,
+                    positionMs: 0,
+                    durationMs: 2700_000,
+                    updatedAt: Date()
+                )
+                StorageManager.shared.saveWatchProgress(prog)
+            }
+        }
+
+        self.initialTimeSeconds = resumeSec
+        self.hasPerformedInitialSeek = false
+
         let urlStr = ep.m3u8.isEmpty ? ep.embed : ep.m3u8
         var target = urlStr
         if let extracted = extractDirectM3u8(from: urlStr) {
@@ -841,21 +867,6 @@ struct HLSPlayerView: View {
         if let url = URL(string: target) {
             servers = [StreamServer(name: ep.name, url: target, isBackup: false, referer: "")]
             playUrl(url, referer: "")
-        }
-        if let slug = filmSlug, !slug.isEmpty {
-            let prog = WatchProgress(
-                filmSlug: slug,
-                filmName: title,
-                posterUrl: "",
-                episodeName: ep.name,
-                episodeSlug: ep.slug,
-                embedUrl: ep.embed,
-                m3u8Url: ep.m3u8,
-                positionMs: 0,
-                durationMs: 2700_000,
-                updatedAt: Date()
-            )
-            StorageManager.shared.saveWatchProgress(prog)
         }
         rescheduleAutoHide()
     }
@@ -912,26 +923,51 @@ struct HLSPlayerView: View {
                     ], spacing: 10) {
                         ForEach(Array(allAvailableEpisodes.enumerated()), id: \.offset) { idx, ep in
                             let isCurrent = idx == internalEpIndex
+                            let epProg = filmSlug != nil ? StorageManager.shared.getProgress(for: filmSlug!, episodeSlug: ep.slug, episodeName: ep.name) : nil
+                            let isWatched = epProg != nil
+                            let percent = epProg?.progressPercent ?? 0
+
                             Button {
                                 isShowingEpisodeDrawer = false
                                 switchToEpisode(index: idx)
                             } label: {
-                                HStack(spacing: 4) {
-                                    if isCurrent {
-                                        Circle().fill(Color.black).frame(width: 5, height: 5)
+                                VStack(spacing: 3) {
+                                    HStack(spacing: 4) {
+                                        if isCurrent {
+                                            Circle().fill(Color.black).frame(width: 5, height: 5)
+                                        } else if isWatched {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .font(.system(size: 9, weight: .bold))
+                                                .foregroundColor(KLTheme.fptOrange)
+                                        }
+                                        Text(ep.name)
+                                            .font(.system(size: 11.5, weight: isCurrent ? .black : (isWatched ? .heavy : .bold)))
+                                            .lineLimit(1)
                                     }
-                                    Text(ep.name)
-                                        .font(.system(size: 11.5, weight: isCurrent ? .black : .bold))
-                                        .lineLimit(1)
+
+                                    if !isCurrent && isWatched && percent > 0 {
+                                        GeometryReader { geo in
+                                            ZStack(alignment: .leading) {
+                                                Capsule()
+                                                    .fill(Color.white.opacity(0.12))
+                                                    .frame(height: 2)
+                                                Capsule()
+                                                    .fill(KLTheme.fptOrange)
+                                                    .frame(width: max(3, geo.size.width * CGFloat(min(1.0, percent))), height: 2)
+                                            }
+                                        }
+                                        .frame(height: 2)
+                                        .padding(.horizontal, 4)
+                                    }
                                 }
-                                .foregroundColor(isCurrent ? .black : .white)
+                                .foregroundColor(isCurrent ? .black : (isWatched ? .white : Color.white.opacity(0.85)))
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
-                                .background(isCurrent ? KLTheme.brandOrange : KLTheme.surfaceCard)
+                                .padding(.vertical, !isCurrent && isWatched && percent > 0 ? 8 : 10)
+                                .background(isCurrent ? KLTheme.brandOrange : (isWatched ? KLTheme.fptOrange.opacity(0.15) : KLTheme.surfaceCard))
                                 .cornerRadius(8)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 8)
-                                        .stroke(isCurrent ? KLTheme.brandOrange : KLTheme.borderSubtle, lineWidth: 0.8)
+                                        .stroke(isCurrent ? KLTheme.brandOrange : (isWatched ? KLTheme.fptOrange.opacity(0.4) : KLTheme.borderSubtle), lineWidth: 0.8)
                                 )
                             }
                             .buttonStyle(.plain)
@@ -995,9 +1031,21 @@ struct HLSPlayerView: View {
                 self.duration = dur
                 self.isLiveStream = false
 
-                // Continuous auto-save watch progress every ~5 seconds
+                // Khôi phục chính xác vị trí phát của tập này khi thời lượng đã sẵn sàng
+                if !self.hasPerformedInitialSeek && self.initialTimeSeconds > 0 {
+                    self.hasPerformedInitialSeek = true
+                    let target = CMTime(seconds: self.initialTimeSeconds, preferredTimescale: 600)
+                    p?.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero) { _ in
+                        if self.isPlaying {
+                            p?.play()
+                        }
+                    }
+                }
+
+                // Tự động lưu tiến trình riêng của tập này định kỳ mỗi ~5 giây
                 if Int(sec) > 0 && Int(sec) % 5 == 0 {
                     self.onProgressUpdate?(sec, dur)
+                    self.persistCurrentEpisodeProgress(sec: sec, dur: dur)
                 }
             } else {
                 self.isLiveStream = true
@@ -1007,6 +1055,7 @@ struct HLSPlayerView: View {
 
     private func seekToTime(_ seconds: Double) {
         guard let p = player else { return }
+        hasPerformedInitialSeek = true
         let targetTime = CMTime(seconds: seconds, preferredTimescale: 600)
         p.seek(to: targetTime, toleranceBefore: .zero, toleranceAfter: .zero) { _ in
             if self.isPlaying {
@@ -1014,6 +1063,7 @@ struct HLSPlayerView: View {
             }
         }
         onProgressUpdate?(seconds, duration)
+        persistCurrentEpisodeProgress(sec: seconds, dur: duration)
     }
 
     private func performQuickSeek(seconds: Double, side: Alignment) {
@@ -1025,7 +1075,7 @@ struct HLSPlayerView: View {
         seekToTime(target)
 
         // Show visual ripple
-        seekRippleText = seconds > 0 ? "+\\(Int(seconds))s" : "\\(Int(seconds))s"
+        seekRippleText = seconds > 0 ? "+\(Int(seconds))s" : "\(Int(seconds))s"
         seekRippleSide = side
         seekRippleTask?.cancel()
         seekRippleTask = Task {
@@ -1063,6 +1113,7 @@ struct HLSPlayerView: View {
             isPlaying = false
             showControlsPermanently()
             onProgressUpdate?(currentTime, duration)
+            persistCurrentEpisodeProgress(sec: currentTime, dur: duration)
         } else {
             p.play()
             isPlaying = true
@@ -1115,12 +1166,43 @@ struct HLSPlayerView: View {
         }
         if currentTime > 0 {
             onProgressUpdate?(currentTime, duration)
+            persistCurrentEpisodeProgress(sec: currentTime, dur: duration)
         }
         player?.pause()
         player = nil
         if isFullscreen {
             OrientationManager.lockPortrait()
         }
+    }
+
+    private func persistCurrentEpisodeProgress(sec: Double, dur: Double) {
+        guard let slug = filmSlug, !slug.isEmpty else { return }
+        let list = allAvailableEpisodes
+        let safeIdx = min(max(0, internalEpIndex), list.isEmpty ? 0 : list.count - 1)
+        let ep = list.indices.contains(safeIdx) ? list[safeIdx] : nil
+        let epName = ep?.name ?? currentSubtitle ?? subtitle
+        let epSlug = ep?.slug ?? "tap-\(safeIdx + 1)"
+        let embed = ep?.embed ?? directUrl ?? ""
+        let m3u8 = ep?.m3u8 ?? (directUrl?.contains(".m3u8") == true ? directUrl! : "")
+        let posMs = Int64(sec * 1000)
+        let durMs = Int64(dur * 1000)
+
+        let existing = StorageManager.shared.getProgress(for: slug, episodeSlug: epSlug, episodeName: epName)
+        let poster = existing?.posterUrl ?? ""
+
+        let progress = WatchProgress(
+            filmSlug: slug,
+            filmName: title,
+            posterUrl: poster,
+            episodeName: epName,
+            episodeSlug: epSlug,
+            embedUrl: embed,
+            m3u8Url: m3u8,
+            positionMs: posMs,
+            durationMs: durMs > 0 ? durMs : (existing?.durationMs ?? 2700_000),
+            updatedAt: Date()
+        )
+        StorageManager.shared.saveWatchProgress(progress)
     }
 
     private func closePlayer() {

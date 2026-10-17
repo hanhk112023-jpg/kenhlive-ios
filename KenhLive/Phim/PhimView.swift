@@ -1247,7 +1247,12 @@ private struct ContinueWatchingRail: View {
                     ForEach(items) { item in
                         KLWatchHistoryCard(
                             item: item,
-                            onPlay: { onTap(item) }
+                            onPlay: { onTap(item) },
+                            onDelete: {
+                                withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                                    StorageManager.shared.removeWatchProgress(id: item.id)
+                                }
+                            }
                         )
                     }
                 }

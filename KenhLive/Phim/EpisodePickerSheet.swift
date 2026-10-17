@@ -267,30 +267,60 @@ struct EpisodePickerSheet: View {
                                     GridItem(.flexible(), spacing: 10)
                                 ], spacing: 10) {
                                     ForEach(visibleEpisodes) { ep in
-                                        let isWatched = storage.watchHistory.contains {
-                                            $0.filmSlug == film.slug && $0.episodeSlug == ep.slug
-                                        }
+                                        let epProgress = storage.getProgress(for: film.slug, episodeSlug: ep.slug, episodeName: ep.name)
+                                        let isWatched = epProgress != nil
+                                        let percent = epProgress?.progressPercent ?? 0
 
                                         Button {
-                                            launchFullscreenPlayer(episode: ep, resumeSeconds: 0)
+                                            let resumeSec = (epProgress?.positionMs ?? 0) > 0 ? Double(epProgress!.positionMs) / 1000.0 : 0
+                                            launchFullscreenPlayer(episode: ep, resumeSeconds: resumeSec)
                                         } label: {
-                                            HStack(spacing: 5) {
-                                                Image(systemName: isWatched ? "checkmark.circle.fill" : "play.fill")
-                                                    .font(.system(size: 10, weight: .bold))
-                                                    .foregroundColor(isWatched ? KLTheme.netflixGreen : KLTheme.netflixRed)
+                                            VStack(spacing: 4) {
+                                                HStack(spacing: 4) {
+                                                    if isWatched {
+                                                        Image(systemName: "checkmark.circle.fill")
+                                                            .font(.system(size: 10, weight: .bold))
+                                                            .foregroundColor(KLTheme.fptOrange)
+                                                    } else {
+                                                        Image(systemName: "play.fill")
+                                                            .font(.system(size: 9))
+                                                            .foregroundColor(KLTheme.textMuted)
+                                                    }
 
-                                                Text(ep.name)
-                                                    .font(.system(size: 12, weight: .bold))
-                                                    .foregroundColor(.white)
-                                                    .lineLimit(1)
+                                                    Text(ep.name)
+                                                        .font(.system(size: 12, weight: isWatched ? .heavy : .bold))
+                                                        .foregroundColor(isWatched ? .white : Color.white.opacity(0.85))
+                                                        .lineLimit(1)
+                                                }
+
+                                                if isWatched && percent > 0 {
+                                                    GeometryReader { geo in
+                                                        ZStack(alignment: .leading) {
+                                                            Capsule()
+                                                                .fill(Color.white.opacity(0.12))
+                                                                .frame(height: 2.5)
+                                                            Capsule()
+                                                                .fill(
+                                                                    LinearGradient(
+                                                                        colors: [KLTheme.fptOrange, KLTheme.brandOrange],
+                                                                        startPoint: .leading,
+                                                                        endPoint: .trailing
+                                                                    )
+                                                                )
+                                                                .frame(width: max(4, geo.size.width * CGFloat(min(1.0, percent))), height: 2.5)
+                                                        }
+                                                    }
+                                                    .frame(height: 2.5)
+                                                    .padding(.horizontal, 6)
+                                                }
                                             }
                                             .frame(maxWidth: .infinity)
-                                            .padding(.vertical, 12)
-                                            .background(isWatched ? KLTheme.netflixRed.opacity(0.15) : KLTheme.surfaceCard)
+                                            .padding(.vertical, isWatched && percent > 0 ? 8 : 11)
+                                            .background(isWatched ? KLTheme.fptOrange.opacity(0.15) : KLTheme.surfaceCard)
                                             .cornerRadius(9)
                                             .overlay(
                                                 RoundedRectangle(cornerRadius: 9)
-                                                    .stroke(isWatched ? KLTheme.netflixRed.opacity(0.4) : KLTheme.borderSubtle, lineWidth: 0.8)
+                                                    .stroke(isWatched ? KLTheme.fptOrange.opacity(0.45) : KLTheme.borderSubtle, lineWidth: 0.8)
                                             )
                                         }
                                         .buttonStyle(KLScaleButtonStyle())
@@ -466,7 +496,11 @@ struct EpisodePickerSheet: View {
         self.activePlayerResumeSeconds = resumeSeconds
         self.activeEpisodeForPlayer = episode
         self.onSelectEpisode?(episode)
-        saveProgress(episode: episode, currentSec: resumeSeconds, durationSec: 2700)
+        if resumeSeconds > 0 {
+            saveProgress(episode: episode, currentSec: resumeSeconds, durationSec: 2700)
+        } else if storage.getProgress(for: film.slug, episodeSlug: episode.slug, episodeName: episode.name) == nil {
+            saveProgress(episode: episode, currentSec: 0, durationSec: 2700)
+        }
     }
 
     private func resumeSavedProgress(_ saved: WatchProgress) {

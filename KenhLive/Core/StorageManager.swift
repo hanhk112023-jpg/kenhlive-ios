@@ -30,17 +30,44 @@ final class StorageManager: ObservableObject {
     }
 
     func saveWatchProgress(_ progress: WatchProgress) {
-        var list = watchHistory.filter { $0.filmSlug != progress.filmSlug }
+        // Lưu riêng cho từng tập của bộ phim (theo filmSlug + episodeSlug / episodeName)
+        var list = watchHistory.filter { item in
+            if item.filmSlug != progress.filmSlug { return true }
+            let sameSlug = !item.episodeSlug.isEmpty && item.episodeSlug == progress.episodeSlug
+            let sameName = !item.episodeName.isEmpty && item.episodeName == progress.episodeName
+            let sameId = item.id == progress.id
+            return !(sameSlug || sameName || sameId)
+        }
         list.insert(progress, at: 0)
-        if list.count > 40 { list = Array(list.prefix(40)) }
+        if list.count > 60 { list = Array(list.prefix(60)) }
         watchHistory = list
         if let encoded = try? JSONEncoder().encode(list) {
             defaults.set(encoded, forKey: keyHistory)
         }
     }
 
-    func getProgress(for filmSlug: String) -> WatchProgress? {
-        watchHistory.first { $0.filmSlug == filmSlug }
+    func getProgress(for filmSlug: String, episodeSlug: String? = nil, episodeName: String? = nil) -> WatchProgress? {
+        if let epSlug = episodeSlug, !epSlug.isEmpty {
+            if let match = watchHistory.first(where: { $0.filmSlug == filmSlug && $0.episodeSlug == epSlug }) {
+                return match
+            }
+        }
+        if let epName = episodeName, !epName.isEmpty {
+            if let match = watchHistory.first(where: { $0.filmSlug == filmSlug && $0.episodeName == epName }) {
+                return match
+            }
+        }
+        // Nếu không chỉ định tập, trả về tập xem gần nhất của phim này
+        return watchHistory.first { $0.filmSlug == filmSlug }
+    }
+
+    func isEpisodeWatched(filmSlug: String, episodeSlug: String, episodeName: String = "") -> Bool {
+        watchHistory.contains { item in
+            guard item.filmSlug == filmSlug else { return false }
+            if !episodeSlug.isEmpty && item.episodeSlug == episodeSlug { return true }
+            if !episodeName.isEmpty && item.episodeName == episodeName { return true }
+            return false
+        }
     }
 
     func toggleFavoriteFilm(slug: String) {
@@ -72,6 +99,13 @@ final class StorageManager: ObservableObject {
     func clearWatchHistory() {
         watchHistory = []
         defaults.removeObject(forKey: keyHistory)
+    }
+
+    func removeWatchProgress(id: String) {
+        watchHistory.removeAll { $0.id == id }
+        if let encoded = try? JSONEncoder().encode(watchHistory) {
+            defaults.set(encoded, forKey: keyHistory)
+        }
     }
 
     func removeWatchProgress(filmSlug: String) {

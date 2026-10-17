@@ -655,7 +655,7 @@ struct CinemaProfileView: View {
                                             },
                                             onDelete: {
                                                 withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
-                                                    storage.removeWatchProgress(filmSlug: item.filmSlug)
+                                                    storage.removeWatchProgress(id: item.id)
                                                 }
                                             }
                                         )
@@ -753,7 +753,7 @@ struct CinemaProfileView: View {
                         Text("KenhLive Cinema, Sports & VTV iOS")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(Color.white.opacity(0.6))
-                        Text("Phiên bản v1.8.2 (Build 154)")
+                        Text("Phiên bản v1.8.3 (Build 155)")
                             .font(.system(size: 11, weight: .regular))
                             .foregroundColor(Color.white.opacity(0.3))
                     }

@@ -1,3 +1,23 @@
+# 🚀 KENHLIVE iOS v1.8.3 (Build 155) — TIẾN TRÌNH XEM RIÊNG TỪNG TẬP & ĐÁNH DẤU TẬP ĐÃ XEM
+
+### 🎬 1. Lưu Tiến Trình Xem Riêng Biệt Cho Từng Tập Phim (Per-Episode Watch History)
+- **Lưu Riêng Từng Tập**:
+  - Tái cấu trúc cơ chế lưu trữ trong `StorageManager.swift`: Sử dụng Composite Key `(filmSlug + episodeSlug / episodeName)` thay vì chỉ lọc theo `filmSlug`.
+  - Giờ đây, khi bạn xem Tập 1 đến phút 15 và chuyển sang xem Tập 2 đến phút 05, ứng dụng sẽ lưu tiến trình riêng biệt cho cả hai tập mà không ghi đè hay làm mất tiến trình của tập trước.
+  - Khi mở lại phim hoặc tiếp tục xem, mỗi tập đều có thể khôi phục chính xác thời điểm bạn đã dừng lại.
+- **Tự Động Khôi Phục Vị Trí Khi Chuyển Tập**:
+  - Khi chuyển tập trong trình phát hoặc chọn tập trong danh sách, nếu tập đó đã có lịch sử xem, trình phát sẽ tự động seek đến đúng vị trí đã lưu thay vì phát lại từ 0:00.
+
+### 🏷️ 2. Đánh Dấu Tập Đã Xem & Thanh Tiến Trình Trong Danh Sách Tập
+- **Màn Hình Chọn Tập (EpisodePickerSheet)**:
+  - Tập đã xem được đánh dấu nổi bật với icon `checkmark.circle.fill` màu cam FPT Play (`#FF9D5C`).
+  - Nền và viền ô tập được làm nổi bật với sắc cam tinh tế.
+  - Tích hợp thanh tiến trình Mini Progress Bar hiển thị trực quan phần trăm (%) bạn đã xem ở tập đó.
+- **Khay Chọn Tập Trong Trình Phát (Episode Drawer)**:
+  - Đồng bộ hiển thị huy hiệu `checkmark.circle.fill` và thanh tiến trình cho các tập đã xem ngay trong khay chọn tập của trình phát khi đang xem video.
+
+---
+
 # 🚀 KENHLIVE iOS v1.8.2 (Build 154) — ĐẠI TU TOÀN DIỆN HỆ THỐNG APP, TRÌNH PHÁT & AN TOÀN ĐA LUỒNG
 
 ### 🛠️ 1. Đại Tu & Vá Triệt Để Các Lỗi Tiềm Ẩn Toàn Ứng Dụng
