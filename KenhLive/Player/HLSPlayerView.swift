@@ -926,7 +926,7 @@ struct HLSPlayerView: View {
                         ForEach(Array(allAvailableEpisodes.enumerated()), id: \.offset) { idx, ep in
                             let isCurrent = idx == internalEpIndex
                             let epProg = filmSlug != nil ? StorageManager.shared.getProgress(for: filmSlug!, episodeSlug: ep.slug, episodeName: ep.name) : nil
-                            let isWatched = epProg != nil
+                            let isWatched = epProg != nil && (epProg?.positionMs ?? 0) > 0
                             let percent = epProg?.progressPercent ?? 0
 
                             Button {

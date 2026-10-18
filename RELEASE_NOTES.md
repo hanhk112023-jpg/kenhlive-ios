@@ -1,3 +1,14 @@
+# 🚀 KENHLIVE iOS v1.9.7 (Build 163) — KHẮC PHỤC TRIỆT ĐỂ LỖI TIẾN ĐỘ TẬP PHIM BỊ GÁN CHÙNG CHO TOÀN BỘ DANH SÁCH
+
+### 🐛 1. Sửa Lỗi Gán Nhầm Thanh Tiến Độ Cho Mọi Tập Phim (Episode Scoping Bug)
+- **Nguyên nhân**: Khi danh sách tập (`EpisodePickerSheet` / Drawer Player) gọi `getProgress(for: filmSlug, episodeSlug: ep.slug)`, nếu tập đó chưa xem, hàm trước đây tự động fallback sang tập xem gần nhất của phim (`watchHistory.first { $0.filmSlug == filmSlug }`). Hậu quả là tiến độ của tập 2 bị gán lặp lại cho tất cả các tập 1, 3, 4, 5... khiến mọi tập đều hiện thanh tiến độ.
+- **Khắc phục triệt để**:
+  - Khi yêu cầu tập cụ thể (`episodeSlug` hoặc `episodeName`), hàm chỉ tìm đúng tập đó. Nếu tập đó chưa từng xem, bắt buộc trả về `nil`.
+  - Chuẩn hóa số tập (`extractEpisodeNumber`), khớp chính xác bất kể định dạng "01", "1", "Tập 01", "tap-01".
+  - Chỉ tập nào thực sự đã xem (`positionMs > 0`) mới hiển thị thanh tiến độ và dấu tick cam.
+
+---
+
 # 🚀 KENHLIVE iOS v1.9.6 (Build 162) — TỐI ƯU HÓA BỘ NHỚ ĐỆM ĐA TẦNG & SMART RESUME TỰ NHẢY TẬP KẾ TIẾP
 
 ### ⚡ 1. Thuật Toán Smart Resume Tự Động Nhảy Tập (Chuẩn FPT Play & Netflix)

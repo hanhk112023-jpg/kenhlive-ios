@@ -1101,7 +1101,7 @@ struct CinemaProfileView: View {
             Text("KenhLive Cinema & Sports iOS")
                 .font(.system(size: 12, weight: .bold))
                 .foregroundColor(Color.white.opacity(0.6))
-            Text("Phiên bản v1.9.6 (Build 162)")
+            Text("Phiên bản v1.9.7 (Build 163)")
                 .font(.system(size: 11, weight: .regular))
                 .foregroundColor(Color.white.opacity(0.3))
         }

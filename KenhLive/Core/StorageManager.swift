@@ -29,17 +29,28 @@ final class StorageManager: ObservableObject {
         }
     }
 
+    func extractEpisodeNumber(from text: String) -> Int? {
+        let digits = text.components(separatedBy: CharacterSet.decimalDigits.inverted).filter { !$0.isEmpty }
+        if let last = digits.last, let n = Int(last) {
+            return n
+        }
+        return nil
+    }
+
     func saveWatchProgress(_ progress: WatchProgress) {
-        // Lưu riêng cho từng tập của bộ phim (theo filmSlug + episodeSlug / episodeName)
+        // Lưu riêng cho từng tập của bộ phim (theo filmSlug + episodeSlug / episodeName / episodeNumber)
+        let progNum = extractEpisodeNumber(from: progress.episodeName.isEmpty ? progress.episodeSlug : progress.episodeName)
         var list = watchHistory.filter { item in
             if item.filmSlug != progress.filmSlug { return true }
-            let sameSlug = !item.episodeSlug.isEmpty && item.episodeSlug == progress.episodeSlug
-            let sameName = !item.episodeName.isEmpty && item.episodeName == progress.episodeName
+            let sameSlug = !item.episodeSlug.isEmpty && item.episodeSlug.lowercased() == progress.episodeSlug.lowercased()
+            let sameName = !item.episodeName.isEmpty && item.episodeName.lowercased() == progress.episodeName.lowercased()
             let sameId = item.id == progress.id
-            return !(sameSlug || sameName || sameId)
+            let itemNum = extractEpisodeNumber(from: item.episodeName.isEmpty ? item.episodeSlug : item.episodeName)
+            let sameNum = (progNum != nil && itemNum != nil && progNum == itemNum)
+            return !(sameSlug || sameName || sameId || sameNum)
         }
         list.insert(progress, at: 0)
-        if list.count > 60 { list = Array(list.prefix(60)) }
+        if list.count > 100 { list = Array(list.prefix(100)) }
         watchHistory = list
         if let encoded = try? JSONEncoder().encode(list) {
             defaults.set(encoded, forKey: keyHistory)
@@ -47,27 +58,47 @@ final class StorageManager: ObservableObject {
     }
 
     func getProgress(for filmSlug: String, episodeSlug: String? = nil, episodeName: String? = nil) -> WatchProgress? {
-        if let epSlug = episodeSlug, !epSlug.isEmpty {
-            if let match = watchHistory.first(where: { $0.filmSlug == filmSlug && $0.episodeSlug == epSlug }) {
+        let isSpecificEpisodeRequested = (episodeSlug != nil && !episodeSlug!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) ||
+                                         (episodeName != nil && !episodeName!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+        if isSpecificEpisodeRequested {
+            let targetSlug = (episodeSlug ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let targetName = (episodeName ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            let targetNum = extractEpisodeNumber(from: targetName.isEmpty ? targetSlug : targetName)
+
+            // 1. Tìm tập khớp chính xác slug, name hoặc số tập
+            if let match = watchHistory.first(where: { item in
+                guard item.filmSlug == filmSlug else { return false }
+                let itemSlug = item.episodeSlug.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                let itemName = item.episodeName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+                if !targetSlug.isEmpty && itemSlug == targetSlug { return true }
+                if !targetName.isEmpty && itemName == targetName { return true }
+
+                if let tn = targetNum {
+                    let itemNum = extractEpisodeNumber(from: itemName.isEmpty ? itemSlug : itemName)
+                    if let `in` = itemNum, tn == `in` {
+                        return true
+                    }
+                }
+                return false
+            }) {
                 return match
             }
+
+            // ĐÃ YÊU CẦU TẬP CỤ THỂ MÀ CHƯA XEM -> TRẢ VỀ NIL (TUYỆT ĐỐI KHÔNG FALLBACK SANG TẬP KHÁC)
+            return nil
         }
-        if let epName = episodeName, !epName.isEmpty {
-            if let match = watchHistory.first(where: { $0.filmSlug == filmSlug && $0.episodeName == epName }) {
-                return match
-            }
-        }
-        // Nếu không chỉ định tập, trả về tập xem gần nhất của phim này
+
+        // CHỈ khi KHÔNG chỉ định tập (hasSpecificEpisode == false), mới trả về tập xem gần nhất của phim này để resume
         return watchHistory.first { $0.filmSlug == filmSlug }
     }
 
     func isEpisodeWatched(filmSlug: String, episodeSlug: String, episodeName: String = "") -> Bool {
-        watchHistory.contains { item in
-            guard item.filmSlug == filmSlug else { return false }
-            if !episodeSlug.isEmpty && item.episodeSlug == episodeSlug { return true }
-            if !episodeName.isEmpty && item.episodeName == episodeName { return true }
+        guard let prog = getProgress(for: filmSlug, episodeSlug: episodeSlug, episodeName: episodeName) else {
             return false
         }
+        return prog.positionMs > 0
     }
 
     func toggleFavoriteFilm(slug: String) {

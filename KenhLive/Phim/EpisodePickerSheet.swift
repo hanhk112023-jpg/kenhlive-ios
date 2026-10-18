@@ -268,7 +268,7 @@ struct EpisodePickerSheet: View {
                                 ], spacing: 10) {
                                     ForEach(visibleEpisodes) { ep in
                                         let epProgress = storage.getProgress(for: film.slug, episodeSlug: ep.slug, episodeName: ep.name)
-                                        let isWatched = epProgress != nil
+                                        let isWatched = epProgress != nil && (epProgress?.positionMs ?? 0) > 0
                                         let percent = epProgress?.progressPercent ?? 0
 
                                         Button {
