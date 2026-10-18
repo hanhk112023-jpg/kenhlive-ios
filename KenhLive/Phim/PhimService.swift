@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 final class PhimService {
     static let shared = PhimService()
@@ -7,17 +8,54 @@ final class PhimService {
     private let nguoncApi = "https://phim.nguonc.com/api"
     private let imageCdnBase = "https://phimimg.com"
 
-    // High-performance In-Memory Caches for Instant Loading (0ms Latency)
+    // High-performance In-Memory Caches with TTL & Auto-Eviction
     private var cachedHomeSections: [PhimSection]? = nil
+    private var lastHomeSectionsFetchTime: Date? = nil
+    private let homeSectionsTTL: TimeInterval = 15 * 60 // 15 mins TTL
     private var cachedCategoryFilms: [String: [FilmItem]] = [:]
     private var cachedFilmDetails: [String: FilmDetailResult] = [:]
     private let cacheLock = NSLock()
+
+    private init() {
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.clearTransientMemoryCache()
+        }
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.clearTransientMemoryCache()
+        }
+    }
+
+    func clearTransientMemoryCache() {
+        cacheLock.lock()
+        cachedFilmDetails.removeAll()
+        cachedCategoryFilms.removeAll()
+        cacheLock.unlock()
+    }
+
+    func clearMemoryCache() {
+        cacheLock.lock()
+        cachedHomeSections = nil
+        cachedCategoryFilms.removeAll()
+        cachedFilmDetails.removeAll()
+        lastHomeSectionsFetchTime = nil
+        cacheLock.unlock()
+    }
 
     // MARK: - 1. Home Cinema Sections (Instant Memory Cache + Progressive Stage)
     func fetchHomeSections(forceRefresh: Bool = false) async -> [PhimSection] {
         if !forceRefresh {
             cacheLock.lock()
-            if let cached = cachedHomeSections, !cached.isEmpty {
+            if let cached = cachedHomeSections, !cached.isEmpty,
+               let lastTime = lastHomeSectionsFetchTime,
+               Date().timeIntervalSince(lastTime) < homeSectionsTTL {
                 cacheLock.unlock()
                 return cached
             }
@@ -66,6 +104,7 @@ final class PhimService {
         if !am.isEmpty { self.cachedCategoryFilms["au-my"] = am }
         if !hd.isEmpty { self.cachedCategoryFilms["hanh-dong"] = hd }
         self.cachedHomeSections = sections
+        self.lastHomeSectionsFetchTime = Date()
         cacheLock.unlock()
         return sections
     }
@@ -316,12 +355,18 @@ final class PhimService {
                 servers: servers
             )
             cacheLock.lock()
+            if cachedFilmDetails.count >= 30 {
+                cachedFilmDetails.remove(at: cachedFilmDetails.startIndex)
+            }
             cachedFilmDetails[slug] = res
             cacheLock.unlock()
             return res
         } catch {
             let fallback = await fetchNguonCDetail(slug: slug)
             cacheLock.lock()
+            if cachedFilmDetails.count >= 30 {
+                cachedFilmDetails.remove(at: cachedFilmDetails.startIndex)
+            }
             cachedFilmDetails[slug] = fallback
             cacheLock.unlock()
             return fallback

@@ -1,3 +1,17 @@
+# 🚀 KENHLIVE iOS v1.9.6 (Build 162) — TỐI ƯU HÓA BỘ NHỚ ĐỆM ĐA TẦNG & SMART RESUME TỰ NHẢY TẬP KẾ TIẾP
+
+### ⚡ 1. Thuật Toán Smart Resume Tự Động Nhảy Tập (Chuẩn FPT Play & Netflix)
+- **Tự động chuyển con trỏ sang Tập kế tiếp khi xem $\ge 90\%$**: Khi người dùng xem gần hết tập hiện tại ($\ge 90\%$), tập đó được đánh dấu hoàn thành 100% và hệ thống tự động chuẩn bị con trỏ cho tập kế tiếp ở mốc `00:00`.
+- **Thẻ phim Trang chủ luôn sẵn sàng 1-chạm**: Người dùng thoát ra trang chủ sẽ thấy thẻ phim cập nhật ngay tập tiếp theo, bấm vào là xem tiếp mượt mà không cần tua qua nhạc kết của tập cũ.
+- **Chống lưu rác lịch sử**: Bỏ qua các lần bấm nhầm thoát ngay dưới 8 giây.
+
+### 🛡️ 2. Bộ Nhớ Đệm API Có Thời Hạn (TTL 15 Phút) & Bounded Cache
+- **Giới hạn thời hạn dữ liệu (TTL 15 phút)**: Danh mục phim trang chủ được đệm trong RAM với thời hạn 15 phút giúp mở tức thì 0ms mà không bị hiển thị nội dung lỗi thời.
+- **Giới hạn danh sách chi tiết (Max 30 phim gần nhất)**: Thu hẹp bộ đệm chi tiết phim dạng LRU tối đa 30 phim, tự động dọn sạch khi iOS gửi cảnh báo bộ nhớ hoặc khi app chuyển xuống chạy nền.
+- **Dọn dẹp triệt để 1-chạm**: Nút dọn cache giải phóng đồng thời cả URLCache, RAM Image Cache, Disk Image Cache và PhimService Memory Cache.
+
+---
+
 # 🚀 KENHLIVE iOS v1.9.5 (Build 161) — KIẾN TRÚC BỘ NHỚ CHUẨN FPT PLAY & NETFLIX (IMAGEIO HARDWARE DOWNSAMPLING & VIDEO BUFFER CONTROL)
 
 ### ⚡ 1. Công Nghệ Giải Mã Ảnh ImageIO Hardware Downsampling (Tiết kiệm 97% RAM Poster)

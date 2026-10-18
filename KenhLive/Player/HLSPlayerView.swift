@@ -1195,7 +1195,11 @@ struct HLSPlayerView: View {
         let durMs = Int64(dur * 1000)
 
         let existing = StorageManager.shared.getProgress(for: slug, episodeSlug: epSlug, episodeName: epName)
+        // FPT/Netflix: Dưới 8 giây không lưu vào lịch sử nếu chưa từng có tiến độ trước đó
+        if sec < 8.0 && existing == nil { return }
+
         let poster = existing?.posterUrl ?? ""
+        let isCompleted = dur > 0 && (sec / dur) >= 0.90
 
         let progress = WatchProgress(
             filmSlug: slug,
@@ -1205,11 +1209,29 @@ struct HLSPlayerView: View {
             episodeSlug: epSlug,
             embedUrl: embed,
             m3u8Url: m3u8,
-            positionMs: posMs,
+            positionMs: isCompleted ? durMs : posMs,
             durationMs: durMs > 0 ? durMs : (existing?.durationMs ?? 2700_000),
             updatedAt: Date()
         )
         StorageManager.shared.saveWatchProgress(progress)
+
+        // FPT/Netflix Smart Resume: Khi xem >= 90% tập hiện tại và còn tập tiếp theo, tự động chuyển con trỏ sang tập kế tiếp ở 00:00
+        if isCompleted && safeIdx + 1 < list.count {
+            let nextEp = list[safeIdx + 1]
+            let nextProgress = WatchProgress(
+                filmSlug: slug,
+                filmName: title,
+                posterUrl: poster,
+                episodeName: nextEp.name,
+                episodeSlug: nextEp.slug,
+                embedUrl: nextEp.embed,
+                m3u8Url: nextEp.m3u8,
+                positionMs: 0,
+                durationMs: durMs > 0 ? durMs : 2700_000,
+                updatedAt: Date().addingTimeInterval(1)
+            )
+            StorageManager.shared.saveWatchProgress(nextProgress)
+        }
     }
 
     private func closePlayer() {

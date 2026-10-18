@@ -160,6 +160,7 @@ final class StorageManager: ObservableObject {
         URLCache.shared.removeAllCachedResponses()
         KLImageCache.shared.clear()
         KLDiskImageCache.shared.clear()
+        PhimService.shared.clearMemoryCache()
     }
 }
 
