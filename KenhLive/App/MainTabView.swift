@@ -705,27 +705,11 @@ struct CinemaProfileView: View {
                 subtitle: item.episodeName.isEmpty ? "Tiếp tục xem" : item.episodeName,
                 directUrl: directUrl,
                 filmSlug: item.filmSlug,
+                posterUrl: item.posterUrl,
                 initialTimeSeconds: Double(item.positionMs) / 1000.0,
                 isFullscreen: true,
                 onClose: {
                     directResumeItem = nil
-                },
-                onProgressUpdate: { currentSec, durationSec in
-                    let posMs = Int64(currentSec * 1000)
-                    let durMs = Int64(durationSec * 1000)
-                    let updated = WatchProgress(
-                        filmSlug: item.filmSlug,
-                        filmName: item.filmName,
-                        posterUrl: item.posterUrl,
-                        episodeName: item.episodeName,
-                        episodeSlug: item.episodeSlug,
-                        embedUrl: item.embedUrl,
-                        m3u8Url: item.m3u8Url,
-                        positionMs: posMs,
-                        durationMs: durMs > 0 ? durMs : item.durationMs,
-                        updatedAt: Date()
-                    )
-                    storage.saveWatchProgress(updated)
                 }
             )
         }
@@ -1101,7 +1085,7 @@ struct CinemaProfileView: View {
             Text("KenhLive Cinema & Sports iOS")
                 .font(.system(size: 12, weight: .bold))
                 .foregroundColor(Color.white.opacity(0.6))
-            Text("Phiên bản v1.9.10 (Build 166)")
+            Text("Phiên bản v1.9.11 (Build 167)")
                 .font(.system(size: 11, weight: .regular))
                 .foregroundColor(Color.white.opacity(0.3))
         }

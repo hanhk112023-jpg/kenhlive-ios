@@ -373,23 +373,14 @@ struct EpisodePickerSheet: View {
                     streamReferer: nil,
                     room: nil,
                     filmSlug: film.slug,
+                    posterUrl: film.posterUrl.isEmpty ? film.thumbUrl : film.posterUrl,
                     episodes: allCurrentEpisodes,
                     currentEpisodeIndex: epIdx,
-                    onSelectEpisodeIndex: { nextIdx in
-                        if nextIdx >= 0 && nextIdx < allCurrentEpisodes.count {
-                            let nextEp = allCurrentEpisodes[nextIdx]
-                            activeEpisodeForPlayer = nextEp
-                            saveProgress(episode: nextEp, currentSec: 0, durationSec: 2700)
-                        }
-                    },
+                    onSelectEpisodeIndex: nil,
                     initialTimeSeconds: activePlayerResumeSeconds,
                     isFullscreen: true,
                     onClose: {
                         activeEpisodeForPlayer = nil
-                    },
-                    onProgressUpdate: { currentSec, durationSec in
-                        activePlayerResumeSeconds = currentSec
-                        saveProgress(episode: activeEp, currentSec: currentSec, durationSec: durationSec)
                     }
                 )
             }
@@ -504,11 +495,6 @@ struct EpisodePickerSheet: View {
         self.activePlayerResumeSeconds = resumeSeconds
         self.activeEpisodeForPlayer = episode
         self.onSelectEpisode?(episode)
-        if resumeSeconds > 0 {
-            saveProgress(episode: episode, currentSec: resumeSeconds, durationSec: 2700)
-        } else if storage.getProgress(for: film.slug, episodeSlug: episode.slug, episodeName: episode.name) == nil {
-            saveProgress(episode: episode, currentSec: 0, durationSec: 2700)
-        }
     }
 
     private func resumeSavedProgress(_ saved: WatchProgress) {

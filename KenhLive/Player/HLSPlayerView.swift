@@ -11,6 +11,7 @@ struct HLSPlayerView: View {
     var streamReferer: String? = nil
     var room: LiveRoom? = nil
     var filmSlug: String? = nil
+    var posterUrl: String? = nil
     var episodes: [EpisodeItem] = []
     var currentEpisodeIndex: Int = 0
     var onSelectEpisodeIndex: ((Int) -> Void)? = nil
@@ -53,6 +54,7 @@ struct HLSPlayerView: View {
     @State private var timeObserverToken: Any? = nil
     @State private var hasPerformedInitialSeek: Bool = false
     @State private var targetResumeSeconds: Double = 0
+    @State private var lastSavedSecond: Int = -1
 
     // OSD Overlay & Interaction
     @State private var isControlsVisible: Bool = true
@@ -841,26 +843,12 @@ struct HLSPlayerView: View {
         if let slug = filmSlug, !slug.isEmpty {
             if let saved = StorageManager.shared.getProgress(for: slug, episodeSlug: ep.slug, episodeName: ep.name), saved.positionMs > 0 {
                 resumeSec = Double(saved.positionMs) / 1000.0
-            } else {
-                let existingPoster = StorageManager.shared.getProgress(for: slug)?.posterUrl ?? ""
-                let prog = WatchProgress(
-                    filmSlug: slug,
-                    filmName: title,
-                    posterUrl: existingPoster,
-                    episodeName: ep.name,
-                    episodeSlug: ep.slug,
-                    embedUrl: ep.embed,
-                    m3u8Url: ep.m3u8,
-                    positionMs: 0,
-                    durationMs: 2700_000,
-                    updatedAt: Date()
-                )
-                StorageManager.shared.saveWatchProgress(prog)
             }
         }
 
         self.targetResumeSeconds = resumeSec
         self.hasPerformedInitialSeek = false
+        self.lastSavedSecond = -1
 
         let urlStr = ep.m3u8.isEmpty ? ep.embed : ep.m3u8
         var target = urlStr
@@ -999,11 +987,6 @@ struct HLSPlayerView: View {
             player?.replaceCurrentItem(with: item)
         }
 
-        if targetResumeSeconds > 0 {
-            let target = CMTime(seconds: targetResumeSeconds, preferredTimescale: 600)
-            player?.seek(to: target, toleranceBefore: .zero, toleranceAfter: .zero)
-        }
-
         player?.isMuted = isMuted
         player?.play()
         if playbackRate != 1.0 {
@@ -1039,8 +1022,10 @@ struct HLSPlayerView: View {
                     }
                 }
 
-                // Tự động lưu tiến trình riêng của tập này định kỳ mỗi ~5 giây
-                if Int(sec) > 0 && Int(sec) % 5 == 0 {
+                // Tự động lưu tiến trình riêng của tập này định kỳ mỗi 10 giây (debounced)
+                let wholeSec = Int(sec)
+                if wholeSec > 0 && wholeSec % 10 == 0 && wholeSec != self.lastSavedSecond {
+                    self.lastSavedSecond = wholeSec
                     self.onProgressUpdate?(sec, dur)
                     self.persistCurrentEpisodeProgress(sec: sec, dur: dur)
                 }
@@ -1186,14 +1171,24 @@ struct HLSPlayerView: View {
         let durMs = Int64(dur * 1000)
 
         let existing = StorageManager.shared.getProgress(for: slug, episodeSlug: epSlug, episodeName: epName)
-        // FPT/Netflix: Dưới 8 giây không lưu vào lịch sử nếu chưa từng có tiến độ trước đó
-        if sec < 8.0 && existing == nil { return }
+        // Dưới 5 giây không lưu vào lịch sử nếu chưa từng có tiến độ trước đó
+        if sec < 5.0 && existing == nil { return }
 
-        let poster = existing?.posterUrl ?? ""
+        let resolvedPoster: String
+        if let p = posterUrl, !p.isEmpty {
+            resolvedPoster = p
+        } else if let old = existing?.posterUrl, !old.isEmpty {
+            resolvedPoster = old
+        } else if let latest = StorageManager.shared.getProgress(for: slug)?.posterUrl, !latest.isEmpty {
+            resolvedPoster = latest
+        } else {
+            resolvedPoster = ""
+        }
+
         let progress = WatchProgress(
             filmSlug: slug,
             filmName: title,
-            posterUrl: poster,
+            posterUrl: resolvedPoster,
             episodeName: epName,
             episodeSlug: epSlug,
             embedUrl: embed,

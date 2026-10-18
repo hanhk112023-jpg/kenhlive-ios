@@ -5,7 +5,7 @@ final class StorageManager: ObservableObject {
 
     private let defaults = UserDefaults.standard
     private let keyHistory = "kl_watch_history_v1"
-    private let keyWatchedEpisodes = "kl_watched_episode_keys_v1"
+    private let keyWatchedEpisodes = "kl_watched_episodes_v2"
     private let keyFavFilms = "kl_fav_films_v1"
     private let keyFavChannels = "kl_fav_channels_v1"
 
@@ -25,6 +25,22 @@ final class StorageManager: ObservableObject {
         }
         if let list = defaults.stringArray(forKey: keyWatchedEpisodes) {
             self.watchedEpisodeKeys = Set(list)
+        } else {
+            // Seed from clean existing watch history (resets corrupted extrapolated keys)
+            var initialKeys: Set<String> = []
+            for item in self.watchHistory {
+                let epSlugKey = "\(item.filmSlug):\(item.episodeSlug.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())"
+                initialKeys.insert(epSlugKey)
+                if !item.episodeName.isEmpty {
+                    let epNameKey = "\(item.filmSlug):\(item.episodeName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())"
+                    initialKeys.insert(epNameKey)
+                }
+                if let num = extractEpisodeNumber(from: item.episodeName.isEmpty ? item.episodeSlug : item.episodeName) {
+                    initialKeys.insert("\(item.filmSlug):ep_\(num)")
+                }
+            }
+            self.watchedEpisodeKeys = initialKeys
+            defaults.set(Array(initialKeys), forKey: keyWatchedEpisodes)
         }
         if let list = defaults.stringArray(forKey: keyFavFilms) {
             self.favoriteFilmSlugs = Set(list)

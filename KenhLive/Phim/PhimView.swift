@@ -174,27 +174,11 @@ struct PhimView: View {
                 subtitle: item.episodeName.isEmpty ? "Tiếp tục xem" : item.episodeName,
                 directUrl: directUrl,
                 filmSlug: item.filmSlug,
+                posterUrl: item.posterUrl,
                 initialTimeSeconds: Double(item.positionMs) / 1000.0,
                 isFullscreen: true,
                 onClose: {
                     directResumeItem = nil
-                },
-                onProgressUpdate: { currentSec, durationSec in
-                    let posMs = Int64(currentSec * 1000)
-                    let durMs = Int64(durationSec * 1000)
-                    let updated = WatchProgress(
-                        filmSlug: item.filmSlug,
-                        filmName: item.filmName,
-                        posterUrl: item.posterUrl,
-                        episodeName: item.episodeName,
-                        episodeSlug: item.episodeSlug,
-                        embedUrl: item.embedUrl,
-                        m3u8Url: item.m3u8Url,
-                        positionMs: posMs,
-                        durationMs: durMs > 0 ? durMs : item.durationMs,
-                        updatedAt: Date()
-                    )
-                    storage.saveWatchProgress(updated)
                 }
             )
         }
