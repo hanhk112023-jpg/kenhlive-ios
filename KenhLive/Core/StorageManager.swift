@@ -57,8 +57,23 @@ final class StorageManager: ObservableObject {
         defaults.set(Array(watchedEpisodeKeys), forKey: keyWatchedEpisodes)
 
         // 2. CHỈ LƯU DUY NHẤT 1 TẬP XEM GẦN NHẤT cho bộ phim này trong watchHistory
+        var finalProgress = progress
+        if finalProgress.posterUrl.isEmpty, let old = watchHistory.first(where: { $0.filmSlug == progress.filmSlug }), !old.posterUrl.isEmpty {
+            finalProgress = WatchProgress(
+                filmSlug: progress.filmSlug,
+                filmName: progress.filmName,
+                posterUrl: old.posterUrl,
+                episodeName: progress.episodeName,
+                episodeSlug: progress.episodeSlug,
+                embedUrl: progress.embedUrl,
+                m3u8Url: progress.m3u8Url,
+                positionMs: progress.positionMs,
+                durationMs: progress.durationMs,
+                updatedAt: progress.updatedAt
+            )
+        }
         var list = watchHistory.filter { $0.filmSlug != progress.filmSlug }
-        list.insert(progress, at: 0)
+        list.insert(finalProgress, at: 0)
         if list.count > 60 { list = Array(list.prefix(60)) }
         watchHistory = list
         if let encoded = try? JSONEncoder().encode(list) {
@@ -108,11 +123,6 @@ final class StorageManager: ObservableObject {
         }
         if let num = extractEpisodeNumber(from: episodeName.isEmpty ? episodeSlug : episodeName) {
             if watchedEpisodeKeys.contains("\(filmSlug):ep_\(num)") {
-                return true
-            }
-            if let latest = watchHistory.first(where: { $0.filmSlug == filmSlug }),
-               let latestNum = extractEpisodeNumber(from: latest.episodeName.isEmpty ? latest.episodeSlug : latest.episodeName),
-               num < latestNum {
                 return true
             }
         }

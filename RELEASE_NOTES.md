@@ -1,3 +1,20 @@
+# 🚀 KENHLIVE iOS v1.9.10 (Build 166) — SỬA TRIỆT ĐỂ LỖI ĐỨNG HÌNH PLAYER, KHÔI PHỤC TỐC ĐỘ GỐC VÀ CHỈ ĐÁNH DẤU ĐÚNG TẬP ĐÃ XEM
+
+### 🛠️ 1. Khôi Phục Hoàn Toàn Bộ Phát Video (Player Stability)
+- **Sửa lỗi player bị đứng / đơ không chạy**: Loại bỏ cờ can thiệp `automaticallyWaitsToMinimizeStalling = false` vốn gây treo luồng HLS. Khôi phục AVPlayer nguyên bản hoạt động mượt mà, ổn định và không bao giờ đứng hình.
+- **Sửa lỗi tua nhầm về cuối video**: Loại bỏ logic gán thời gian kết thúc (`durMs`) khiến phim bị nhảy thẳng về cuối và dừng phát.
+- **Giữ nguyên ảnh bìa (Poster)**: Khắc phục lỗi mất ảnh bìa khi chuyển tập nhanh trong danh sách tập.
+
+### 🎯 2. Đánh Dấu Tập Phim Chính Xác Tuyệt Đối (Không Đánh Dấu Oan)
+- **Chỉ tập nào người dùng thực sự đã bấm xem mới đổi màu xám và hiện tick `✓`**: Xóa bỏ logic tự động suy diễn (`num < latestNum`), không còn hiện tượng xem tập 10 mà các tập 1 đến 9 tự động bị đổi thành màu xám.
+- **Duy nhất tập đang xem dở gần nhất mới có thanh tiến độ % thời gian**: Các tập khác hoàn toàn sạch sẽ, không có thanh tiến độ lộn xộn.
+
+### ⚡ 3. Khôi Phục Tốc Độ Tải Ảnh & Cuộn Mượt Mà
+- Khôi phục engine nạp ảnh gốc của Apple (`byPreparingThumbnail` + `byPreparingForDisplay`) kết hợp tái sử dụng kết nối mạng `URLSession.shared`. Poster tải ngay lập tức, cuộn trang chủ cực nhẹ và không còn hiện tượng giật lag.
+- Dọn dẹp luồng tải ngầm ở cuối trang chủ giúp ứng dụng phản hồi tức thì.
+
+---
+
 # 🚀 KENHLIVE iOS v1.9.9 (Build 165) — TỐI ƯU TỐC ĐỘ PHÁT PHIM TỨC THÌ (INSTANT PLAY) & CUỘN 60FPS MƯỢT MÀ
 
 ### ⚡ 1. Tối Ưu Tốc Độ Khởi Động & Phát Video Tức Thì

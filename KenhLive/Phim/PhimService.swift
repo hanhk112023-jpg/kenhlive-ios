@@ -208,9 +208,6 @@ final class PhimService {
         if !list.isEmpty {
             if page == 1 {
                 cacheLock.lock()
-                if cachedCategoryFilms.count > 6 {
-                    cachedCategoryFilms.removeAll() // Prevent RAM bloating
-                }
                 cachedCategoryFilms[cleanSlug] = list
                 cacheLock.unlock()
             }

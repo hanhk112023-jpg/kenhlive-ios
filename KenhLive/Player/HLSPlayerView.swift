@@ -842,10 +842,11 @@ struct HLSPlayerView: View {
             if let saved = StorageManager.shared.getProgress(for: slug, episodeSlug: ep.slug, episodeName: ep.name), saved.positionMs > 0 {
                 resumeSec = Double(saved.positionMs) / 1000.0
             } else {
+                let existingPoster = StorageManager.shared.getProgress(for: slug)?.posterUrl ?? ""
                 let prog = WatchProgress(
                     filmSlug: slug,
                     filmName: title,
-                    posterUrl: "",
+                    posterUrl: existingPoster,
                     episodeName: ep.name,
                     episodeSlug: ep.slug,
                     embedUrl: ep.embed,
@@ -992,8 +993,6 @@ struct HLSPlayerView: View {
 
         if player == nil {
             let p = AVPlayer(playerItem: item)
-            // Instant playback startup: start decoding & playing on frame 0 without waiting
-            p.automaticallyWaitsToMinimizeStalling = false
             self.player = p
             setupTimeObserver(for: p)
         } else {
@@ -1191,8 +1190,6 @@ struct HLSPlayerView: View {
         if sec < 8.0 && existing == nil { return }
 
         let poster = existing?.posterUrl ?? ""
-        let isCompleted = dur > 0 && (sec / dur) >= 0.90
-
         let progress = WatchProgress(
             filmSlug: slug,
             filmName: title,
@@ -1201,29 +1198,11 @@ struct HLSPlayerView: View {
             episodeSlug: epSlug,
             embedUrl: embed,
             m3u8Url: m3u8,
-            positionMs: isCompleted ? durMs : posMs,
+            positionMs: posMs,
             durationMs: durMs > 0 ? durMs : (existing?.durationMs ?? 2700_000),
             updatedAt: Date()
         )
         StorageManager.shared.saveWatchProgress(progress)
-
-        // FPT/Netflix Smart Resume: Khi xem >= 90% tập hiện tại và còn tập tiếp theo, tự động chuyển con trỏ sang tập kế tiếp ở 00:00
-        if isCompleted && safeIdx + 1 < list.count {
-            let nextEp = list[safeIdx + 1]
-            let nextProgress = WatchProgress(
-                filmSlug: slug,
-                filmName: title,
-                posterUrl: poster,
-                episodeName: nextEp.name,
-                episodeSlug: nextEp.slug,
-                embedUrl: nextEp.embed,
-                m3u8Url: nextEp.m3u8,
-                positionMs: 0,
-                durationMs: durMs > 0 ? durMs : 2700_000,
-                updatedAt: Date().addingTimeInterval(1)
-            )
-            StorageManager.shared.saveWatchProgress(nextProgress)
-        }
     }
 
     private func closePlayer() {

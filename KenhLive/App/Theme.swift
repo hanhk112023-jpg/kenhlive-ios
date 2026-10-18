@@ -419,59 +419,14 @@ struct KLSkeletonView: View {
     }
 }
 
-// MARK: - Hardware ImageIO Downsampling Engine (Zero Full-Resolution Bitmap RAM Allocation)
-enum KLImageIOHelper {
-    static func downsample(data: Data, to pointSize: CGSize, scale: CGFloat = 2.0) -> UIImage? {
-        guard !data.isEmpty else { return nil }
-        let imageSourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
-        guard let imageSource = CGImageSourceCreateWithData(data as CFData, imageSourceOptions) else {
-            return UIImage(data: data)
-        }
-        return downsample(imageSource: imageSource, to: pointSize, scale: scale)
-    }
-
-    static func downsample(fileURL: URL, to pointSize: CGSize, scale: CGFloat = 2.0) -> UIImage? {
-        let imageSourceOptions = [kCGImageSourceShouldCache: false] as CFDictionary
-        guard let imageSource = CGImageSourceCreateWithURL(fileURL as CFURL, imageSourceOptions) else {
-            return nil
-        }
-        return downsample(imageSource: imageSource, to: pointSize, scale: scale)
-    }
-
-    private static func downsample(imageSource: CGImageSource, to pointSize: CGSize, scale: CGFloat) -> UIImage? {
-        let maxDimensionInPixels = max(pointSize.width, pointSize.height) * scale
-        let downsampleOptions = [
-            kCGImageSourceCreateThumbnailFromImageAlways: true,
-            kCGImageSourceShouldCacheImmediately: true,
-            kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceThumbnailMaxPixelSize: maxDimensionInPixels
-        ] as CFDictionary
-
-        guard let downsampledImage = CGImageSourceCreateThumbnailAtIndex(imageSource, 0, downsampleOptions) else {
-            return nil
-        }
-        return UIImage(cgImage: downsampledImage)
-    }
-}
-
 // MARK: - High-Performance In-Memory RAM Image Cache & Instant Loader
 final class KLImageCache {
     static let shared = KLImageCache()
     private let cache = NSCache<NSString, UIImage>()
 
     private init() {
-        // High-performance image cache: up to 500 thumbnails in RAM for butter-smooth 60fps scrolling
-        cache.countLimit = 500
-        cache.totalCostLimit = 150 * 1024 * 1024
-
-        // Immediate RAM reclamation only on real iOS Memory Warning
-        NotificationCenter.default.addObserver(
-            forName: UIApplication.didReceiveMemoryWarningNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            self?.clear()
-        }
+        cache.countLimit = 800
+        cache.totalCostLimit = 250 * 1024 * 1024 // 250 MB RAM
     }
 
     func get(for urlString: String) -> UIImage? {
@@ -490,11 +445,10 @@ final class KLImageCache {
     }
 }
 
-// MARK: - Persistent Disk Cache for Zero-Latency App-Wide Image Restores (LRU Eviction)
+// MARK: - Persistent Disk Cache for Zero-Latency App-Wide Image Restores
 final class KLDiskImageCache {
     static let shared = KLDiskImageCache()
     private let cacheDir: URL
-    private let maxDiskBytes: Int64 = 40 * 1024 * 1024 // 40 MB Hard Cap
 
     private init() {
         let urls = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)
@@ -508,55 +462,22 @@ final class KLDiskImageCache {
     private func filename(for key: String) -> String {
         let safe = key.replacingOccurrences(of: "[^a-zA-Z0-9_.-]", with: "_", options: .regularExpression)
         let hash = abs(key.hashValue)
-        let suffix = safe.count > 25 ? String(safe.suffix(25)) : safe
+        let suffix = safe.count > 30 ? String(safe.suffix(30)) : safe
         return "\(hash)_\(suffix).jpg"
     }
 
-    func get(for key: String, targetSize: CGSize = CGSize(width: 220, height: 330)) -> UIImage? {
+    func get(for key: String) -> UIImage? {
         guard !key.isEmpty else { return nil }
         let file = cacheDir.appendingPathComponent(filename(for: key))
         guard FileManager.default.fileExists(atPath: file.path) else { return nil }
-
-        // Hardware ImageIO direct decode from file: zero memory footprint spike
-        if let downsampled = KLImageIOHelper.downsample(fileURL: file, to: targetSize) {
-            return downsampled
-        }
         guard let data = try? Data(contentsOf: file) else { return nil }
         return UIImage(data: data)
     }
 
-    private var writeCounter: Int = 0
     func set(_ data: Data, for key: String) {
         guard !key.isEmpty, !data.isEmpty else { return }
         let file = cacheDir.appendingPathComponent(filename(for: key))
         try? data.write(to: file, options: .atomic)
-        writeCounter += 1
-        if writeCounter % 50 == 0 {
-            DispatchQueue.global(qos: .utility).async { [weak self] in
-                self?.pruneIfOverQuota()
-            }
-        }
-    }
-
-    private func pruneIfOverQuota() {
-        if diskUsageBytes() > maxDiskBytes {
-            guard let files = try? FileManager.default.contentsOfDirectory(
-                at: cacheDir,
-                includingPropertiesForKeys: [.contentModificationDateKey, .fileSizeKey]
-            ) else { return }
-
-            let sorted = files.sorted {
-                let d1 = (try? $0.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? Date.distantPast
-                let d2 = (try? $1.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? Date.distantPast
-                return d1 < d2
-            }
-
-            // Prune oldest 40% files to keep disk footprint tight
-            let toDelete = sorted.prefix(max(1, sorted.count * 4 / 10))
-            for f in toDelete {
-                try? FileManager.default.removeItem(at: f)
-            }
-        }
     }
 
     func clear() {
@@ -566,32 +487,11 @@ final class KLDiskImageCache {
             }
         }
     }
-
-    func diskUsageBytes() -> Int64 {
-        var total: Int64 = 0
-        if let files = try? FileManager.default.contentsOfDirectory(at: cacheDir, includingPropertiesForKeys: [.fileSizeKey]) {
-            for file in files {
-                if let size = try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize {
-                    total += Int64(size)
-                }
-            }
-        }
-        return total
-    }
 }
 
 actor KLImageDownloader {
     static let shared = KLImageDownloader()
     private var inFlight: [String: Task<UIImage?, Never>] = [:]
-
-    // Dedicated Ephemeral URLSession: No system URLCache pollution, prevents double-caching!
-    private let session: URLSession = {
-        let config = URLSessionConfiguration.ephemeral
-        config.timeoutIntervalForRequest = 12
-        config.timeoutIntervalForResource = 25
-        config.urlCache = nil
-        return URLSession(configuration: config)
-    }()
 
     func fetch(urlString: String) async -> UIImage? {
         guard !urlString.isEmpty, let url = URL(string: urlString) else { return nil }
@@ -615,23 +515,24 @@ actor KLImageDownloader {
         let downloadTask = Task<UIImage?, Never> {
             var req = URLRequest(url: url)
             req.timeoutInterval = 12
+            req.cachePolicy = .returnCacheDataElseLoad
             req.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)", forHTTPHeaderField: "User-Agent")
 
             do {
-                let (data, _) = try await self.session.data(for: req)
-                guard !Task.isCancelled, !data.isEmpty else { return nil }
+                let (data, _) = try await URLSession.shared.data(for: req)
+                guard !Task.isCancelled, let rawImage = UIImage(data: data) else { return nil }
 
-                // Save raw binary image directly to disk cache: zero CPU encoding penalty!
+                // Save raw file bytes to disk cache asynchronously
                 KLDiskImageCache.shared.set(data, for: urlString)
 
-                // Hardware ImageIO Downsampling directly from binary stream
-                let targetSize = CGSize(width: 220, height: 330)
-                guard let downsampledImage = KLImageIOHelper.downsample(data: data, to: targetSize) else {
-                    return UIImage(data: data)
-                }
+                // Downsample to poster display dimensions (~360x540) to cut GPU/RAM pressure
+                let targetSize = CGSize(width: 360, height: 540)
+                let preparedThumb = await rawImage.byPreparingThumbnail(ofSize: targetSize)
+                let preparedDisplay = await rawImage.byPreparingForDisplay()
+                let displayImage = preparedThumb ?? (preparedDisplay ?? rawImage)
 
-                KLImageCache.shared.set(downsampledImage, for: urlString)
-                return downsampledImage
+                KLImageCache.shared.set(displayImage, for: urlString)
+                return displayImage
             } catch {
                 return nil
             }

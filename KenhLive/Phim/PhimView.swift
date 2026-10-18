@@ -30,12 +30,6 @@ struct PhimView: View {
     @State private var directResumeItem: WatchProgress? = nil
     @State private var selectedCuratedCollection: CuratedCollection? = nil
 
-    // Home Infinite Feed
-    @State private var infiniteHomeFilms: [FilmItem] = []
-    @State private var homePage: Int = 2
-    @State private var canLoadMoreHome: Bool = true
-    @State private var isLoadingHomeMore: Bool = false
-
     var onSelectTab: ((KLTab) -> Void)? = nil
 
     private let filterPills: [KLFilterItem<String>] = [
@@ -466,102 +460,6 @@ struct PhimView: View {
                     }
                 )
             }
-
-            // Section E: Infinite Discover Grid at bottom of Home Screen
-            if !sections.isEmpty {
-                renderHomeInfiniteFeedSection()
-            }
-        }
-    }
-
-    // MARK: - Section E: Home Infinite Feed
-    @ViewBuilder
-    private func renderHomeInfiniteFeedSection() -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                HStack(spacing: 6) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(KLTheme.brandOrange)
-
-                    Text("KHÁM PHÁ THÊM PHIM MỚI")
-                        .font(.system(size: 14, weight: .heavy, design: .rounded))
-                        .foregroundColor(.white)
-                }
-
-                Spacer()
-
-                if isLoadingHomeMore {
-                    ProgressView().tint(KLTheme.brandOrange).scaleEffect(0.8)
-                }
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 10)
-
-            LazyVGrid(
-                columns: [
-                    GridItem(.flexible(), spacing: 10),
-                    GridItem(.flexible(), spacing: 10),
-                    GridItem(.flexible(), spacing: 10)
-                ],
-                spacing: 14
-            ) {
-                ForEach(Array(infiniteHomeFilms.enumerated()), id: \.element.id) { index, film in
-                    Button {
-                        KLHaptics.light()
-                        autoPlayForSheet = false
-                        initialResumeProgressForSheet = nil
-                        selectedFilmForEpisodes = film
-                    } label: {
-                        PosterCell(film: film)
-                    }
-                    .buttonStyle(KLScaleButtonStyle())
-                    .onAppear {
-                        if index >= infiniteHomeFilms.count - 4 {
-                            Task { await loadMoreHomeFilms() }
-                        }
-                    }
-                }
-            }
-            .padding(.horizontal, 16)
-
-            if canLoadMoreHome {
-                HStack(spacing: 8) {
-                    ProgressView().tint(KLTheme.brandOrange).scaleEffect(0.9)
-                    Text("Đang tải thêm phim...")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(KLTheme.textSecondary)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 22)
-                .id("home_inf_footer_\(homePage)_\(infiniteHomeFilms.count)")
-                .onAppear {
-                    Task { await loadMoreHomeFilms() }
-                }
-            }
-        }
-    }
-
-    private func loadMoreHomeFilms() async {
-        guard !isLoadingHomeMore, canLoadMoreHome else { return }
-        isLoadingHomeMore = true
-        let nextPage = homePage + 1
-        let more = await PhimService.shared.fetchCategoryFilms(slug: "phim-moi", page: nextPage)
-        await MainActor.run {
-            if more.isEmpty {
-                self.canLoadMoreHome = false
-            } else {
-                let existing = Set(self.infiniteHomeFilms.map { $0.slug })
-                let unique = more.filter { !existing.contains($0.slug) }
-                if !unique.isEmpty {
-                    self.infiniteHomeFilms.append(contentsOf: unique)
-                }
-                self.homePage = nextPage
-                if more.count < 8 {
-                    self.canLoadMoreHome = false
-                }
-            }
-            self.isLoadingHomeMore = false
         }
     }
 
