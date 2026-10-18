@@ -487,6 +487,18 @@ final class KLDiskImageCache {
             }
         }
     }
+
+    func diskUsageBytes() -> Int64 {
+        var total: Int64 = 0
+        if let files = try? FileManager.default.contentsOfDirectory(at: cacheDir, includingPropertiesForKeys: [.fileSizeKey]) {
+            for file in files {
+                if let size = try? file.resourceValues(forKeys: [.fileSizeKey]).fileSize {
+                    total += Int64(size)
+                }
+            }
+        }
+        return total
+    }
 }
 
 actor KLImageDownloader {
