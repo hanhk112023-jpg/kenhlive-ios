@@ -989,13 +989,11 @@ struct HLSPlayerView: View {
             "AVURLAssetHTTPHeaderFieldsKey": headers
         ])
         let item = AVPlayerItem(asset: asset)
-        // FPT/Netflix standard: Cap forward buffer to 12s to keep RAM flat ~20MB instead of 200MB+
-        item.preferredForwardBufferDuration = 12.0
-        item.canUseNetworkResourcesForLiveStreamingWhilePaused = false
 
         if player == nil {
             let p = AVPlayer(playerItem: item)
-            p.automaticallyWaitsToMinimizeStalling = true
+            // Instant playback startup: start decoding & playing on frame 0 without waiting
+            p.automaticallyWaitsToMinimizeStalling = false
             self.player = p
             setupTimeObserver(for: p)
         } else {

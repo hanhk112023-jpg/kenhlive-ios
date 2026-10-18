@@ -20,9 +20,9 @@ struct KenhLiveApp: App {
     }
 
     private func configureImageAndNetworkCache() {
-        // Strict memory & disk budget: 8 MB RAM max, 40 MB Disk
-        let memoryCap = 8 * 1024 * 1024
-        let diskCap = 40 * 1024 * 1024
+        // High-performance API cache: 32 MB RAM, 120 MB Disk
+        let memoryCap = 32 * 1024 * 1024
+        let diskCap = 120 * 1024 * 1024
         URLCache.shared = URLCache(
             memoryCapacity: memoryCap,
             diskCapacity: diskCap,

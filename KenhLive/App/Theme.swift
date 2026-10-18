@@ -460,22 +460,13 @@ final class KLImageCache {
     private let cache = NSCache<NSString, UIImage>()
 
     private init() {
-        // FPT/Netflix Standard: ultra-compact memory footprint: max 80 thumbnails, max 20 MB RAM
-        cache.countLimit = 80
-        cache.totalCostLimit = 20 * 1024 * 1024
+        // High-performance image cache: up to 500 thumbnails in RAM for butter-smooth 60fps scrolling
+        cache.countLimit = 500
+        cache.totalCostLimit = 150 * 1024 * 1024
 
-        // Immediate RAM reclamation on iOS Memory Warning
+        // Immediate RAM reclamation only on real iOS Memory Warning
         NotificationCenter.default.addObserver(
             forName: UIApplication.didReceiveMemoryWarningNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            self?.clear()
-        }
-
-        // Immediate RAM reclamation on Background transition to prevent background Jetsam termination
-        NotificationCenter.default.addObserver(
-            forName: UIApplication.didEnterBackgroundNotification,
             object: nil,
             queue: .main
         ) { [weak self] _ in
@@ -526,9 +517,6 @@ final class KLDiskImageCache {
         let file = cacheDir.appendingPathComponent(filename(for: key))
         guard FileManager.default.fileExists(atPath: file.path) else { return nil }
 
-        // Touch modification date for LRU tracking
-        try? FileManager.default.setAttributes([.modificationDate: Date()], ofItemAtPath: file.path)
-
         // Hardware ImageIO direct decode from file: zero memory footprint spike
         if let downsampled = KLImageIOHelper.downsample(fileURL: file, to: targetSize) {
             return downsampled
@@ -537,11 +525,17 @@ final class KLDiskImageCache {
         return UIImage(data: data)
     }
 
+    private var writeCounter: Int = 0
     func set(_ data: Data, for key: String) {
         guard !key.isEmpty, !data.isEmpty else { return }
         let file = cacheDir.appendingPathComponent(filename(for: key))
         try? data.write(to: file, options: .atomic)
-        pruneIfOverQuota()
+        writeCounter += 1
+        if writeCounter % 50 == 0 {
+            DispatchQueue.global(qos: .utility).async { [weak self] in
+                self?.pruneIfOverQuota()
+            }
+        }
     }
 
     private func pruneIfOverQuota() {
@@ -627,15 +621,13 @@ actor KLImageDownloader {
                 let (data, _) = try await self.session.data(for: req)
                 guard !Task.isCancelled, !data.isEmpty else { return nil }
 
-                // Hardware ImageIO Downsampling directly from binary stream (Zero 4K raw bitmap allocation in RAM)
-                let targetSize = CGSize(width: 220, height: 330)
-                guard let downsampledImage = KLImageIOHelper.downsample(data: data, to: targetSize) else { return nil }
+                // Save raw binary image directly to disk cache: zero CPU encoding penalty!
+                KLDiskImageCache.shared.set(data, for: urlString)
 
-                // Re-encode thumbnail as highly-compressed JPEG (quality 0.65, ~20-25KB/poster) for local disk
-                if let compressedData = downsampledImage.jpegData(compressionQuality: 0.65) {
-                    KLDiskImageCache.shared.set(compressedData, for: urlString)
-                } else {
-                    KLDiskImageCache.shared.set(data, for: urlString)
+                // Hardware ImageIO Downsampling directly from binary stream
+                let targetSize = CGSize(width: 220, height: 330)
+                guard let downsampledImage = KLImageIOHelper.downsample(data: data, to: targetSize) else {
+                    return UIImage(data: data)
                 }
 
                 KLImageCache.shared.set(downsampledImage, for: urlString)

@@ -24,13 +24,6 @@ final class PhimService {
         ) { [weak self] _ in
             self?.clearTransientMemoryCache()
         }
-        NotificationCenter.default.addObserver(
-            forName: UIApplication.didEnterBackgroundNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            self?.clearTransientMemoryCache()
-        }
     }
 
     func clearTransientMemoryCache() {
