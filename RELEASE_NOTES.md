@@ -1,3 +1,17 @@
+# 🚀 KENHLIVE iOS v1.9.8 (Build 164) — CHỈ LƯU DUY NHẤT TẬP XEM GẦN NHẤT & ĐỔI MÀU XÁM CHO CÁC TẬP ĐÃ XEM
+
+### 🎬 1. Chỉ Lưu Tiến Độ Cho Tập Xem Gần Nhất
+- **Duy nhất 1 bản ghi tiến độ cho mỗi bộ phim**: Toàn bộ dữ liệu chi tiết (số phút xem, thanh tiến độ cam, resume timestamp) chỉ gán cho duy nhất **Tập đang xem gần đây nhất**.
+- **Loại bỏ hoàn toàn thanh tiến độ ở các tập khác**: Không còn hiện tượng các tập xung quanh bị vẽ thanh tiến độ cam gây rối mắt.
+
+### 🔘 2. Đổi Màu Xám Tinh Tế Cho Các Tập Đã Xem Trước Đó
+- **Giao diện phân định 3 trạng thái rõ ràng**:
+  - **Tập đang phát hiện tại**: Nổi bật màu cam rực rỡ (`KLTheme.brandOrange`), chữ đen đậm, chấm tròn đen báo hiệu đang chạy.
+  - **Tập đã xem trong quá khứ**: Tự động chuyển sang **màu xám mờ** (`Color.white.opacity(0.06)`), chữ xám mờ (`0.40`), viền xám mỏng và icon dấu tích xám nhỏ `✓` (tuyệt đối không có thanh tiến độ).
+  - **Tập chưa xem**: Nền thẻ tối tiêu chuẩn, chữ trắng sáng rõ nét, không icon, không thanh tiến độ.
+
+---
+
 # 🚀 KENHLIVE iOS v1.9.7 (Build 163) — KHẮC PHỤC TRIỆT ĐỂ LỖI TIẾN ĐỘ TẬP PHIM BỊ GÁN CHÙNG CHO TOÀN BỘ DANH SÁCH
 
 ### 🐛 1. Sửa Lỗi Gán Nhầm Thanh Tiến Độ Cho Mọi Tập Phim (Episode Scoping Bug)

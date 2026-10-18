@@ -925,51 +925,45 @@ struct HLSPlayerView: View {
                     ], spacing: 10) {
                         ForEach(Array(allAvailableEpisodes.enumerated()), id: \.offset) { idx, ep in
                             let isCurrent = idx == internalEpIndex
-                            let epProg = filmSlug != nil ? StorageManager.shared.getProgress(for: filmSlug!, episodeSlug: ep.slug, episodeName: ep.name) : nil
-                            let isWatched = epProg != nil && (epProg?.positionMs ?? 0) > 0
-                            let percent = epProg?.progressPercent ?? 0
+                            let isPastWatched = filmSlug != nil && StorageManager.shared.isPreviouslyWatchedEpisode(
+                                filmSlug: filmSlug!,
+                                episodeSlug: ep.slug,
+                                episodeName: ep.name
+                            )
 
                             Button {
                                 isShowingEpisodeDrawer = false
                                 switchToEpisode(index: idx)
                             } label: {
-                                VStack(spacing: 3) {
-                                    HStack(spacing: 4) {
-                                        if isCurrent {
-                                            Circle().fill(Color.black).frame(width: 5, height: 5)
-                                        } else if isWatched {
-                                            Image(systemName: "checkmark.circle.fill")
-                                                .font(.system(size: 9, weight: .bold))
-                                                .foregroundColor(KLTheme.fptOrange)
-                                        }
-                                        Text(ep.name)
-                                            .font(.system(size: 11.5, weight: isCurrent ? .black : (isWatched ? .heavy : .bold)))
-                                            .lineLimit(1)
+                                HStack(spacing: 5) {
+                                    if isCurrent {
+                                        Circle().fill(Color.black).frame(width: 5, height: 5)
+                                    } else if isPastWatched {
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 8.5, weight: .bold))
+                                            .foregroundColor(Color.white.opacity(0.38))
                                     }
-
-                                    if !isCurrent && isWatched && percent > 0 {
-                                        GeometryReader { geo in
-                                            ZStack(alignment: .leading) {
-                                                Capsule()
-                                                    .fill(Color.white.opacity(0.12))
-                                                    .frame(height: 2)
-                                                Capsule()
-                                                    .fill(KLTheme.fptOrange)
-                                                    .frame(width: max(3, geo.size.width * CGFloat(min(1.0, percent))), height: 2)
-                                            }
-                                        }
-                                        .frame(height: 2)
-                                        .padding(.horizontal, 4)
-                                    }
+                                    Text(ep.name)
+                                        .font(.system(size: 11.5, weight: isCurrent ? .black : (isPastWatched ? .medium : .bold)))
+                                        .lineLimit(1)
                                 }
-                                .foregroundColor(isCurrent ? .black : (isWatched ? .white : Color.white.opacity(0.85)))
+                                .foregroundColor(isCurrent ? .black : (isPastWatched ? Color.white.opacity(0.40) : Color.white.opacity(0.90)))
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, !isCurrent && isWatched && percent > 0 ? 8 : 10)
-                                .background(isCurrent ? KLTheme.brandOrange : (isWatched ? KLTheme.fptOrange.opacity(0.15) : KLTheme.surfaceCard))
+                                .padding(.vertical, 10)
+                                .background(
+                                    isCurrent
+                                        ? KLTheme.brandOrange
+                                        : (isPastWatched ? Color.white.opacity(0.06) : KLTheme.surfaceCard)
+                                )
                                 .cornerRadius(8)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 8)
-                                        .stroke(isCurrent ? KLTheme.brandOrange : (isWatched ? KLTheme.fptOrange.opacity(0.4) : KLTheme.borderSubtle), lineWidth: 0.8)
+                                        .stroke(
+                                            isCurrent
+                                                ? KLTheme.brandOrange
+                                                : (isPastWatched ? Color.white.opacity(0.12) : KLTheme.borderSubtle),
+                                            lineWidth: 0.8
+                                        )
                                 )
                             }
                             .buttonStyle(.plain)

@@ -267,8 +267,9 @@ struct EpisodePickerSheet: View {
                                     GridItem(.flexible(), spacing: 10)
                                 ], spacing: 10) {
                                     ForEach(visibleEpisodes) { ep in
-                                        let epProgress = storage.getProgress(for: film.slug, episodeSlug: ep.slug, episodeName: ep.name)
-                                        let isWatched = epProgress != nil && (epProgress?.positionMs ?? 0) > 0
+                                        let isLatest = storage.isLatestWatchedEpisode(filmSlug: film.slug, episodeSlug: ep.slug, episodeName: ep.name)
+                                        let isPastWatched = storage.isPreviouslyWatchedEpisode(filmSlug: film.slug, episodeSlug: ep.slug, episodeName: ep.name)
+                                        let epProgress = isLatest ? storage.getProgress(for: film.slug, episodeSlug: ep.slug, episodeName: ep.name) : nil
                                         let percent = epProgress?.progressPercent ?? 0
 
                                         Button {
@@ -277,36 +278,34 @@ struct EpisodePickerSheet: View {
                                         } label: {
                                             VStack(spacing: 4) {
                                                 HStack(spacing: 4) {
-                                                    if isWatched {
-                                                        Image(systemName: "checkmark.circle.fill")
+                                                    if isLatest {
+                                                        Image(systemName: "play.circle.fill")
                                                             .font(.system(size: 10, weight: .bold))
-                                                            .foregroundColor(KLTheme.fptOrange)
+                                                            .foregroundColor(KLTheme.brandOrange)
+                                                    } else if isPastWatched {
+                                                        Image(systemName: "checkmark")
+                                                            .font(.system(size: 9, weight: .bold))
+                                                            .foregroundColor(Color.white.opacity(0.35))
                                                     } else {
                                                         Image(systemName: "play.fill")
-                                                            .font(.system(size: 9))
+                                                            .font(.system(size: 8))
                                                             .foregroundColor(KLTheme.textMuted)
                                                     }
 
                                                     Text(ep.name)
-                                                        .font(.system(size: 12, weight: isWatched ? .heavy : .bold))
-                                                        .foregroundColor(isWatched ? .white : Color.white.opacity(0.85))
+                                                        .font(.system(size: 12, weight: isLatest ? .heavy : (isPastWatched ? .medium : .bold)))
+                                                        .foregroundColor(isLatest ? .white : (isPastWatched ? Color.white.opacity(0.40) : Color.white.opacity(0.90)))
                                                         .lineLimit(1)
                                                 }
 
-                                                if isWatched && percent > 0 {
+                                                if isLatest && percent > 0 {
                                                     GeometryReader { geo in
                                                         ZStack(alignment: .leading) {
                                                             Capsule()
                                                                 .fill(Color.white.opacity(0.12))
                                                                 .frame(height: 2.5)
                                                             Capsule()
-                                                                .fill(
-                                                                    LinearGradient(
-                                                                        colors: [KLTheme.fptOrange, KLTheme.brandOrange],
-                                                                        startPoint: .leading,
-                                                                        endPoint: .trailing
-                                                                    )
-                                                                )
+                                                                .fill(KLTheme.brandOrange)
                                                                 .frame(width: max(4, geo.size.width * CGFloat(min(1.0, percent))), height: 2.5)
                                                         }
                                                     }
@@ -315,12 +314,21 @@ struct EpisodePickerSheet: View {
                                                 }
                                             }
                                             .frame(maxWidth: .infinity)
-                                            .padding(.vertical, isWatched && percent > 0 ? 8 : 11)
-                                            .background(isWatched ? KLTheme.fptOrange.opacity(0.15) : KLTheme.surfaceCard)
+                                            .padding(.vertical, isLatest && percent > 0 ? 8 : 11)
+                                            .background(
+                                                isLatest
+                                                    ? KLTheme.brandOrange.opacity(0.16)
+                                                    : (isPastWatched ? Color.white.opacity(0.05) : KLTheme.surfaceCard)
+                                            )
                                             .cornerRadius(9)
                                             .overlay(
                                                 RoundedRectangle(cornerRadius: 9)
-                                                    .stroke(isWatched ? KLTheme.fptOrange.opacity(0.45) : KLTheme.borderSubtle, lineWidth: 0.8)
+                                                    .stroke(
+                                                        isLatest
+                                                            ? KLTheme.brandOrange.opacity(0.6)
+                                                            : (isPastWatched ? Color.white.opacity(0.08) : KLTheme.borderSubtle),
+                                                        lineWidth: 0.8
+                                                    )
                                             )
                                         }
                                         .buttonStyle(KLScaleButtonStyle())

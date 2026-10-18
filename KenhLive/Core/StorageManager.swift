@@ -5,10 +5,12 @@ final class StorageManager: ObservableObject {
 
     private let defaults = UserDefaults.standard
     private let keyHistory = "kl_watch_history_v1"
+    private let keyWatchedEpisodes = "kl_watched_episode_keys_v1"
     private let keyFavFilms = "kl_fav_films_v1"
     private let keyFavChannels = "kl_fav_channels_v1"
 
     @Published var watchHistory: [WatchProgress] = []
+    @Published var watchedEpisodeKeys: Set<String> = []
     @Published var favoriteFilmSlugs: Set<String> = []
     @Published var favoriteChannelIds: Set<String> = []
 
@@ -20,6 +22,9 @@ final class StorageManager: ObservableObject {
         if let data = defaults.data(forKey: keyHistory),
            let list = try? JSONDecoder().decode([WatchProgress].self, from: data) {
             self.watchHistory = list
+        }
+        if let list = defaults.stringArray(forKey: keyWatchedEpisodes) {
+            self.watchedEpisodeKeys = Set(list)
         }
         if let list = defaults.stringArray(forKey: keyFavFilms) {
             self.favoriteFilmSlugs = Set(list)
@@ -37,20 +42,24 @@ final class StorageManager: ObservableObject {
         return nil
     }
 
+    // MARK: - Save Watch Progress (Chỉ lưu duy nhất 1 tập xem gần nhất cho mỗi bộ phim)
     func saveWatchProgress(_ progress: WatchProgress) {
-        // Lưu riêng cho từng tập của bộ phim (theo filmSlug + episodeSlug / episodeName / episodeNumber)
-        let progNum = extractEpisodeNumber(from: progress.episodeName.isEmpty ? progress.episodeSlug : progress.episodeName)
-        var list = watchHistory.filter { item in
-            if item.filmSlug != progress.filmSlug { return true }
-            let sameSlug = !item.episodeSlug.isEmpty && item.episodeSlug.lowercased() == progress.episodeSlug.lowercased()
-            let sameName = !item.episodeName.isEmpty && item.episodeName.lowercased() == progress.episodeName.lowercased()
-            let sameId = item.id == progress.id
-            let itemNum = extractEpisodeNumber(from: item.episodeName.isEmpty ? item.episodeSlug : item.episodeName)
-            let sameNum = (progNum != nil && itemNum != nil && progNum == itemNum)
-            return !(sameSlug || sameName || sameId || sameNum)
+        // 1. Đánh dấu tập này vào tập hợp các tập đã xem
+        let epSlugKey = "\(progress.filmSlug):\(progress.episodeSlug.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())"
+        watchedEpisodeKeys.insert(epSlugKey)
+        if !progress.episodeName.isEmpty {
+            let epNameKey = "\(progress.filmSlug):\(progress.episodeName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())"
+            watchedEpisodeKeys.insert(epNameKey)
         }
+        if let num = extractEpisodeNumber(from: progress.episodeName.isEmpty ? progress.episodeSlug : progress.episodeName) {
+            watchedEpisodeKeys.insert("\(progress.filmSlug):ep_\(num)")
+        }
+        defaults.set(Array(watchedEpisodeKeys), forKey: keyWatchedEpisodes)
+
+        // 2. CHỈ LƯU DUY NHẤT 1 TẬP XEM GẦN NHẤT cho bộ phim này trong watchHistory
+        var list = watchHistory.filter { $0.filmSlug != progress.filmSlug }
         list.insert(progress, at: 0)
-        if list.count > 100 { list = Array(list.prefix(100)) }
+        if list.count > 60 { list = Array(list.prefix(60)) }
         watchHistory = list
         if let encoded = try? JSONEncoder().encode(list) {
             defaults.set(encoded, forKey: keyHistory)
@@ -58,47 +67,61 @@ final class StorageManager: ObservableObject {
     }
 
     func getProgress(for filmSlug: String, episodeSlug: String? = nil, episodeName: String? = nil) -> WatchProgress? {
-        let isSpecificEpisodeRequested = (episodeSlug != nil && !episodeSlug!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) ||
-                                         (episodeName != nil && !episodeName!.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-
-        if isSpecificEpisodeRequested {
-            let targetSlug = (episodeSlug ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            let targetName = (episodeName ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            let targetNum = extractEpisodeNumber(from: targetName.isEmpty ? targetSlug : targetName)
-
-            // 1. Tìm tập khớp chính xác slug, name hoặc số tập
-            if let match = watchHistory.first(where: { item in
-                guard item.filmSlug == filmSlug else { return false }
-                let itemSlug = item.episodeSlug.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                let itemName = item.episodeName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-
-                if !targetSlug.isEmpty && itemSlug == targetSlug { return true }
-                if !targetName.isEmpty && itemName == targetName { return true }
-
-                if let tn = targetNum {
-                    let itemNum = extractEpisodeNumber(from: itemName.isEmpty ? itemSlug : itemName)
-                    if let `in` = itemNum, tn == `in` {
-                        return true
-                    }
-                }
-                return false
-            }) {
-                return match
-            }
-
-            // ĐÃ YÊU CẦU TẬP CỤ THỂ MÀ CHƯA XEM -> TRẢ VỀ NIL (TUYỆT ĐỐI KHÔNG FALLBACK SANG TẬP KHÁC)
+        guard let latest = watchHistory.first(where: { $0.filmSlug == filmSlug }) else {
             return nil
         }
+        let isSpecific = (episodeSlug != nil && !episodeSlug!.isEmpty) || (episodeName != nil && !episodeName!.isEmpty)
+        if isSpecific {
+            if isLatestWatchedEpisode(filmSlug: filmSlug, episodeSlug: episodeSlug ?? "", episodeName: episodeName ?? "") {
+                return latest
+            }
+            return nil
+        }
+        return latest
+    }
 
-        // CHỈ khi KHÔNG chỉ định tập (hasSpecificEpisode == false), mới trả về tập xem gần nhất của phim này để resume
-        return watchHistory.first { $0.filmSlug == filmSlug }
+    // Kiểm tra xem tập này có phải là tập xem gần nhất không (để hiện thanh tiến độ resume)
+    func isLatestWatchedEpisode(filmSlug: String, episodeSlug: String, episodeName: String = "") -> Bool {
+        guard let latest = watchHistory.first(where: { $0.filmSlug == filmSlug }) else { return false }
+        let targetSlug = episodeSlug.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let targetName = episodeName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let latestSlug = latest.episodeSlug.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let latestName = latest.episodeName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+
+        if !targetSlug.isEmpty && latestSlug == targetSlug { return true }
+        if !targetName.isEmpty && latestName == targetName { return true }
+
+        let n1 = extractEpisodeNumber(from: targetName.isEmpty ? targetSlug : targetName)
+        let n2 = extractEpisodeNumber(from: latestName.isEmpty ? latestSlug : latestName)
+        return n1 != nil && n1 == n2
+    }
+
+    // Kiểm tra xem tập này đã từng được xem trong quá khứ chưa (để đổi sang màu xám mờ và icon tick xám)
+    func isPreviouslyWatchedEpisode(filmSlug: String, episodeSlug: String, episodeName: String = "") -> Bool {
+        if isLatestWatchedEpisode(filmSlug: filmSlug, episodeSlug: episodeSlug, episodeName: episodeName) {
+            return false
+        }
+        let epSlugKey = "\(filmSlug):\(episodeSlug.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())"
+        let epNameKey = "\(filmSlug):\(episodeName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())"
+        if watchedEpisodeKeys.contains(epSlugKey) || watchedEpisodeKeys.contains(epNameKey) {
+            return true
+        }
+        if let num = extractEpisodeNumber(from: episodeName.isEmpty ? episodeSlug : episodeName) {
+            if watchedEpisodeKeys.contains("\(filmSlug):ep_\(num)") {
+                return true
+            }
+            if let latest = watchHistory.first(where: { $0.filmSlug == filmSlug }),
+               let latestNum = extractEpisodeNumber(from: latest.episodeName.isEmpty ? latest.episodeSlug : latest.episodeName),
+               num < latestNum {
+                return true
+            }
+        }
+        return false
     }
 
     func isEpisodeWatched(filmSlug: String, episodeSlug: String, episodeName: String = "") -> Bool {
-        guard let prog = getProgress(for: filmSlug, episodeSlug: episodeSlug, episodeName: episodeName) else {
-            return false
-        }
-        return prog.positionMs > 0
+        return isLatestWatchedEpisode(filmSlug: filmSlug, episodeSlug: episodeSlug, episodeName: episodeName) ||
+               isPreviouslyWatchedEpisode(filmSlug: filmSlug, episodeSlug: episodeSlug, episodeName: episodeName)
     }
 
     func toggleFavoriteFilm(slug: String) {
@@ -129,7 +152,9 @@ final class StorageManager: ObservableObject {
 
     func clearWatchHistory() {
         watchHistory = []
+        watchedEpisodeKeys = []
         defaults.removeObject(forKey: keyHistory)
+        defaults.removeObject(forKey: keyWatchedEpisodes)
     }
 
     func removeWatchProgress(id: String) {
@@ -141,35 +166,27 @@ final class StorageManager: ObservableObject {
 
     func removeWatchProgress(filmSlug: String) {
         watchHistory.removeAll { $0.filmSlug == filmSlug }
+        watchedEpisodeKeys = watchedEpisodeKeys.filter { !$0.hasPrefix("\(filmSlug):") }
         if let encoded = try? JSONEncoder().encode(watchHistory) {
             defaults.set(encoded, forKey: keyHistory)
         }
+        defaults.set(Array(watchedEpisodeKeys), forKey: keyWatchedEpisodes)
     }
 
     // MARK: - Consolidated Grouped History (1 bộ gộp vào 1 card duy nhất)
     var consolidatedWatchHistory: [ConsolidatedWatchItem] {
-        var grouped: [String: [WatchProgress]] = [:]
-        var order: [String] = []
-        for item in watchHistory {
-            if grouped[item.filmSlug] == nil {
-                grouped[item.filmSlug] = []
-                order.append(item.filmSlug)
-            }
-            grouped[item.filmSlug]?.append(item)
-        }
-
-        return order.compactMap { slug in
-            guard let items = grouped[slug], let latest = items.first else { return nil }
+        return watchHistory.map { item in
+            let pastCount = watchedEpisodeKeys.filter { $0.hasPrefix("\(item.filmSlug):") }.count
             return ConsolidatedWatchItem(
-                filmSlug: slug,
-                filmName: latest.filmName,
-                posterUrl: latest.posterUrl,
-                latestEpisodeName: latest.episodeName,
-                latestEpisodeSlug: latest.episodeSlug,
-                latestProgress: latest,
-                totalEpisodesWatched: items.count,
-                progressPercent: latest.progressPercent,
-                updatedAt: latest.updatedAt
+                filmSlug: item.filmSlug,
+                filmName: item.filmName,
+                posterUrl: item.posterUrl,
+                latestEpisodeName: item.episodeName,
+                latestEpisodeSlug: item.episodeSlug,
+                latestProgress: item,
+                totalEpisodesWatched: max(1, pastCount),
+                progressPercent: item.progressPercent,
+                updatedAt: item.updatedAt
             )
         }
     }
