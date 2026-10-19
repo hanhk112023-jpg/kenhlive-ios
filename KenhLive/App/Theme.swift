@@ -474,10 +474,51 @@ final class KLDiskImageCache {
         return UIImage(data: data)
     }
 
+    // Giới hạn trần cứng: 50MB cho bộ nhớ đệm ảnh (Tự động xoay vòng LRU)
+    private let maxDiskBytes: Int64 = 50 * 1024 * 1024
+    private let targetTrimBytes: Int64 = 35 * 1024 * 1024
+
     func set(_ data: Data, for key: String) {
         guard !key.isEmpty, !data.isEmpty else { return }
         let file = cacheDir.appendingPathComponent(filename(for: key))
         try? data.write(to: file, options: .atomic)
+
+        // Tự động kiểm tra và xả ảnh cũ nhất chạy nền nếu vượt quá 50MB
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            self?.trimIfNeeded()
+        }
+    }
+
+    private func trimIfNeeded() {
+        guard let files = try? FileManager.default.contentsOfDirectory(
+            at: cacheDir,
+            includingPropertiesForKeys: [.fileSizeKey, .contentModificationDateKey]
+        ) else { return }
+
+        var items: [(url: URL, date: Date, size: Int64)] = []
+        var total: Int64 = 0
+
+        for file in files {
+            guard let rv = try? file.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey]),
+                  let size = rv.fileSize,
+                  let date = rv.contentModificationDate else { continue }
+            let s = Int64(size)
+            total += s
+            items.append((url: file, date: date, size: s))
+        }
+
+        guard total > maxDiskBytes else { return }
+
+        // Sắp xếp theo ngày cũ nhất lên đầu (LRU - Least Recently Used)
+        items.sort { $0.date < $1.date }
+
+        for item in items {
+            try? FileManager.default.removeItem(at: item.url)
+            total -= item.size
+            if total <= targetTrimBytes {
+                break
+            }
+        }
     }
 
     func clear() {
@@ -527,7 +568,8 @@ actor KLImageDownloader {
         let downloadTask = Task<UIImage?, Never> {
             var req = URLRequest(url: url)
             req.timeoutInterval = 12
-            req.cachePolicy = .returnCacheDataElseLoad
+            // Không lưu đúp vào URLCache vì KLDiskImageCache đã quản lý độc lập có giới hạn trần
+            req.cachePolicy = .reloadIgnoringLocalCacheData
             req.setValue("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)", forHTTPHeaderField: "User-Agent")
 
             do {

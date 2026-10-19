@@ -1,3 +1,12 @@
+# 🚀 KENHLIVE iOS v1.9.12 (Build 168) — GIỚI HẠN TRẦN BỘ NHỚ ĐỆM 50MB, TỰ ĐỘNG XOAY VÒNG LRU & TRIỆT TIÊU LƯU ĐÚP ẢNH
+
+### ⚡ 1. Khống Chế Trần Cứng Bộ Nhớ Đệm & Tự Động Xoay Vòng (LRU Eviction)
+- **Thiết lập trần tối đa 50MB cho `KLDiskImageCache`**: Khi dung lượng cache đạt ngưỡng 50MB, hệ thống tự động chạy tác vụ ngầm quét ngày tạo và xóa các poster của phim cũ nhất (Least Recently Used) về mức an toàn 35MB. Bộ nhớ đệm không bao giờ tăng vô hạn dù người dùng lướt hàng nghìn phim.
+- **Triệt tiêu 100% tình trạng lưu đúp (Double Caching)**: `KLImageDownloader` sử dụng chính sách `.reloadIgnoringLocalCacheData` để dữ liệu ảnh chỉ được quản lý duy nhất tại một tầng có trần cứng, tránh việc `URLCache` lưu đè thêm một bản copy 120MB vào hệ thống.
+- **Hạ trần `URLCache` xuống 20MB Disk**: Dành riêng và tối ưu tuyệt đối cho dữ liệu phản hồi API JSON.
+
+---
+
 # 🚀 KENHLIVE iOS v1.9.11 (Build 167) — TỐI ƯU TOÀN DIỆN: LOAD PHIM TỨC THÌ, CHỐNG LAG 60FPS & CHUẨN XÁC TIẾN ĐỘ 1 TẬP DUY NHẤT
 
 ### ⚡ 1. Sửa Triệt Để Lỗi Load Phim Chậm (Instant Playback 0.3s)

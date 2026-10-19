@@ -20,13 +20,13 @@ struct KenhLiveApp: App {
     }
 
     private func configureImageAndNetworkCache() {
-        // High-performance API cache: 32 MB RAM, 120 MB Disk
-        let memoryCap = 32 * 1024 * 1024
-        let diskCap = 120 * 1024 * 1024
+        // Cache API JSON gọn nhẹ (chỉ 8MB RAM, 20MB Disk), không lưu đúp ảnh
+        let memoryCap = 8 * 1024 * 1024
+        let diskCap = 20 * 1024 * 1024
         URLCache.shared = URLCache(
             memoryCapacity: memoryCap,
             diskCapacity: diskCap,
-            diskPath: "kl_network_image_cache"
+            diskPath: "kl_network_api_cache"
         )
     }
 
