@@ -105,51 +105,35 @@ struct MainTabView: View {
                     ZStack {
                         if isActive {
                             Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [
-                                            Color(red: 1.0, green: 0.38, blue: 0.16),
-                                            Color(red: 0.88, green: 0.10, blue: 0.16)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
+                                .fill(KLTheme.appleActionBlue)
                                 .frame(width: 40, height: 40)
-                                .shadow(color: Color(red: 1.0, green: 0.38, blue: 0.16).opacity(0.45), radius: 8, x: 0, y: 2)
+                                .shadow(color: Color.black.opacity(0.22), radius: 6, x: 0, y: 2)
                         }
 
                         Image(systemName: tab.iconName)
-                            .font(.system(size: isActive ? 18 : 17, weight: isActive ? .bold : .medium))
-                            .foregroundColor(isActive ? .white : Color(white: 0.52))
-                            .scaleEffect(isActive ? 1.15 : 1.0)
-                            .animation(.spring(response: 0.28, dampingFraction: 0.65), value: isActive)
+                            .font(.system(size: isActive ? 17 : 16, weight: isActive ? .semibold : .regular))
+                            .foregroundColor(isActive ? .white : KLTheme.textMuted)
+                            .scaleEffect(isActive ? 1.05 : 1.0)
+                            .animation(.spring(response: 0.24, dampingFraction: 0.75), value: isActive)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(KLScaleButtonStyle())
             }
         }
         .frame(height: 52)
         .padding(.horizontal, 6)
         .background(
-            RoundedRectangle(cornerRadius: 30)
-                .fill(Color(red: 0.11, green: 0.11, blue: 0.13).opacity(0.96))
+            Capsule()
+                .fill(KLTheme.surfaceCardSecondary.opacity(0.92))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 30)
-                        .stroke(
-                            LinearGradient(
-                                colors: [Color.white.opacity(0.20), Color.white.opacity(0.06)],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            ),
-                            lineWidth: 0.8
-                        )
+                    Capsule()
+                        .stroke(Color.white.opacity(0.08), lineWidth: 1.0)
                 )
-                .shadow(color: Color.black.opacity(0.70), radius: 18, x: 0, y: 8)
+                .shadow(color: Color.black.opacity(0.35), radius: 16, x: 0, y: 6)
         )
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 24)
         .padding(.bottom, 16)
     }
 }

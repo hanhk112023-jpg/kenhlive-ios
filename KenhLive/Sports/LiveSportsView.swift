@@ -637,7 +637,7 @@ private struct SportsMatchCardView: View {
     }
 }
 
-// MARK: - Stadium Match Card (Vertical Feed Mode)
+// MARK: - Apple Stadium Match Card (store-utility-card: rounded.lg 18px, SF Pro Text 17px/14px, action blue pill)
 private struct StadiumMatchCard: View {
     let group: LiveMatchGroup
 
@@ -648,11 +648,12 @@ private struct StadiumMatchCard: View {
         let logoA = group.homeLogoUrl
         let logoB = group.awayLogoUrl
 
-        VStack(spacing: 10) {
+        VStack(spacing: 12) {
             HStack {
                 Text(group.league.isEmpty ? "BÓNG ĐÁ QUỐC TẾ" : group.league)
-                    .font(.system(size: 10.5, weight: .bold))
-                    .foregroundColor(KLTheme.accentCyan)
+                    .font(.system(size: 12, weight: .semibold, design: .default))
+                    .tracking(-0.22)
+                    .foregroundColor(KLTheme.fptOrange)
                     .lineLimit(1)
 
                 Spacer()
@@ -660,20 +661,21 @@ private struct StadiumMatchCard: View {
                 KLLivePulseBadge(text: "LIVE", color: KLTheme.liveRed)
 
                 Text(top.providerDisplayName)
-                    .font(.system(size: 9, weight: .heavy))
+                    .font(.system(size: 10, weight: .medium, design: .default))
                     .foregroundColor(.white)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
-                    .background(group.providerColor)
-                    .cornerRadius(4)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(Color.white.opacity(0.12))
+                    .clipShape(Capsule())
             }
 
             // Scoreboard Row
             HStack(alignment: .center, spacing: 10) {
-                HStack(spacing: 8) {
-                    TeamLogoView(url: logoA, size: 34)
+                HStack(spacing: 10) {
+                    TeamLogoView(url: logoA, size: 36)
                     Text(teamA)
-                        .font(.system(size: 13.5, weight: .bold))
+                        .font(.system(size: 15, weight: .semibold, design: .default))
+                        .tracking(-0.28)
                         .foregroundColor(.white)
                         .lineLimit(1)
                 }
@@ -681,25 +683,26 @@ private struct StadiumMatchCard: View {
 
                 if let score = group.liveScore, !score.scoreA.isEmpty {
                     Text("\(score.scoreA) - \(score.scoreB)")
-                        .font(.system(size: 15, weight: .black, design: .monospaced))
-                        .foregroundColor(KLTheme.brandOrange)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
+                        .font(.system(size: 16, weight: .semibold, design: .monospaced))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
                         .background(KLTheme.surfaceCardSecondary)
-                        .cornerRadius(6)
+                        .clipShape(Capsule())
                 } else {
                     Text("VS")
-                        .font(.system(size: 11, weight: .black))
+                        .font(.system(size: 12, weight: .medium, design: .default))
                         .foregroundColor(KLTheme.textMuted)
                 }
 
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     Text(teamB)
-                        .font(.system(size: 13.5, weight: .bold))
+                        .font(.system(size: 15, weight: .semibold, design: .default))
+                        .tracking(-0.28)
                         .foregroundColor(.white)
                         .lineLimit(1)
                         .multilineTextAlignment(.trailing)
-                    TeamLogoView(url: logoB, size: 34)
+                    TeamLogoView(url: logoB, size: 36)
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
             }
@@ -707,33 +710,33 @@ private struct StadiumMatchCard: View {
             Divider().background(KLTheme.borderSubtle)
 
             HStack {
-                HStack(spacing: 4) {
+                HStack(spacing: 5) {
                     Image(systemName: "mic.fill")
-                        .font(.system(size: 9))
-                        .foregroundColor(KLTheme.brandOrange)
+                        .font(.system(size: 10))
+                        .foregroundColor(KLTheme.appleSkyBlue)
                     Text(top.blvName)
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(KLTheme.brandOrange)
+                        .font(.system(size: 12, weight: .regular, design: .default))
+                        .foregroundColor(KLTheme.appleSkyBlue)
                         .lineLimit(1)
                 }
 
                 Spacer()
 
-                HStack(spacing: 4) {
-                    Text("XEM NGAY")
-                        .font(.system(size: 10.5, weight: .bold))
+                HStack(spacing: 5) {
+                    Text("Xem ngay")
+                        .font(.system(size: 12, weight: .medium, design: .default))
                     Image(systemName: "play.fill")
-                        .font(.system(size: 8, weight: .bold))
+                        .font(.system(size: 9, weight: .semibold))
                 }
                 .foregroundColor(.white)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(KLTheme.brandOrange)
-                .cornerRadius(6)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(KLTheme.appleActionBlue)
+                .clipShape(Capsule())
             }
         }
-        .padding(12)
-        .klGlassCard(cornerRadius: 12)
+        .padding(16)
+        .klGlassCard(cornerRadius: 18)
     }
 }
 

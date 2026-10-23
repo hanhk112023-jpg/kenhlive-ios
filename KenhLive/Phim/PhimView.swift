@@ -222,63 +222,64 @@ struct PhimView: View {
                     endPoint: .bottom
                 )
 
-                // Foreground Content (Title, Subtitle, Badges, CTA, Carousel Dots)
-                VStack(spacing: 9) {
+                // Foreground Content (Apple hero-display: 28px/40px, SF Pro Display -0.28px, button-primary pill)
+                VStack(spacing: 8) {
                     // Main Title
                     Text(hero.name)
-                        .font(.system(size: 26, weight: .heavy, design: .rounded))
+                        .font(.system(size: 28, weight: .semibold, design: .default))
+                        .tracking(-0.28)
                         .foregroundColor(.white)
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
-                        .shadow(color: .black.opacity(0.85), radius: 6, x: 0, y: 2)
+                        .shadow(color: .black.opacity(0.85), radius: 8, x: 0, y: 2)
                         .padding(.horizontal, 24)
 
                     // English Subtitle
                     Text(hero.originalName.isEmpty ? "Cinema High Quality" : hero.originalName)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.system(size: 14, weight: .regular, design: .default))
+                        .tracking(-0.22)
                         .foregroundColor(Color.white.opacity(0.72))
                         .lineLimit(1)
                         .padding(.horizontal, 20)
 
-                    // Information Badges Row (Year · Quality · IMDb)
+                    // Information Badges Row (Apple pill chips)
                     HStack(spacing: 8) {
                         // Year Pill
                         Text(hero.year)
-                            .font(.system(size: 11.5, weight: .bold))
+                            .font(.system(size: 11, weight: .medium, design: .default))
                             .foregroundColor(.white)
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 4.5)
-                            .background(Color.black.opacity(0.65))
-                            .clipShape(Capsule())
-                            .overlay(
-                                Capsule().stroke(Color.white.opacity(0.28), lineWidth: 0.8)
-                            )
-
-                        // Quality Pill: Cyan Blue "Full HD (PĐ)" or Gold "4K (PĐ-TM)"
-                        Text(hero.quality.contains("4K") ? "4K (PĐ-TM)" : "Full HD (PĐ)")
-                            .font(.system(size: 11, weight: .heavy))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 4.5)
-                            .background(hero.quality.contains("4K") ? Color(red: 0.96, green: 0.77, blue: 0.10) : Color(red: 0.0, green: 0.52, blue: 0.82))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(Color.white.opacity(0.12))
                             .clipShape(Capsule())
 
-                        // IMDb Rating Pill (Solid Gold)
-                        HStack(spacing: 3) {
-                            Text("IMDb")
-                                .font(.system(size: 9.5, weight: .black))
-                            Text(hero.imdbScore)
-                                .font(.system(size: 11, weight: .heavy))
+                        // Quality Pill
+                        Text(hero.quality.contains("4K") ? "4K UHD" : "Full HD")
+                            .font(.system(size: 11, weight: .semibold, design: .default))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(KLTheme.appleActionBlue)
+                            .clipShape(Capsule())
+
+                        // IMDb Rating Pill
+                        if !hero.imdbScore.isEmpty && hero.imdbScore != "0" {
+                            HStack(spacing: 3) {
+                                Text("★")
+                                    .font(.system(size: 9.5, weight: .bold))
+                                Text(hero.imdbScore)
+                                    .font(.system(size: 11, weight: .semibold))
+                            }
+                            .foregroundColor(KLTheme.imdbGold)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(Color.black.opacity(0.60))
+                            .clipShape(Capsule())
                         }
-                        .foregroundColor(.black)
-                        .padding(.horizontal, 8.5)
-                        .padding(.vertical, 4.5)
-                        .background(Color(red: 0.96, green: 0.77, blue: 0.10))
-                        .clipShape(Capsule())
                     }
                     .padding(.top, 2)
 
-                    // Dual Call-To-Action Buttons (FPT Play Style: "Xem Ngay" & "Chi tiết")
+                    // Dual Call-To-Action Buttons (Apple button-primary: Action Blue + button-secondary-pill)
                     HStack(spacing: 12) {
                         Button {
                             KLHaptics.medium()
@@ -288,24 +289,17 @@ struct PhimView: View {
                         } label: {
                             HStack(spacing: 6) {
                                 Image(systemName: "play.fill")
-                                    .font(.system(size: 13, weight: .bold))
+                                    .font(.system(size: 13, weight: .semibold))
                                 Text("Xem Ngay")
-                                    .font(.system(size: 13.5, weight: .bold))
+                                    .font(.system(size: 15, weight: .regular, design: .default))
                             }
-                            .foregroundColor(.black)
+                            .foregroundColor(.white)
                             .padding(.horizontal, 24)
-                            .padding(.vertical, 10)
-                            .background(
-                                LinearGradient(
-                                    colors: [Color(red: 1.0, green: 0.58, blue: 0.20), Color(red: 1.0, green: 0.38, blue: 0.05)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
+                            .padding(.vertical, 11)
+                            .background(KLTheme.appleActionBlue)
                             .clipShape(Capsule())
-                            .shadow(color: Color(red: 1.0, green: 0.38, blue: 0.05).opacity(0.45), radius: 8, y: 2)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(KLScaleButtonStyle())
 
                         Button {
                             KLHaptics.light()
@@ -313,19 +307,22 @@ struct PhimView: View {
                             initialResumeProgressForSheet = storage.getProgress(for: hero.slug)
                             selectedFilmForEpisodes = hero
                         } label: {
-                            HStack(spacing: 5) {
+                            HStack(spacing: 6) {
                                 Image(systemName: "info.circle")
-                                    .font(.system(size: 13, weight: .medium))
+                                    .font(.system(size: 13, weight: .regular))
                                 Text("Chi tiết")
-                                    .font(.system(size: 13, weight: .semibold))
+                                    .font(.system(size: 15, weight: .regular, design: .default))
                             }
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 18)
-                            .padding(.vertical, 10)
-                            .background(Color.white.opacity(0.18))
+                            .foregroundColor(KLTheme.appleSkyBlue)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 11)
+                            .background(Color.white.opacity(0.08))
+                            .overlay(
+                                Capsule().stroke(Color.white.opacity(0.12), lineWidth: 1)
+                            )
                             .clipShape(Capsule())
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(KLScaleButtonStyle())
                     }
                     .padding(.top, 4)
 
@@ -520,21 +517,15 @@ struct PhimView: View {
                                     .lineLimit(1)
                                     .padding(.top, 2)
                             }
-                            .padding(12)
-                            .frame(width: 172, height: 102, alignment: .leading)
-                            .background(
-                                LinearGradient(
-                                    colors: col.gradient,
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .cornerRadius(16)
+                            .padding(14)
+                            .frame(width: 172, height: 104, alignment: .leading)
+                            .background(KLTheme.surfaceCard)
+                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                             .overlay(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .stroke(Color.white.opacity(0.24), lineWidth: 0.8)
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .stroke(Color.white.opacity(0.08), lineWidth: 1.0)
                             )
-                            .shadow(color: col.gradient.first?.opacity(0.35) ?? .clear, radius: 8, x: 0, y: 4)
+                            .shadow(color: Color.black.opacity(0.18), radius: 10, x: 0, y: 3)
                         }
                         .buttonStyle(KLScaleButtonStyle())
                     }
@@ -1262,75 +1253,81 @@ private struct CuratedCollection: Identifiable {
     var subtitle: String = "Tuyển chọn"
 }
 
-// MARK: - Standard Poster Cell (2:3 Aspect Ratio)
+// MARK: - Standard Apple Product Poster Cell (DESIGN-apple.md: rounded.lg 18px, product shadow, SF Pro Display -0.28px)
 private struct PosterCell: View {
     let film: FilmItem
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: 8) {
             ZStack {
                 KLAsyncImage(
                     url: film.posterUrl.isEmpty ? film.thumbUrl : film.posterUrl,
                     contentMode: .fill
                 )
                 .frame(maxWidth: .infinity)
-                .frame(height: 155)
+                .frame(height: 160)
                 .clipped()
 
-                // Corner Badges Overlay
+                // Corner Badges Overlay (Apple capsule badges)
                 VStack {
                     HStack {
-                        Text("★ \(film.imdbScore)")
-                            .font(.system(size: 9, weight: .heavy, design: .rounded))
-                            .foregroundColor(KLTheme.imdbGold)
-                            .padding(.horizontal, 4.5)
-                            .padding(.vertical, 2)
-                            .background(Color.black.opacity(0.80))
-                            .cornerRadius(3.5)
+                        if !film.imdbScore.isEmpty && film.imdbScore != "0" {
+                            Text("★ \(film.imdbScore)")
+                                .font(.system(size: 10, weight: .semibold, design: .default))
+                                .foregroundColor(KLTheme.imdbGold)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 3)
+                                .background(Color.black.opacity(0.75))
+                                .clipShape(Capsule())
+                        }
 
                         Spacer()
 
-                        Text(film.quality)
-                            .font(.system(size: 8.5, weight: .black))
+                        Text(film.quality.isEmpty ? "HD" : film.quality)
+                            .font(.system(size: 9.5, weight: .semibold, design: .default))
                             .foregroundColor(.white)
-                            .padding(.horizontal, 4.5)
-                            .padding(.vertical, 2)
-                            .background(KLTheme.netflixRed)
-                            .cornerRadius(3.5)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(KLTheme.appleActionBlue)
+                            .clipShape(Capsule())
                     }
-                    .padding(5)
+                    .padding(8)
 
                     Spacer()
 
                     HStack {
                         Text(film.currentEpisode.isEmpty ? "Full" : film.currentEpisode)
-                            .font(.system(size: 9, weight: .bold))
+                            .font(.system(size: 10, weight: .regular, design: .default))
                             .foregroundColor(.white)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 2)
-                            .background(Color.black.opacity(0.80))
-                            .cornerRadius(3.5)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(Color.black.opacity(0.75))
+                            .clipShape(Capsule())
                         Spacer()
                     }
-                    .padding(5)
+                    .padding(8)
                 }
             }
-            .frame(height: 155)
-            .cornerRadius(8)
+            .frame(height: 160)
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.white.opacity(0.12), lineWidth: 0.8)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(Color.white.opacity(0.08), lineWidth: 1.0)
             )
+            .shadow(color: Color.black.opacity(0.22), radius: 15, x: 2, y: 4)
 
-            Text(film.name)
-                .font(.system(size: 11.5, weight: .bold))
-                .foregroundColor(.white)
-                .lineLimit(1)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(film.name)
+                    .font(.system(size: 14, weight: .semibold, design: .default))
+                    .tracking(-0.28)
+                    .foregroundColor(KLTheme.textPrimary)
+                    .lineLimit(1)
 
-            Text("\(film.year) · \(film.language)")
-                .font(.system(size: 10, weight: .medium))
-                .foregroundColor(KLTheme.textMuted)
-                .lineLimit(1)
+                Text("\(film.year) · \(film.language)")
+                    .font(.system(size: 12, weight: .regular, design: .default))
+                    .foregroundColor(KLTheme.textMuted)
+                    .lineLimit(1)
+            }
         }
     }
 }

@@ -613,7 +613,7 @@ struct HLSPlayerView: View {
                             rescheduleAutoHide()
                         }
                     )
-                    .tint(KLTheme.brandOrange)
+                    .tint(KLTheme.appleActionBlue)
 
                     HStack {
                         Text(formatTime(safeValue))
