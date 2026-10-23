@@ -45,6 +45,17 @@ struct HLSPlayerView: View {
     // Screen Orientation State
     @State private var isOrientationLockedLandscape: Bool = true
 
+    // Touch Gestures HUD (Brightness & Volume)
+    enum PlayerHUDType {
+        case brightness(CGFloat)
+        case volume(Float)
+    }
+    @State private var activeHUDType: PlayerHUDType? = nil
+    @State private var hudDismissTask: Task<Void, Never>? = nil
+    @State private var initialDragBrightness: CGFloat = 0.5
+    @State private var initialDragVolume: Float = 1.0
+    @State private var stallObserverToken: Any? = nil
+
     // VOD Timeline State
     @State private var isLiveStream: Bool = true
     @State private var currentTime: Double = 0
@@ -74,7 +85,7 @@ struct HLSPlayerView: View {
                     .ignoresSafeArea()
             }
 
-            // 2. Gesture Surface (Single tap to toggle, Double tap to seek, Swipe to dismiss)
+            // 2. Gesture Surface (Single tap to toggle, Double tap to seek, Swipe to dismiss & adjust Brightness/Volume)
             GeometryReader { geo in
                 Color.clear
                     .contentShape(Rectangle())
@@ -93,13 +104,33 @@ struct HLSPlayerView: View {
                         toggleControls()
                     }
                     .gesture(
-                        DragGesture(minimumDistance: 35)
+                        DragGesture(minimumDistance: 15)
+                            .onChanged { value in
+                                guard !isScreenLocked else { return }
+                                let width = geo.size.width
+                                let startX = value.startLocation.x
+                                let transY = value.translation.height
+
+                                if abs(transY) > 10 && abs(value.translation.width) < 80 {
+                                    let delta = -transY / 220.0
+                                    if startX < width * 0.45 {
+                                        let target = min(1.0, max(0.0, initialDragBrightness + delta))
+                                        UIScreen.main.brightness = target
+                                        triggerHUD(.brightness(target))
+                                    } else if startX > width * 0.55 {
+                                        let target = min(1.0, max(0.0, initialDragVolume + Float(delta)))
+                                        player?.volume = target
+                                        triggerHUD(.volume(target))
+                                    }
+                                }
+                            }
                             .onEnded { value in
                                 guard !isScreenLocked else { return }
-                                // Swipe down to dismiss (Standard iOS Modal Gesture)
-                                if value.translation.height > 85 && abs(value.translation.width) < 140 {
+                                if value.startLocation.y < 120 && value.translation.height > 80 && abs(value.translation.width) < 120 && !isFullscreen {
                                     closePlayer()
                                 }
+                                initialDragBrightness = UIScreen.main.brightness
+                                initialDragVolume = player?.volume ?? 1.0
                             }
                     )
                     .gesture(
@@ -114,7 +145,56 @@ struct HLSPlayerView: View {
             }
             .ignoresSafeArea()
 
-            // 3. Double-Tap Seek Ripple Feedback Overlay
+            // 3. Gestures HUD Feedback Overlay (Brightness & Volume indicator)
+            if let hud = activeHUDType {
+                VStack {
+                    HStack(spacing: 12) {
+                        switch hud {
+                        case .brightness(let val):
+                            Image(systemName: val < 0.3 ? "sun.min.fill" : (val > 0.7 ? "sun.max.fill" : "sun.max"))
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(.yellow)
+
+                            ProgressView(value: Double(val), total: 1.0)
+                                .tint(.yellow)
+                                .frame(width: 110)
+
+                            Text("\(Int(val * 100))%")
+                                .font(.system(size: 12.5, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                                .frame(width: 36, alignment: .trailing)
+
+                        case .volume(let val):
+                            Image(systemName: val == 0 ? "speaker.slash.fill" : (val > 0.5 ? "speaker.wave.3.fill" : "speaker.wave.1.fill"))
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(KLTheme.brandOrange)
+
+                            ProgressView(value: Double(val), total: 1.0)
+                                .tint(KLTheme.brandOrange)
+                                .frame(width: 110)
+
+                            Text("\(Int(val * 100))%")
+                                .font(.system(size: 12.5, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                                .frame(width: 36, alignment: .trailing)
+                        }
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 10)
+                    .background(Color.black.opacity(0.85))
+                    .clipShape(Capsule())
+                    .overlay(Capsule().stroke(Color.white.opacity(0.18), lineWidth: 0.8))
+                    .shadow(color: .black.opacity(0.4), radius: 8, y: 4)
+                    .padding(.top, isFullscreen ? 26 : 18)
+
+                    Spacer()
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.94)))
+                .allowsHitTesting(false)
+                .zIndex(25)
+            }
+
+            // 4. Double-Tap Seek Ripple Feedback Overlay
             if let ripple = seekRippleText {
                 HStack {
                     if seekRippleSide == .trailing { Spacer() }
@@ -438,6 +518,12 @@ struct HLSPlayerView: View {
                 }
                 .buttonStyle(.plain)
             }
+
+            // AirPlay Cast Route Picker Button
+            AirPlayPickerView()
+                .frame(width: 32, height: 32)
+                .background(Color.white.opacity(0.18))
+                .clipShape(Circle())
 
             // Orientation Lock Toggle Button (Switches Landscape vs Portrait)
             if isFullscreen {
@@ -981,10 +1067,14 @@ struct HLSPlayerView: View {
 
         if player == nil {
             let p = AVPlayer(playerItem: item)
+            p.automaticallyWaitsToMinimizeStalling = false
             self.player = p
             setupTimeObserver(for: p)
+            setupStallObserver(for: item)
         } else {
+            player?.automaticallyWaitsToMinimizeStalling = false
             player?.replaceCurrentItem(with: item)
+            setupStallObserver(for: item)
         }
 
         player?.isMuted = isMuted
@@ -1035,6 +1125,24 @@ struct HLSPlayerView: View {
         }
     }
 
+    private func setupStallObserver(for item: AVPlayerItem) {
+        if let token = stallObserverToken {
+            NotificationCenter.default.removeObserver(token)
+            stallObserverToken = nil
+        }
+        stallObserverToken = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemPlaybackStalled,
+            object: item,
+            queue: .main
+        ) { [weak item] _ in
+            guard let it = item else { return }
+            // Auto recovery on stall: buffer briefly and resume
+            if self.isPlaying {
+                self.player?.play()
+            }
+        }
+    }
+
     private func seekToTime(_ seconds: Double) {
         guard let p = player else { return }
         hasPerformedInitialSeek = true
@@ -1072,6 +1180,22 @@ struct HLSPlayerView: View {
         }
 
         rescheduleAutoHide()
+    }
+
+    private func triggerHUD(_ hud: PlayerHUDType) {
+        withAnimation(.spring(response: 0.22, dampingFraction: 0.8)) {
+            activeHUDType = hud
+        }
+        hudDismissTask?.cancel()
+        hudDismissTask = Task {
+            try? await Task.sleep(nanoseconds: 1_200_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                withAnimation(.easeOut(duration: 0.2)) {
+                    activeHUDType = nil
+                }
+            }
+        }
     }
 
     private func cyclePlaybackRate() {
@@ -1142,9 +1266,14 @@ struct HLSPlayerView: View {
     private func cleanupResources() {
         hideControlsTask?.cancel()
         seekRippleTask?.cancel()
+        hudDismissTask?.cancel()
         if let token = timeObserverToken {
             player?.removeTimeObserver(token)
             timeObserverToken = nil
+        }
+        if let stallToken = stallObserverToken {
+            NotificationCenter.default.removeObserver(stallToken)
+            stallObserverToken = nil
         }
         if currentTime > 0 {
             onProgressUpdate?(currentTime, duration)
@@ -1246,6 +1375,9 @@ private struct NativeCinemaPlayerRepresentable: UIViewControllerRepresentable {
         vc.player = player
         vc.showsPlaybackControls = false
         vc.allowsPictureInPicturePlayback = true
+        if #available(iOS 14.2, *) {
+            vc.canStartPictureInPictureAutomaticallyFromInline = true
+        }
         vc.videoGravity = isAspectFill ? .resizeAspectFill : .resizeAspect
         return vc
     }
@@ -1255,6 +1387,22 @@ private struct NativeCinemaPlayerRepresentable: UIViewControllerRepresentable {
             uiViewController.player = player
         }
         uiViewController.showsPlaybackControls = false
+        if #available(iOS 14.2, *) {
+            uiViewController.canStartPictureInPictureAutomaticallyFromInline = true
+        }
         uiViewController.videoGravity = isAspectFill ? .resizeAspectFill : .resizeAspect
     }
+}
+
+// MARK: - Native AirPlay Route Picker Representable
+private struct AirPlayPickerView: UIViewRepresentable {
+    func makeUIView(context: Context) -> AVRoutePickerView {
+        let picker = AVRoutePickerView()
+        picker.tintColor = .white
+        picker.activeTintColor = UIColor(red: 1.0, green: 0.42, blue: 0.0, alpha: 1.0)
+        picker.prioritizesVideoDevices = true
+        return picker
+    }
+
+    func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
 }

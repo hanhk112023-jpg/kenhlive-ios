@@ -51,16 +51,6 @@ struct LiveSportsView: View {
         return heroMatches[heroIndex % heroMatches.count]
     }
 
-    private var providerPills: [KLFilterItem<String>] {
-        [
-            KLFilterItem(id: "all", title: "Tất Cả", badge: "\(allMatches.count)"),
-            KLFilterItem(id: "socolive", title: "Socolive", badge: "\(socoliveMatches.count)"),
-            KLFilterItem(id: "gavang33", title: "Gà Vàng 33", badge: "\(gavang33Matches.count)"),
-            KLFilterItem(id: "colatv", title: "ColaTV", badge: "\(colaMatches.count)"),
-            KLFilterItem(id: "giovang", title: "Giờ Vàng TV", badge: "\(giovangMatches.count)")
-        ]
-    }
-
     var body: some View {
         ZStack(alignment: .top) {
             KLTheme.bgDeep.ignoresSafeArea()
@@ -74,22 +64,7 @@ struct LiveSportsView: View {
 
             ScrollView(showsIndicators: false) {
                 LazyVStack(alignment: .leading, spacing: 18) {
-                    // 1. Editorial Header Bar
-                    renderHeaderBar()
-
-                    // 2. Segmented Broadcaster Strip with Real-Time Counts
-                    KLFilterStrip(items: providerPills, selection: $selectedProvider)
-                        .onChange(of: selectedProvider) { _ in
-                            heroIndex = 0
-                            selectedLeague = "all"
-                        }
-
-                    // 3. League Quick Filter Chips
-                    if availableLeagues.count > 2 {
-                        renderLeagueFilterStrip()
-                    }
-
-                    // 4. Spotlight Hero Match Banner
+                    // 1. Spotlight Hero Match Banner (Immersion & Content First)
                     if let hero = currentHero {
                         SportsHeroBanner(
                             group: hero,
@@ -113,9 +88,15 @@ struct LiveSportsView: View {
                                 }
                             }
                         )
+                        .padding(.top, 8)
                     }
 
-                    // 5. Matches Content Feed
+                    // 2. League Quick Filter Chips
+                    if availableLeagues.count > 2 {
+                        renderLeagueFilterStrip()
+                    }
+
+                    // 3. Matches Content Feed (Branded Horizontal Rails per Provider)
                     if selectedProvider == "all" && selectedLeague == "all" {
                         renderAllProvidersRails()
                     } else {
@@ -124,7 +105,7 @@ struct LiveSportsView: View {
 
                     Spacer(minLength: 80)
                 }
-                .padding(.top, 6)
+                .padding(.top, 4)
                 .padding(.bottom, 24)
             }
             .refreshable {
@@ -170,56 +151,11 @@ struct LiveSportsView: View {
         }
     }
 
-    // MARK: - Header Bar
-    @ViewBuilder
-    private func renderHeaderBar() -> some View {
-        HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 5) {
-                    Text("4 ĐÀI PHÁT ĐỘC LẬP")
-                        .font(.system(size: 10, weight: .black, design: .rounded))
-                        .tracking(1.4)
-                        .foregroundColor(KLTheme.brandOrange)
-
-                    Circle()
-                        .fill(KLTheme.liveRed)
-                        .frame(width: 5, height: 5)
-                }
-
-                Text("Thể Thao Trực Tiếp")
-                    .font(.system(size: 22, weight: .heavy, design: .rounded))
-                    .foregroundColor(.white)
-            }
-
-            Spacer()
-
-            HStack(spacing: 5) {
-                Image(systemName: "dot.radiowaves.left.and.right")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(KLTheme.liveRed)
-
-                Text("\(allMatches.count) TRẬN")
-                    .font(.system(size: 10.5, weight: .bold, design: .monospaced))
-                    .foregroundColor(KLTheme.textSecondary)
-            }
-            .padding(.horizontal, 9)
-            .padding(.vertical, 5)
-            .background(KLTheme.surfaceCard)
-            .cornerRadius(8)
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(KLTheme.borderSubtle, lineWidth: 0.8)
-            )
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 4)
-    }
-
     // MARK: - League Filter Strip
     @ViewBuilder
     private func renderLeagueFilterStrip() -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 ForEach(availableLeagues, id: \.self) { lg in
                     let isSel = selectedLeague == lg
                     Button {
@@ -229,18 +165,18 @@ struct LiveSportsView: View {
                         }
                     } label: {
                         Text(lg == "all" ? "Tất cả giải" : lg)
-                            .font(.system(size: 11, weight: isSel ? .bold : .medium))
+                            .font(.system(size: 11.5, weight: isSel ? .bold : .medium, design: .rounded))
                             .foregroundColor(isSel ? .black : KLTheme.textSecondary)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(isSel ? Color.white : KLTheme.surfaceCard)
-                            .cornerRadius(12)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(isSel ? Color.white : KLTheme.surfaceGlass)
+                            .cornerRadius(14)
                             .overlay(
-                                RoundedRectangle(cornerRadius: 12)
+                                RoundedRectangle(cornerRadius: 14)
                                     .stroke(isSel ? Color.white : KLTheme.borderSubtle, lineWidth: 0.8)
                             )
                     }
-                    .buttonStyle(KLScaleButtonStyle())
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 16)
