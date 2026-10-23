@@ -1,3 +1,14 @@
+# 🚀 KENHLIVE iOS v1.9.13 (Build 169) — GIAO DIỆN MỚI THIẾT KẾ CHUẨN APPLE DESIGN SPEC (DESIGN-apple.md)
+
+### 🎨 1. Tái Cấu Trúc Toàn Diện Theo Apple Design System
+- **Hệ màu chuẩn Apple**: Action Blue (`#0066cc`), Sky Link Blue (`#2997ff`) trên nền đen tuyền OLED (`#000000`) và bề mặt dark tile (`#272729` / `#2a2a2c`).
+- **Triết lý Photography-First**: Loại bỏ toàn bộ gradient trang trí lòe loẹt, tập trung tôn vinh hình ảnh poster và thumbnail trận đấu sắc nét.
+- **Typography Apple SF Pro Display**: Căn chỉnh tracking âm `-0.28px` chuẩn xác, cỡ chữ hiển thị rõ ràng, thanh lịch.
+- **Bo góc & Thẻ Apple Card**: Bo góc thẻ poster và thẻ trận đấu đồng bộ `rounded.lg` (18px), nút CTA dạng Apple Capsule Pill (`rounded.pill`), hiệu ứng bấm xúc giác `scale(0.95)`.
+- **Thanh Dock Tab Bar Nổi**: Thiết kế capsule mờ siêu nhẹ lơ lửng, phản hồi mượt mà, viền hairline tinh xảo.
+
+---
+
 # 🚀 KENHLIVE iOS v1.9.12 (Build 168) — GIỚI HẠN TRẦN BỘ NHỚ ĐỆM 50MB, TỰ ĐỘNG XOAY VÒNG LRU & TRIỆT TIÊU LƯU ĐÚP ẢNH
 
 ### ⚡ 1. Khống Chế Trần Cứng Bộ Nhớ Đệm & Tự Động Xoay Vòng (LRU Eviction)
