@@ -13,6 +13,7 @@ struct LiveSportsView: View {
     @State private var isLoading: Bool = true
     @State private var selectedGroupForPicker: LiveMatchGroup? = nil
     @State private var activeRoomForPlayer: LiveRoom? = nil
+    @State private var isShowingSchedule: Bool = false
     @State private var autoRefreshTask: Task<Void, Never>? = nil
 
     private var allMatches: [LiveMatchGroup] {
@@ -64,7 +65,49 @@ struct LiveSportsView: View {
 
             ScrollView(showsIndicators: false) {
                 LazyVStack(alignment: .leading, spacing: 18) {
-                    // 1. Spotlight Hero Match Banner (Immersion & Content First)
+                    // 1. Apple Native Editorial Navigation Header
+                    HStack(alignment: .center) {
+                        HStack(spacing: 8) {
+                            Text("Thể Thao")
+                                .font(.system(size: 28, weight: .heavy, design: .rounded))
+                                .foregroundColor(.white)
+
+                            Circle()
+                                .fill(KLTheme.liveRed)
+                                .frame(width: 8, height: 8)
+                                .overlay(
+                                    Circle()
+                                        .stroke(KLTheme.liveRed.opacity(0.4), lineWidth: 4)
+                                )
+                        }
+
+                        Spacer()
+
+                        Button {
+                            KLHaptics.selection()
+                            isShowingSchedule = true
+                        } label: {
+                            HStack(spacing: 5) {
+                                Image(systemName: "calendar")
+                                    .font(.system(size: 13, weight: .bold))
+                                Text("Lịch đấu")
+                                    .font(.system(size: 12, weight: .bold, design: .rounded))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 7)
+                            .background(Color.white.opacity(0.12))
+                            .clipShape(Capsule())
+                            .overlay(
+                                Capsule().stroke(Color.white.opacity(0.15), lineWidth: 0.8)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 10)
+
+                    // 2. Spotlight Hero Match Banner (Immersion & Content First)
                     if let hero = currentHero {
                         SportsHeroBanner(
                             group: hero,
@@ -138,6 +181,9 @@ struct LiveSportsView: View {
         }
         .sheet(item: $selectedGroupForPicker) { group in
             RoomPickerSheet(matchGroup: group)
+        }
+        .sheet(isPresented: $isShowingSchedule) {
+            ScheduleView()
         }
         .fullScreenCover(item: $activeRoomForPlayer) { room in
             HLSPlayerView(
@@ -310,7 +356,7 @@ struct LiveSportsView: View {
     }
 }
 
-// MARK: - Hero Spotlight Banner
+// MARK: - Apple Sports Cinema Spotlight Hero Banner
 private struct SportsHeroBanner: View {
     let group: LiveMatchGroup
     let currentIndex: Int
@@ -326,124 +372,211 @@ private struct SportsHeroBanner: View {
         let logoA = group.homeLogoUrl
         let logoB = group.awayLogoUrl
 
-        VStack(alignment: .leading, spacing: 10) {
-            // Header Pills
-            HStack(spacing: 6) {
+        VStack(spacing: 12) {
+            // 1. Top Badges Row: Status + League + Broadcaster
+            HStack(spacing: 8) {
                 KLLivePulseBadge(text: "TRỰC TIẾP", color: KLTheme.liveRed)
-                Text(top.providerDisplayName)
-                    .font(.system(size: 9.5, weight: .heavy, design: .rounded))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2.5)
-                    .background(group.providerColor)
-                    .cornerRadius(4)
 
-                Text(group.league.isEmpty ? "BÓNG ĐÁ" : group.league)
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(KLTheme.accentCyan)
+                Text(group.league.isEmpty ? "BÓNG ĐÁ" : group.league.uppercased())
+                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                    .tracking(0.6)
+                    .foregroundColor(Color.white.opacity(0.85))
                     .lineLimit(1)
 
                 Spacer()
 
+                Text(top.providerDisplayName)
+                    .font(.system(size: 9, weight: .heavy, design: .rounded))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .background(group.providerColor)
+                    .clipShape(Capsule())
+
                 if totalCount > 1 {
                     Text("\(currentIndex + 1)/\(totalCount)")
-                        .font(.system(size: 10, weight: .bold, design: .monospaced))
-                        .foregroundColor(KLTheme.textSecondary)
+                        .font(.system(size: 9.5, weight: .bold, design: .monospaced))
+                        .foregroundColor(Color.white.opacity(0.65))
                         .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
+                        .padding(.vertical, 2.5)
                         .background(Color.white.opacity(0.12))
-                        .cornerRadius(4)
+                        .clipShape(Capsule())
                 }
             }
 
-            // Teams Face-Off with ESPN 500x500 Logos
-            HStack(alignment: .center, spacing: 10) {
-                // Team A
-                HStack(spacing: 8) {
-                    TeamLogoView(url: logoA, size: 36)
-                    Text(teamA)
-                        .font(.system(size: 14.5, weight: .bold))
-                        .foregroundColor(.white)
-                        .lineLimit(1)
-                }
-                .frame(maxWidth: .infinity, alignment: .trailing)
+            // 2. Teams Arena Face-Off
+            HStack(alignment: .center, spacing: 12) {
+                // Home Club
+                VStack(spacing: 6) {
+                    TeamLogoView(url: logoA, size: 48)
+                        .shadow(color: .black.opacity(0.4), radius: 6, y: 3)
 
-                // Score or VS
-                VStack(spacing: 2) {
+                    Text(teamA)
+                        .font(.system(size: 13.5, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .frame(maxWidth: .infinity)
+                }
+                .frame(maxWidth: .infinity)
+
+                // Scoreboard Digital Center
+                VStack(spacing: 4) {
                     if let s = group.liveScore, !s.scoreA.isEmpty {
-                        Text("\(s.scoreA) - \(s.scoreB)")
-                            .font(.system(size: 17, weight: .black, design: .rounded))
-                            .foregroundColor(KLTheme.brandOrange)
+                        HStack(spacing: 6) {
+                            Text(s.scoreA)
+                                .font(.system(size: 24, weight: .black, design: .monospaced))
+                            Text("-")
+                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                                .foregroundColor(Color.white.opacity(0.5))
+                            Text(s.scoreB)
+                                .font(.system(size: 24, weight: .black, design: .monospaced))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                        .background(Color.black.opacity(0.5))
+                        .clipShape(Capsule())
+                        .overlay(Capsule().stroke(Color.white.opacity(0.15), lineWidth: 0.8))
                     } else {
                         Text("VS")
                             .font(.system(size: 13, weight: .black, design: .rounded))
-                            .foregroundColor(KLTheme.textMuted)
+                            .foregroundColor(Color.white.opacity(0.75))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4.5)
+                            .background(Color.white.opacity(0.12))
+                            .clipShape(Capsule())
                     }
 
                     if !top.blvName.isEmpty {
-                        Text("🎙️ " + top.blvName)
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(KLTheme.textSecondary)
-                            .lineLimit(1)
+                        HStack(spacing: 4) {
+                            Image(systemName: "mic.fill")
+                                .font(.system(size: 9))
+                                .foregroundColor(KLTheme.accentCyan)
+                            Text(top.blvName)
+                                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                .foregroundColor(Color.white.opacity(0.9))
+                                .lineLimit(1)
+                        }
                     }
                 }
-                .frame(width: 75)
+                .frame(minWidth: 84)
 
-                // Team B
-                HStack(spacing: 8) {
+                // Away Club
+                VStack(spacing: 6) {
+                    TeamLogoView(url: logoB, size: 48)
+                        .shadow(color: .black.opacity(0.4), radius: 6, y: 3)
+
                     Text(teamB)
-                        .font(.system(size: 14.5, weight: .bold))
+                        .font(.system(size: 13.5, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
-                        .lineLimit(1)
-                    TeamLogoView(url: logoB, size: 36)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity)
             }
             .padding(.vertical, 4)
 
-            // Bottom Action Strip
+            // 3. Bottom Action Controls
             HStack(spacing: 8) {
                 Button(action: onWatchNow) {
-                    HStack(spacing: 5) {
+                    HStack(spacing: 6) {
                         Image(systemName: "play.fill")
-                            .font(.system(size: 10, weight: .bold))
-                        Text("XEM NGAY")
-                            .font(.system(size: 11.5, weight: .bold))
+                            .font(.system(size: 11, weight: .bold))
+                        Text("XEM TRỰC TIẾP")
+                            .font(.system(size: 12, weight: .heavy, design: .rounded))
                     }
                     .foregroundColor(.black)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 9)
+                    .padding(.vertical, 10)
                     .background(Color.white)
-                    .cornerRadius(8)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
+                .buttonStyle(.plain)
 
                 if group.rooms.count > 1 {
                     Button(action: onPickRoom) {
-                        Text("ĐỔI BLV (\(group.rooms.count))")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 9)
-                            .background(KLTheme.surfaceGlassStrong)
-                            .cornerRadius(8)
+                        HStack(spacing: 4) {
+                            Image(systemName: "waveform")
+                                .font(.system(size: 10, weight: .bold))
+                            Text("ĐỔI BLV (\(group.rooms.count))")
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 10)
+                        .background(Color.white.opacity(0.14))
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }
+                    .buttonStyle(.plain)
                 }
 
                 if totalCount > 1 {
                     Button(action: onNextMatch) {
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.system(size: 12, weight: .bold))
                             .foregroundColor(.white)
-                            .padding(.horizontal, 11)
-                            .padding(.vertical, 9)
-                            .background(KLTheme.surfaceGlassStrong)
-                            .cornerRadius(8)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                            .background(Color.white.opacity(0.14))
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     }
+                    .buttonStyle(.plain)
                 }
             }
+
+            // 4. Elegant Indicator Dots
+            if totalCount > 1 {
+                HStack(spacing: 5) {
+                    ForEach(0..<min(8, totalCount), id: \.self) { idx in
+                        Capsule()
+                            .fill(idx == currentIndex ? Color.white : Color.white.opacity(0.22))
+                            .frame(width: idx == currentIndex ? 16 : 5, height: 4.5)
+                            .animation(.spring(response: 0.25, dampingFraction: 0.8), value: currentIndex)
+                    }
+                }
+                .padding(.top, 2)
+            }
         }
-        .padding(14)
-        .klGlassCard(cornerRadius: 14, borderColor: KLTheme.borderMedium)
+        .padding(16)
+        .background(
+            ZStack {
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.04, green: 0.15, blue: 0.13),
+                        Color(red: 0.05, green: 0.08, blue: 0.14)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+
+                RadialGradient(
+                    colors: [
+                        Color(red: 0.08, green: 0.70, blue: 0.45).opacity(0.35),
+                        Color.clear
+                    ],
+                    center: .top,
+                    startRadius: 20,
+                    endRadius: 220
+                )
+            }
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.12, green: 0.75, blue: 0.50).opacity(0.40),
+                            Color.white.opacity(0.12)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
         .padding(.horizontal, 16)
     }
 }
@@ -494,11 +627,11 @@ private struct SportsMatchCardView: View {
             let logoA = group.homeLogoUrl
             let logoB = group.awayLogoUrl
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 9) {
                 // Top Header: League Pill + Live Status Pill
                 HStack(alignment: .center) {
                     Text(group.league.isEmpty ? "BÓNG ĐÁ" : group.league)
-                        .font(.system(size: 9.5, weight: .bold))
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
                         .foregroundColor(KLTheme.accentCyan)
                         .lineLimit(1)
 
@@ -508,11 +641,11 @@ private struct SportsMatchCardView: View {
                 }
 
                 // Stadium Face-Off
-                HStack(alignment: .center, spacing: 6) {
-                    HStack(spacing: 6) {
-                        TeamLogoView(url: logoA, size: 28)
+                HStack(alignment: .center, spacing: 8) {
+                    HStack(spacing: 7) {
+                        TeamLogoView(url: logoA, size: 32)
                         Text(teamA)
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
                             .foregroundColor(.white)
                             .lineLimit(1)
                     }
@@ -520,25 +653,31 @@ private struct SportsMatchCardView: View {
 
                     if let score = group.liveScore, !score.scoreA.isEmpty {
                         Text("\(score.scoreA) - \(score.scoreB)")
-                            .font(.system(size: 12.5, weight: .black, design: .monospaced))
+                            .font(.system(size: 13, weight: .black, design: .monospaced))
                             .foregroundColor(KLTheme.brandOrange)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(Color.white.opacity(0.08))
+                            .clipShape(Capsule())
                     } else {
                         Text("VS")
-                            .font(.system(size: 10, weight: .black))
+                            .font(.system(size: 11, weight: .black, design: .rounded))
                             .foregroundColor(KLTheme.textMuted)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
                     }
 
-                    HStack(spacing: 6) {
+                    HStack(spacing: 7) {
                         Text(teamB)
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
                             .foregroundColor(.white)
                             .lineLimit(1)
                             .multilineTextAlignment(.trailing)
-                        TeamLogoView(url: logoB, size: 28)
+                        TeamLogoView(url: logoB, size: 32)
                     }
                     .frame(maxWidth: .infinity, alignment: .trailing)
                 }
-                .padding(.vertical, 2)
+                .padding(.vertical, 3)
 
                 Divider().background(KLTheme.borderSubtle)
 
@@ -546,10 +685,10 @@ private struct SportsMatchCardView: View {
                 HStack {
                     HStack(spacing: 4) {
                         Image(systemName: "mic.fill")
-                            .font(.system(size: 8.5))
+                            .font(.system(size: 9))
                             .foregroundColor(KLTheme.brandOrange)
-                        Text(top.blvName)
-                            .font(.system(size: 10.5, weight: .semibold))
+                        Text(top.blvName.isEmpty ? "BLV Nhà Đài" : top.blvName)
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
                             .foregroundColor(KLTheme.brandOrange)
                             .lineLimit(1)
                     }
@@ -557,17 +696,17 @@ private struct SportsMatchCardView: View {
                     Spacer()
 
                     Text(top.providerDisplayName)
-                        .font(.system(size: 9, weight: .heavy))
+                        .font(.system(size: 9, weight: .heavy, design: .rounded))
                         .foregroundColor(badgeColor)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(badgeColor.opacity(0.14))
-                        .cornerRadius(4)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2.5)
+                        .background(badgeColor.opacity(0.16))
+                        .clipShape(Capsule())
                 }
             }
-            .padding(11)
-            .frame(width: 260)
-            .klGlassCard(cornerRadius: 12)
+            .padding(13)
+            .frame(width: 295)
+            .klGlassCard(cornerRadius: 16)
         }
         .buttonStyle(KLScaleButtonStyle())
     }
