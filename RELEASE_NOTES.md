@@ -1,3 +1,22 @@
+# 🚀 KENHLIVE iOS v1.9.16 (Build 172) — SỬA LỖI BỐC HƠI DISK CACHE, BẪY SPINNER VÔ TẬN & TỐI ƯU CỬ CHỈ TRÌNH PHÁT
+
+### ⚡ 1. Sửa Triệt Để Lỗi Bốc Hơi Bộ Nhớ Đệm Ảnh Ổ Đĩa (Deterministic Disk Cache)
+- **Nguyên nhân**: `KLDiskImageCache` trước đây dùng `abs(key.hashValue)` để đặt tên file trên ổ đĩa. Do `hashValue` trong Swift bị đổi seed ngẫu nhiên mỗi lần khởi động app, toàn bộ ảnh poster và logo đã lưu bị vô hiệu hóa sau mỗi phiên tắt mở, buộc app phải tải lại từ mạng.
+- **Khắc phục**: Chuyển sang thuật toán băm DJB2 deterministic 64-bit bất biến. Toàn bộ ảnh poster và logo lưu trên đĩa được giữ nguyên 100% giữa các lần mở ứng dụng, tiết kiệm dung lượng mạng và loại bỏ hiện tượng giật tải ảnh.
+
+### 🎬 2. Khắc Phục Bẫy Spinner Loading Vô Tận Khi Luồng Stream Bị Lỗi (HLSPlayerView)
+- **Tự động bắt lỗi kết nối**: Bổ sung lắng nghe sự kiện `AVPlayerItemFailedToPlayToEndTime` và giám sát thuộc tính `item.observe(\.status)`.
+- **Hiển thị giao diện báo lỗi & Đổi Server**: Khi luồng stream bị hỏng (404/token hết hạn), player dừng quay vòng loading, lập tức hiển thị cảnh báo trực quan kèm nút **\"Thử lại\"** hoặc **\"Đổi Server\"** giúp người dùng chuyển server mượt mà.
+
+### ☀️ 3. Tối Ưu Cử Chỉ Vuốt Độ Sáng & Âm Lượng Trình Phát
+- **Loại bỏ hiện tượng giật sáng 50% ở lần chạm đầu**: Khởi tạo chính xác `initialDragBrightness` và `initialDragVolume` từ mức sáng thực tế của máy và âm lượng player trong `.onAppear`, vuốt tăng giảm mượt mà không bị nhảy thông số đột ngột.
+
+### 🎨 4. Chuẩn Hóa Nền Đen Tuyền OLED & Phiên Bản Động
+- **Nền đen tuyệt đối**: Thay thế các vùng nền xám cũ (`#070709` / `#07080E`) sang chuẩn đen tuyền OLED `KLTheme.bgDeep` (`#000000`).
+- **Phiên bản động**: Chuyển chuỗi hiển thị phiên bản ở Footer và Báo lỗi sang tự động đọc từ Bundle info (`v1.9.16 b172`).
+
+---
+
 # 🚀 KENHLIVE iOS v1.9.13 (Build 169) — GIAO DIỆN MỚI THIẾT KẾ CHUẨN APPLE DESIGN SPEC (DESIGN-apple.md)
 
 ### 🎨 1. Tái Cấu Trúc Toàn Diện Theo Apple Design System

@@ -461,7 +461,11 @@ final class KLDiskImageCache {
 
     private func filename(for key: String) -> String {
         let safe = key.replacingOccurrences(of: "[^a-zA-Z0-9_.-]", with: "_", options: .regularExpression)
-        let hash = abs(key.hashValue)
+        // Deterministic djb2 hash (persistent across app launches, unlike Swift String.hashValue)
+        var hash: UInt64 = 5381
+        for byte in key.utf8 {
+            hash = ((hash << 5) &+ hash) &+ UInt64(byte)
+        }
         let suffix = safe.count > 30 ? String(safe.suffix(30)) : safe
         return "\(hash)_\(suffix).jpg"
     }

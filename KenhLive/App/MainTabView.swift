@@ -42,7 +42,7 @@ struct MainTabView: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            Color(red: 0.07, green: 0.07, blue: 0.09).ignoresSafeArea()
+            KLTheme.bgDeep.ignoresSafeArea()
 
             // 1. Tab View Content (Persistent in Memory: 0ms Switch Latency, No View Rebuilds)
             ZStack {
@@ -193,7 +193,7 @@ struct CinemaSearchView: View {
 
     var body: some View {
         ZStack {
-            Color(red: 0.07, green: 0.07, blue: 0.09).ignoresSafeArea()
+            KLTheme.bgDeep.ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 18) {
@@ -650,7 +650,7 @@ struct CinemaProfileView: View {
 
     var body: some View {
         ZStack {
-            Color(red: 0.07, green: 0.07, blue: 0.09).ignoresSafeArea()
+            KLTheme.bgDeep.ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 22) {
@@ -1065,11 +1065,13 @@ struct CinemaProfileView: View {
     // MARK: - Footer
     @ViewBuilder
     private func renderFooter() -> some View {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.9.16"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "172"
         VStack(spacing: 4) {
             Text("KenhLive Cinema & Sports iOS")
                 .font(.system(size: 12, weight: .bold))
                 .foregroundColor(Color.white.opacity(0.6))
-            Text("Phiên bản v1.9.13 (Build 169)")
+            Text("Phiên bản v\(version) (Build \(build))")
                 .font(.system(size: 11, weight: .regular))
                 .foregroundColor(Color.white.opacity(0.3))
         }

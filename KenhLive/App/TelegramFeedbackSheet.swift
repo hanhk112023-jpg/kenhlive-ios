@@ -10,6 +10,12 @@ struct TelegramFeedbackSheet: View {
     private let telegramUrlString = "https://t.me/T990512S"
     private let telegramHandle = "@T990512S"
 
+    private var versionString: String {
+        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.9.16"
+        let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "172"
+        return "v\(v) (Build \(b))"
+    }
+
     var body: some View {
         ZStack {
             KLTheme.bgDeep.ignoresSafeArea()
@@ -52,7 +58,7 @@ struct TelegramFeedbackSheet: View {
                                 .frame(width: 5, height: 5)
                         }
 
-                        Text("KenhLive v1.6.4 (Build 136)")
+                        Text("KenhLive \(versionString)")
                             .font(.system(size: 22, weight: .heavy, design: .rounded))
                             .foregroundColor(.white)
 
@@ -65,7 +71,7 @@ struct TelegramFeedbackSheet: View {
 
                     // 3. What's New Feature List
                     VStack(alignment: .leading, spacing: 14) {
-                        Text("ĐIỂM NÂNG CẤP NỔI BẬT V1.6.4")
+                        Text("ĐIỂM NÂNG CẤP NỔI BẬT")
                             .font(.system(size: 10.5, weight: .black, design: .rounded))
                             .tracking(1.2)
                             .foregroundColor(KLTheme.brandOrange)

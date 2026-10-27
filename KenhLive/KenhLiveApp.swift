@@ -43,7 +43,7 @@ struct KenhLiveApp: App {
     private func configureNavigationAppearance() {
         let navAppearance = UINavigationBarAppearance()
         navAppearance.configureWithOpaqueBackground()
-        navAppearance.backgroundColor = UIColor(red: 7/255, green: 8/255, blue: 14/255, alpha: 0.94)
+        navAppearance.backgroundColor = UIColor.black
         navAppearance.titleTextAttributes = [.foregroundColor: UIColor.white]
         navAppearance.largeTitleTextAttributes = [.foregroundColor: UIColor.white]
         UINavigationBar.appearance().standardAppearance = navAppearance

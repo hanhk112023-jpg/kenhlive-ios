@@ -55,6 +55,8 @@ struct HLSPlayerView: View {
     @State private var initialDragBrightness: CGFloat = 0.5
     @State private var initialDragVolume: Float = 1.0
     @State private var stallObserverToken: Any? = nil
+    @State private var failedObserverToken: Any? = nil
+    @State private var itemStatusObserver: NSKeyValueObservation? = nil
 
     // VOD Timeline State
     @State private var isLiveStream: Bool = true
@@ -400,6 +402,8 @@ struct HLSPlayerView: View {
         .onAppear {
             internalEpIndex = currentEpisodeIndex
             targetResumeSeconds = initialTimeSeconds
+            initialDragBrightness = UIScreen.main.brightness
+            initialDragVolume = player?.volume ?? 1.0
             if isFullscreen {
                 OrientationManager.lockLandscape()
                 isOrientationLockedLandscape = true
@@ -1130,6 +1134,13 @@ struct HLSPlayerView: View {
             NotificationCenter.default.removeObserver(token)
             stallObserverToken = nil
         }
+        if let token = failedObserverToken {
+            NotificationCenter.default.removeObserver(token)
+            failedObserverToken = nil
+        }
+        itemStatusObserver?.invalidate()
+        itemStatusObserver = nil
+
         stallObserverToken = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemPlaybackStalled,
             object: item,
@@ -1139,6 +1150,30 @@ struct HLSPlayerView: View {
             // Auto recovery on stall: buffer briefly and resume
             if self.isPlaying {
                 self.player?.play()
+            }
+        }
+
+        failedObserverToken = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemFailedToPlayToEndTime,
+            object: item,
+            queue: .main
+        ) { [weak item] notif in
+            self.isLoadingStream = false
+            let errDesc = (notif.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error)?.localizedDescription
+                ?? "Luồng phát gặp sự cố kết nối."
+            self.playbackError = "Lỗi luồng phát: \(errDesc)\nVui lòng thử lại hoặc đổi Server."
+        }
+
+        itemStatusObserver = item.observe(\.status, options: [.initial, .new]) { [weak item] it, _ in
+            DispatchQueue.main.async {
+                if it.status == .readyToPlay {
+                    self.isLoadingStream = false
+                    self.playbackError = nil
+                } else if it.status == .failed {
+                    self.isLoadingStream = false
+                    let desc = it.error?.localizedDescription ?? "Không thể tải luồng phát."
+                    self.playbackError = "Lỗi kết nối: \(desc)\nVui lòng thử lại hoặc chọn Server khác."
+                }
             }
         }
     }
@@ -1275,6 +1310,12 @@ struct HLSPlayerView: View {
             NotificationCenter.default.removeObserver(stallToken)
             stallObserverToken = nil
         }
+        if let failToken = failedObserverToken {
+            NotificationCenter.default.removeObserver(failToken)
+            failedObserverToken = nil
+        }
+        itemStatusObserver?.invalidate()
+        itemStatusObserver = nil
         if currentTime > 0 {
             onProgressUpdate?(currentTime, duration)
             persistCurrentEpisodeProgress(sec: currentTime, dur: duration)

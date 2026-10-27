@@ -131,7 +131,7 @@ struct PhimView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            Color(red: 0.07, green: 0.07, blue: 0.09).ignoresSafeArea()
+            KLTheme.bgDeep.ignoresSafeArea()
 
             // FPT Play Ambient Radiant Header Glow
             KLAmbientHeaderGlow(color: KLTheme.fptOrange, height: 320, opacity: 0.28)
@@ -214,9 +214,9 @@ struct PhimView: View {
                 LinearGradient(
                     stops: [
                         .init(color: Color.clear, location: 0.0),
-                        .init(color: Color(red: 0.07, green: 0.07, blue: 0.09).opacity(0.35), location: 0.45),
-                        .init(color: Color(red: 0.07, green: 0.07, blue: 0.09).opacity(0.85), location: 0.8),
-                        .init(color: Color(red: 0.07, green: 0.07, blue: 0.09), location: 1.0)
+                        .init(color: KLTheme.bgDeep.opacity(0.35), location: 0.45),
+                        .init(color: KLTheme.bgDeep.opacity(0.85), location: 0.8),
+                        .init(color: KLTheme.bgDeep, location: 1.0)
                     ],
                     startPoint: .top,
                     endPoint: .bottom
