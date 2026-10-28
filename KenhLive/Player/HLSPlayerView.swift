@@ -1133,10 +1133,9 @@ struct HLSPlayerView: View {
 
     private func setupPlayerObservers(for p: AVPlayer) {
         timeControlStatusObserver?.invalidate()
-        timeControlStatusObserver = p.observe(\.timeControlStatus, options: [.initial, .new]) { [weak p] player, _ in
+        timeControlStatusObserver = p.observe(\.timeControlStatus, options: [.initial, .new]) { observedPlayer, _ in
             DispatchQueue.main.async {
-                guard let p = player else { return }
-                switch p.timeControlStatus {
+                switch observedPlayer.timeControlStatus {
                 case .playing:
                     self.isPlaying = true
                     self.isLoadingStream = false
