@@ -1,3 +1,17 @@
+# 🚀 KENHLIVE iOS v1.9.17 (Build 173) — SỬA TRIỆT ĐỂ LỖI TREO PHÁT (PHẢI BẤM TẠM DỪNG RỒI PHÁT MỚI XEM ĐƯỢC)
+
+### 🎬 1. Khắc Phục Triệt Để Hiện Tượng Kẹt Trình Phát (Stalled AutoPlay Trap)
+- **Nguyên nhân cốt lõi**:
+  1. Cấu hình `automaticallyWaitsToMinimizeStalling = false` khiến AVPlayer lập tức kích hoạt trạng thái Stalled (đứng hình) và hạ `rate = 0.0` ngay khi vừa nạp URL do luồng HLS/m3u8 chưa kịp tải xong các phân đoạn video đầu tiên.
+  2. Khi `item.status` chuyển sang trạng thái `.readyToPlay`, trình phát trước đây chỉ ẩn vòng xoay spinner (`isLoadingStream = false`) mà **hoàn toàn quên gọi lệnh `player.play()`**, khiến video bị đông cứng vĩnh viễn ở giây thứ 0.
+  3. Biến trạng thái `@State isPlaying = true` bị lệch pha hoàn toàn so với AVPlayer phần cứng (`rate = 0`), khiến giao diện hiển thị icon nút "Tạm dừng" (||). Người dùng phải bấm vào nút Tạm dừng (làm `isPlaying = false`), sau đó bấm Phát lại lần 2 (gọi `player.play()`) thì luồng mới bắt đầu chạy.
+- **Khắc phục**:
+  1. Khôi phục `automaticallyWaitsToMinimizeStalling = true` theo đúng khuyến nghị của Apple để AVPlayer tự động nạp đủ đệm và chuyển cảnh mượt mà.
+  2. Bổ sung cơ chế tự động kích hoạt `player.play()` và khôi phục `playbackRate` ngay khi nhận tín hiệu `it.status == .readyToPlay`.
+  3. Bổ sung KVO Observer giám sát `timeControlStatus` trên `AVPlayer`, đồng bộ 100% thời gian thực trạng thái giữa giao diện người dùng và phần cứng giải mã.
+
+---
+
 # 🚀 KENHLIVE iOS v1.9.16 (Build 172) — SỬA LỖI BỐC HƠI DISK CACHE, BẪY SPINNER VÔ TẬN & TỐI ƯU CỬ CHỈ TRÌNH PHÁT
 
 ### ⚡ 1. Sửa Triệt Để Lỗi Bốc Hơi Bộ Nhớ Đệm Ảnh Ổ Đĩa (Deterministic Disk Cache)

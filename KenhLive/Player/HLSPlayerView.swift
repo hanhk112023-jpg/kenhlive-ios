@@ -57,6 +57,7 @@ struct HLSPlayerView: View {
     @State private var stallObserverToken: Any? = nil
     @State private var failedObserverToken: Any? = nil
     @State private var itemStatusObserver: NSKeyValueObservation? = nil
+    @State private var timeControlStatusObserver: NSKeyValueObservation? = nil
 
     // VOD Timeline State
     @State private var isLiveStream: Bool = true
@@ -1071,12 +1072,13 @@ struct HLSPlayerView: View {
 
         if player == nil {
             let p = AVPlayer(playerItem: item)
-            p.automaticallyWaitsToMinimizeStalling = false
+            p.automaticallyWaitsToMinimizeStalling = true
             self.player = p
             setupTimeObserver(for: p)
+            setupPlayerObservers(for: p)
             setupStallObserver(for: item)
         } else {
-            player?.automaticallyWaitsToMinimizeStalling = false
+            player?.automaticallyWaitsToMinimizeStalling = true
             player?.replaceCurrentItem(with: item)
             setupStallObserver(for: item)
         }
@@ -1129,6 +1131,28 @@ struct HLSPlayerView: View {
         }
     }
 
+    private func setupPlayerObservers(for p: AVPlayer) {
+        timeControlStatusObserver?.invalidate()
+        timeControlStatusObserver = p.observe(\.timeControlStatus, options: [.initial, .new]) { [weak p] player, _ in
+            DispatchQueue.main.async {
+                guard let p = player else { return }
+                switch p.timeControlStatus {
+                case .playing:
+                    self.isPlaying = true
+                    self.isLoadingStream = false
+                case .waitingToPlayAtSpecifiedRate:
+                    self.isLoadingStream = true
+                case .paused:
+                    if self.playbackError != nil {
+                        self.isPlaying = false
+                    }
+                @unknown default:
+                    break
+                }
+            }
+        }
+    }
+
     private func setupStallObserver(for item: AVPlayerItem) {
         if let token = stallObserverToken {
             NotificationCenter.default.removeObserver(token)
@@ -1169,6 +1193,14 @@ struct HLSPlayerView: View {
                 if it.status == .readyToPlay {
                     self.isLoadingStream = false
                     self.playbackError = nil
+                    // Tự động kích hoạt phát ngay khi stream đã sẵn sàng (tránh lỗi kẹt pause)
+                    if self.isPlaying {
+                        if self.playbackRate != 1.0 {
+                            self.player?.rate = self.playbackRate
+                        } else {
+                            self.player?.play()
+                        }
+                    }
                 } else if it.status == .failed {
                     self.isLoadingStream = false
                     let desc = it.error?.localizedDescription ?? "Không thể tải luồng phát."
@@ -1316,6 +1348,8 @@ struct HLSPlayerView: View {
         }
         itemStatusObserver?.invalidate()
         itemStatusObserver = nil
+        timeControlStatusObserver?.invalidate()
+        timeControlStatusObserver = nil
         if currentTime > 0 {
             onProgressUpdate?(currentTime, duration)
             persistCurrentEpisodeProgress(sec: currentTime, dur: duration)
