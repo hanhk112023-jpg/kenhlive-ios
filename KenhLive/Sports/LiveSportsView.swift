@@ -821,19 +821,9 @@ struct TeamLogoView: View {
     var size: CGFloat = 30
 
     var body: some View {
-        if !url.isEmpty, let imageURL = URL(string: url) {
-            AsyncImage(url: imageURL) { phase in
-                switch phase {
-                case .success(let image):
-                    image
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: size, height: size)
-                default:
-                    SportsShieldPlaceholder(size: size)
-                }
-            }
-            .frame(width: size, height: size)
+        if !url.isEmpty {
+            KLAsyncImage(url: url, contentMode: .fit, isLogo: true)
+                .frame(width: size, height: size)
         } else {
             SportsShieldPlaceholder(size: size)
         }

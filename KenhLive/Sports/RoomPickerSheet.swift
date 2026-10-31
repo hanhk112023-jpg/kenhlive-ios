@@ -63,16 +63,10 @@ struct RoomPickerSheet: View {
                                             )
                                             .frame(width: 42, height: 42)
 
-                                        if !room.avatar.isEmpty, let imgUrl = URL(string: room.avatar) {
-                                            AsyncImage(url: imgUrl) { phase in
-                                                if let img = phase.image {
-                                                    img.resizable().scaledToFill()
-                                                } else {
-                                                    Image(systemName: "mic.fill").font(.system(size: 16)).foregroundColor(.white)
-                                                }
-                                            }
-                                            .frame(width: 42, height: 42)
-                                            .clipShape(Circle())
+                                        if !room.avatar.isEmpty {
+                                            KLAsyncImage(url: room.avatar, contentMode: .fill, isLogo: true)
+                                                .frame(width: 42, height: 42)
+                                                .clipShape(Circle())
                                         } else {
                                             Image(systemName: "mic.fill")
                                                 .font(.system(size: 16, weight: .bold))

@@ -93,48 +93,69 @@ struct MainTabView: View {
     // MARK: - Safe Bottom Floating Dock Tab Bar (Full Hitbox, Instant Response)
     @ViewBuilder
     private func renderFloatingDockTabBar() -> some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 6) {
             ForEach(KLTab.allCases) { tab in
                 let isActive = selectedTab == tab
                 Button {
                     KLHaptics.selection()
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.76)) {
                         selectedTab = tab
                     }
                 } label: {
-                    ZStack {
-                        if isActive {
-                            Circle()
-                                .fill(KLTheme.appleActionBlue)
-                                .frame(width: 40, height: 40)
-                                .shadow(color: Color.black.opacity(0.22), radius: 6, x: 0, y: 2)
-                        }
-
+                    HStack(spacing: 6) {
                         Image(systemName: tab.iconName)
-                            .font(.system(size: isActive ? 17 : 16, weight: isActive ? .semibold : .regular))
-                            .foregroundColor(isActive ? .white : KLTheme.textMuted)
-                            .scaleEffect(isActive ? 1.05 : 1.0)
-                            .animation(.spring(response: 0.24, dampingFraction: 0.75), value: isActive)
+                            .font(.system(size: 15, weight: isActive ? .bold : .medium))
+
+                        if isActive {
+                            Text(tab.title)
+                                .font(.system(size: 12.5, weight: .bold, design: .rounded))
+                                .lineLimit(1)
+                                .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                        }
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .contentShape(Rectangle())
+                    .foregroundColor(isActive ? .white : KLTheme.textMuted)
+                    .padding(.horizontal, isActive ? 16 : 12)
+                    .frame(height: 40)
+                    .background(
+                        ZStack {
+                            if isActive {
+                                Capsule()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [KLTheme.brandOrange, Color(red: 0.0, green: 0.443, blue: 0.89)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                    )
+                                    .matchedGeometryEffect(id: "active_tab_pill", in: tabNamespace)
+                                    .shadow(color: KLTheme.brandOrange.opacity(0.35), radius: 8, x: 0, y: 3)
+                            }
+                        }
+                    )
+                    .contentShape(Capsule())
                 }
-                .buttonStyle(KLScaleButtonStyle())
+                .buttonStyle(KLScaleButtonStyle(scaleAmount: 0.94))
             }
         }
-        .frame(height: 52)
-        .padding(.horizontal, 6)
-        .background(
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(.ultraThinMaterial)
+        .background(Color(red: 0.10, green: 0.10, blue: 0.12).opacity(0.78))
+        .clipShape(Capsule())
+        .overlay(
             Capsule()
-                .fill(KLTheme.surfaceCardSecondary.opacity(0.92))
-                .overlay(
-                    Capsule()
-                        .stroke(Color.white.opacity(0.08), lineWidth: 1.0)
+                .stroke(
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.24), Color.white.opacity(0.06)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 0.8
                 )
-                .shadow(color: Color.black.opacity(0.35), radius: 16, x: 0, y: 6)
         )
+        .shadow(color: Color.black.opacity(0.45), radius: 20, x: 0, y: 8)
         .padding(.horizontal, 24)
-        .padding(.bottom, 16)
+        .padding(.bottom, 22)
     }
 }
 

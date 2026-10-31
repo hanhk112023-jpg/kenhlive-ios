@@ -46,30 +46,43 @@ enum KLTheme {
     static let appleParchment = Color(red: 0.961, green: 0.961, blue: 0.969) // #f5f5f7 Parchment
 }
 
-// MARK: - Native Haptics Feedback Engine
+// MARK: - Native Haptics Feedback Engine (Zero Allocation Singletons)
 enum KLHaptics {
+    private static let lightGen: UIImpactFeedbackGenerator = {
+        let g = UIImpactFeedbackGenerator(style: .light)
+        g.prepare()
+        return g
+    }()
+    private static let mediumGen: UIImpactFeedbackGenerator = {
+        let g = UIImpactFeedbackGenerator(style: .medium)
+        g.prepare()
+        return g
+    }()
+    private static let heavyGen: UIImpactFeedbackGenerator = {
+        let g = UIImpactFeedbackGenerator(style: .heavy)
+        g.prepare()
+        return g
+    }()
+    private static let selectionGen: UISelectionFeedbackGenerator = {
+        let g = UISelectionFeedbackGenerator()
+        g.prepare()
+        return g
+    }()
+
     static func light() {
-        let generator = UIImpactFeedbackGenerator(style: .light)
-        generator.prepare()
-        generator.impactOccurred()
+        lightGen.impactOccurred()
     }
 
     static func medium() {
-        let generator = UIImpactFeedbackGenerator(style: .medium)
-        generator.prepare()
-        generator.impactOccurred()
+        mediumGen.impactOccurred()
     }
 
     static func heavy() {
-        let generator = UIImpactFeedbackGenerator(style: .heavy)
-        generator.prepare()
-        generator.impactOccurred()
+        heavyGen.impactOccurred()
     }
 
     static func selection() {
-        let generator = UISelectionFeedbackGenerator()
-        generator.prepare()
-        generator.selectionChanged()
+        selectionGen.selectionChanged()
     }
 }
 
@@ -116,6 +129,28 @@ extension View {
             borderWidth: borderWidth,
             backgroundColor: backgroundColor
         ))
+    }
+
+    func klFrostedGlassCard(
+        cornerRadius: CGFloat = 18,
+        borderColor: Color = Color.white.opacity(0.14),
+        borderWidth: CGFloat = 0.8
+    ) -> some View {
+        self
+            .background(.ultraThinMaterial)
+            .background(Color.black.opacity(0.35))
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(
+                        LinearGradient(
+                            colors: [Color.white.opacity(0.22), Color.white.opacity(0.04)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: borderWidth
+                    )
+            )
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
 }
 
@@ -583,11 +618,16 @@ actor KLImageDownloader {
                 // Save raw file bytes to disk cache asynchronously
                 KLDiskImageCache.shared.set(data, for: urlString)
 
-                // Downsample to poster display dimensions (~360x540) to cut GPU/RAM pressure
-                let targetSize = CGSize(width: 360, height: 540)
-                let preparedThumb = await rawImage.byPreparingThumbnail(ofSize: targetSize)
-                let preparedDisplay = await rawImage.byPreparingForDisplay()
-                let displayImage = preparedThumb ?? (preparedDisplay ?? rawImage)
+                // Aspect-preserving downsample (max 640px) to cut GPU/RAM pressure while keeping small logos pin-sharp
+                let maxDim = max(rawImage.size.width, rawImage.size.height)
+                let displayImage: UIImage
+                if maxDim > 640 {
+                    let scale = 640.0 / maxDim
+                    let targetSize = CGSize(width: rawImage.size.width * scale, height: rawImage.size.height * scale)
+                    displayImage = await rawImage.byPreparingThumbnail(ofSize: targetSize) ?? (await rawImage.byPreparingForDisplay() ?? rawImage)
+                } else {
+                    displayImage = await rawImage.byPreparingForDisplay() ?? rawImage
+                }
 
                 KLImageCache.shared.set(displayImage, for: urlString)
                 return displayImage
@@ -606,14 +646,16 @@ actor KLImageDownloader {
 struct KLAsyncImage: View {
     let url: String
     var contentMode: ContentMode = .fill
+    var isLogo: Bool = false
 
     @State private var image: UIImage? = nil
     @State private var isLoading: Bool = false
     @State private var loadTask: Task<Void, Never>? = nil
 
-    init(url: String, contentMode: ContentMode = .fill) {
+    init(url: String, contentMode: ContentMode = .fill, isLogo: Bool = false) {
         self.url = url
         self.contentMode = contentMode
+        self.isLogo = isLogo
         // Frame-0 synchronous RAM cache check: renders image on first frame without flickering!
         if let cached = KLImageCache.shared.get(for: url) {
             _image = State(initialValue: cached)
@@ -626,6 +668,8 @@ struct KLAsyncImage: View {
                 Image(uiImage: img)
                     .resizable()
                     .aspectRatio(contentMode: contentMode)
+            } else if isLogo {
+                Color.clear
             } else {
                 // Sleek Netflix-style Shimmer Glass Placeholder
                 LinearGradient(

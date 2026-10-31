@@ -58,17 +58,26 @@ struct HLSPlayerView: View {
     @State private var failedObserverToken: Any? = nil
     @State private var itemStatusObserver: NSKeyValueObservation? = nil
     @State private var timeControlStatusObserver: NSKeyValueObservation? = nil
+    @State private var interruptionObserverToken: Any? = nil
+    @State private var routeChangeObserverToken: Any? = nil
 
     // VOD Timeline State
     @State private var isLiveStream: Bool = true
     @State private var currentTime: Double = 0
     @State private var duration: Double = 0
+    @State private var bufferedTime: Double = 0
     @State private var isDraggingSlider: Bool = false
     @State private var sliderValue: Double = 0
     @State private var timeObserverToken: Any? = nil
     @State private var hasPerformedInitialSeek: Bool = false
     @State private var targetResumeSeconds: Double = 0
     @State private var lastSavedSecond: Int = -1
+
+    // Horizontal Fine-Scrubbing State
+    @State private var isFineScrubbing: Bool = false
+    @State private var dragScrubStartSeconds: Double = 0
+    @State private var dragScrubDeltaSeconds: Double = 0
+    @State private var selectedQualityPreset: String = "auto"
 
     // OSD Overlay & Interaction
     @State private var isControlsVisible: Bool = true
@@ -88,7 +97,7 @@ struct HLSPlayerView: View {
                     .ignoresSafeArea()
             }
 
-            // 2. Gesture Surface (Single tap to toggle, Double tap to seek, Swipe to dismiss & adjust Brightness/Volume)
+            // 2. Gesture Surface (Single tap to toggle, Double tap to seek, Swipe to dismiss & adjust Brightness/Volume/Scrub)
             GeometryReader { geo in
                 Color.clear
                     .contentShape(Rectangle())
@@ -107,14 +116,29 @@ struct HLSPlayerView: View {
                         toggleControls()
                     }
                     .gesture(
-                        DragGesture(minimumDistance: 15)
+                        DragGesture(minimumDistance: 12)
                             .onChanged { value in
                                 guard !isScreenLocked else { return }
                                 let width = geo.size.width
                                 let startX = value.startLocation.x
                                 let transY = value.translation.height
+                                let transX = value.translation.width
 
-                                if abs(transY) > 10 && abs(value.translation.width) < 80 {
+                                // 1. Fine-Scrub gesture (Horizontal swipe when not live and duration > 0)
+                                if abs(transX) > 20 && abs(transY) < 55 && !isLiveStream && duration > 0 {
+                                    if !isFineScrubbing {
+                                        isFineScrubbing = true
+                                        dragScrubStartSeconds = currentTime
+                                        KLHaptics.light()
+                                    }
+                                    let delta = Double(transX / (width * 0.70)) * 120.0
+                                    dragScrubDeltaSeconds = delta
+                                    sliderValue = min(max(0, dragScrubStartSeconds + delta), duration)
+                                    return
+                                }
+
+                                // 2. Brightness & Volume vertical swipe
+                                if abs(transY) > 10 && abs(transX) < 80 {
                                     let delta = -transY / 220.0
                                     if startX < width * 0.45 {
                                         let target = min(1.0, max(0.0, initialDragBrightness + delta))
@@ -129,6 +153,13 @@ struct HLSPlayerView: View {
                             }
                             .onEnded { value in
                                 guard !isScreenLocked else { return }
+                                if isFineScrubbing {
+                                    isFineScrubbing = false
+                                    let target = min(max(0, dragScrubStartSeconds + dragScrubDeltaSeconds), duration)
+                                    seekToTime(target)
+                                    KLHaptics.medium()
+                                    return
+                                }
                                 if value.startLocation.y < 120 && value.translation.height > 80 && abs(value.translation.width) < 120 && !isFullscreen {
                                     closePlayer()
                                 }
@@ -148,46 +179,57 @@ struct HLSPlayerView: View {
             }
             .ignoresSafeArea()
 
-            // 3. Gestures HUD Feedback Overlay (Brightness & Volume indicator)
+            // 3. Gestures HUD Feedback Overlay (Apple Dynamic Island Glass Capsule)
             if let hud = activeHUDType {
                 VStack {
                     HStack(spacing: 12) {
                         switch hud {
                         case .brightness(let val):
                             Image(systemName: val < 0.3 ? "sun.min.fill" : (val > 0.7 ? "sun.max.fill" : "sun.max"))
-                                .font(.system(size: 18, weight: .bold))
+                                .font(.system(size: 16, weight: .bold))
                                 .foregroundColor(.yellow)
 
-                            ProgressView(value: Double(val), total: 1.0)
-                                .tint(.yellow)
-                                .frame(width: 110)
+                            GeometryReader { barGeo in
+                                ZStack(alignment: .leading) {
+                                    Capsule().fill(Color.white.opacity(0.18))
+                                    Capsule().fill(Color.yellow)
+                                        .frame(width: barGeo.size.width * max(0.02, min(1.0, val)))
+                                }
+                            }
+                            .frame(width: 105, height: 6)
 
                             Text("\(Int(val * 100))%")
-                                .font(.system(size: 12.5, weight: .bold, design: .rounded))
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
                                 .foregroundColor(.white)
                                 .frame(width: 36, alignment: .trailing)
 
                         case .volume(let val):
                             Image(systemName: val == 0 ? "speaker.slash.fill" : (val > 0.5 ? "speaker.wave.3.fill" : "speaker.wave.1.fill"))
-                                .font(.system(size: 18, weight: .bold))
+                                .font(.system(size: 16, weight: .bold))
                                 .foregroundColor(KLTheme.brandOrange)
 
-                            ProgressView(value: Double(val), total: 1.0)
-                                .tint(KLTheme.brandOrange)
-                                .frame(width: 110)
+                            GeometryReader { barGeo in
+                                ZStack(alignment: .leading) {
+                                    Capsule().fill(Color.white.opacity(0.18))
+                                    Capsule().fill(KLTheme.brandOrange)
+                                        .frame(width: barGeo.size.width * CGFloat(max(0.02, min(1.0, val))))
+                                }
+                            }
+                            .frame(width: 105, height: 6)
 
                             Text("\(Int(val * 100))%")
-                                .font(.system(size: 12.5, weight: .bold, design: .rounded))
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
                                 .foregroundColor(.white)
                                 .frame(width: 36, alignment: .trailing)
                         }
                     }
-                    .padding(.horizontal, 18)
+                    .padding(.horizontal, 16)
                     .padding(.vertical, 10)
-                    .background(Color.black.opacity(0.85))
+                    .background(.ultraThinMaterial)
+                    .background(Color.black.opacity(0.55))
                     .clipShape(Capsule())
-                    .overlay(Capsule().stroke(Color.white.opacity(0.18), lineWidth: 0.8))
-                    .shadow(color: .black.opacity(0.4), radius: 8, y: 4)
+                    .overlay(Capsule().stroke(Color.white.opacity(0.20), lineWidth: 0.8))
+                    .shadow(color: .black.opacity(0.4), radius: 10, y: 4)
                     .padding(.top, isFullscreen ? 26 : 18)
 
                     Spacer()
@@ -195,6 +237,34 @@ struct HLSPlayerView: View {
                 .transition(.opacity.combined(with: .scale(scale: 0.94)))
                 .allowsHitTesting(false)
                 .zIndex(25)
+            }
+
+            // 3.5 Fine-Scrubbing Interactive Center Apple Glass Pill
+            if isFineScrubbing {
+                VStack(spacing: 6) {
+                    Image(systemName: dragScrubDeltaSeconds >= 0 ? "goforward" : "gobackward")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundColor(KLTheme.brandOrange)
+                    Text("\(dragScrubDeltaSeconds >= 0 ? "+" : "")\(Int(dragScrubDeltaSeconds))s")
+                        .font(.system(size: 18, weight: .heavy, design: .rounded))
+                        .foregroundColor(.white)
+                    Text("\(formatTime(sliderValue)) / \(formatTime(max(1, duration)))")
+                        .font(.system(size: 12.5, weight: .bold, design: .monospaced))
+                        .foregroundColor(Color.white.opacity(0.85))
+                }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 14)
+                .background(.ultraThinMaterial)
+                .background(Color.black.opacity(0.55))
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(Color.white.opacity(0.22), lineWidth: 0.8)
+                )
+                .shadow(color: Color.black.opacity(0.5), radius: 14)
+                .transition(.scale(scale: 0.9).combined(with: .opacity))
+                .allowsHitTesting(false)
+                .zIndex(24)
             }
 
             // 4. Double-Tap Seek Ripple Feedback Overlay
@@ -211,7 +281,8 @@ struct HLSPlayerView: View {
                     .foregroundColor(.white)
                     .padding(.horizontal, 22)
                     .padding(.vertical, 16)
-                    .background(Color.black.opacity(0.72))
+                    .background(.ultraThinMaterial)
+                    .background(Color.black.opacity(0.45))
                     .clipShape(RoundedRectangle(cornerRadius: 16))
                     .overlay(
                         RoundedRectangle(cornerRadius: 16)
@@ -285,7 +356,8 @@ struct HLSPlayerView: View {
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 8)
-                                .background(Color.black.opacity(0.75))
+                                .background(.ultraThinMaterial)
+                                .background(Color.black.opacity(0.45))
                                 .clipShape(Capsule())
                                 .overlay(Capsule().stroke(Color.white.opacity(0.25), lineWidth: 0.8))
                                 .shadow(color: Color.black.opacity(0.6), radius: 8)
@@ -438,7 +510,7 @@ struct HLSPlayerView: View {
     // MARK: - Top Bar View
     private var topBarView: some View {
         HStack(alignment: .center, spacing: 12) {
-            // Dismiss Button (Standard iOS Glass Blur Button)
+            // Dismiss Button (Apple Glass Blur Button)
             Button {
                 KLHaptics.light()
                 closePlayer()
@@ -447,8 +519,10 @@ struct HLSPlayerView: View {
                     .font(.system(size: 13, weight: .bold))
                     .foregroundColor(.white)
                     .frame(width: 36, height: 36)
-                    .background(Color.white.opacity(0.18))
+                    .background(.ultraThinMaterial)
+                    .background(Color.black.opacity(0.35))
                     .clipShape(Circle())
+                    .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 0.8))
             }
             .buttonStyle(.plain)
 
@@ -492,12 +566,66 @@ struct HLSPlayerView: View {
                     .foregroundColor(KLTheme.brandOrange)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
-                    .background(Color.black.opacity(0.65))
+                    .background(.ultraThinMaterial)
+                    .background(Color.black.opacity(0.50))
                     .clipShape(Capsule())
                     .overlay(
                         Capsule().stroke(KLTheme.brandOrange.opacity(0.4), lineWidth: 0.8)
                     )
                 }
+            }
+
+            // Quality / Bitrate Preset Menu
+            Menu {
+                Button {
+                    setPreferredQuality("auto")
+                } label: {
+                    HStack {
+                        Text("Tự động (Khuyên dùng)")
+                        if selectedQualityPreset == "auto" { Image(systemName: "checkmark") }
+                    }
+                }
+                Button {
+                    setPreferredQuality("1080p")
+                } label: {
+                    HStack {
+                        Text("1080p FHD (Sắc nét nhất)")
+                        if selectedQualityPreset == "1080p" { Image(systemName: "checkmark") }
+                    }
+                }
+                Button {
+                    setPreferredQuality("720p")
+                } label: {
+                    HStack {
+                        Text("720p HD (Mượt mà)")
+                        if selectedQualityPreset == "720p" { Image(systemName: "checkmark") }
+                    }
+                }
+                Button {
+                    setPreferredQuality("480p")
+                } label: {
+                    HStack {
+                        Text("480p SD (Tiết kiệm data)")
+                        if selectedQualityPreset == "480p" { Image(systemName: "checkmark") }
+                    }
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Image("fp_player_bitrate")
+                        .resizable()
+                        .renderingMode(.template)
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 12, height: 12)
+                    Text(selectedQualityPreset == "auto" ? "CHẤT LƯỢNG" : selectedQualityPreset.uppercased())
+                        .font(.system(size: 10, weight: .heavy, design: .rounded))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5.5)
+                .background(.ultraThinMaterial)
+                .background(Color.black.opacity(0.40))
+                .cornerRadius(7)
+                .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.white.opacity(0.18), lineWidth: 0.8))
             }
 
             // Episode Drawer Selector (For VOD / Phim)
@@ -518,8 +646,10 @@ struct HLSPlayerView: View {
                     .foregroundColor(.white)
                     .padding(.horizontal, 9)
                     .padding(.vertical, 5.5)
-                    .background(Color.white.opacity(0.18))
+                    .background(.ultraThinMaterial)
+                    .background(Color.black.opacity(0.40))
                     .cornerRadius(7)
+                    .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.white.opacity(0.18), lineWidth: 0.8))
                 }
                 .buttonStyle(.plain)
             }
@@ -527,8 +657,10 @@ struct HLSPlayerView: View {
             // AirPlay Cast Route Picker Button
             AirPlayPickerView()
                 .frame(width: 32, height: 32)
-                .background(Color.white.opacity(0.18))
+                .background(.ultraThinMaterial)
+                .background(Color.black.opacity(0.35))
                 .clipShape(Circle())
+                .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 0.8))
 
             // Orientation Lock Toggle Button (Switches Landscape vs Portrait)
             if isFullscreen {
@@ -552,8 +684,10 @@ struct HLSPlayerView: View {
                     .foregroundColor(.white)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5.5)
-                    .background(Color.white.opacity(0.18))
+                    .background(.ultraThinMaterial)
+                    .background(Color.black.opacity(0.40))
                     .cornerRadius(7)
+                    .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.white.opacity(0.18), lineWidth: 0.8))
                 }
                 .buttonStyle(.plain)
 
@@ -572,8 +706,10 @@ struct HLSPlayerView: View {
                         .frame(width: 17, height: 17)
                         .foregroundColor(.white)
                         .frame(width: 34, height: 34)
-                        .background(Color.white.opacity(0.18))
+                        .background(.ultraThinMaterial)
+                        .background(Color.black.opacity(0.35))
                         .clipShape(Circle())
+                        .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 0.8))
                 }
                 .buttonStyle(.plain)
             }
@@ -598,8 +734,10 @@ struct HLSPlayerView: View {
                         .font(.system(size: 19, weight: .bold))
                         .foregroundColor(internalEpIndex > 0 ? .white : Color.white.opacity(0.25))
                         .frame(width: 44, height: 44)
-                        .background(Color.black.opacity(0.55))
+                        .background(.ultraThinMaterial)
+                        .background(Color.black.opacity(0.40))
                         .clipShape(Circle())
+                        .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 0.8))
                 }
                 .buttonStyle(.plain)
                 .disabled(internalEpIndex <= 0)
@@ -609,35 +747,35 @@ struct HLSPlayerView: View {
             Button {
                 performQuickSeek(seconds: -10, side: .leading)
             } label: {
-                Image("fp_player_rewind_10")
-                    .resizable()
-                    .renderingMode(.template)
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 25, height: 25)
+                Image(systemName: "gobackward.10")
+                    .font(.system(size: 22, weight: .bold))
                     .foregroundColor(.white)
-                    .frame(width: 46, height: 46)
-                    .background(Color.black.opacity(0.55))
+                    .frame(width: 48, height: 48)
+                    .background(.ultraThinMaterial)
+                    .background(Color.black.opacity(0.40))
                     .clipShape(Circle())
+                    .overlay(Circle().stroke(Color.white.opacity(0.20), lineWidth: 0.8))
             }
             .buttonStyle(.plain)
 
-            // Play / Pause Button
+            // Play / Pause Button (Apple Action Blue / Brand Accent)
             Button {
                 togglePlayPause()
             } label: {
                 Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                     .font(.system(size: 28, weight: .bold))
                     .foregroundColor(.white)
-                    .frame(width: 64, height: 64)
+                    .frame(width: 66, height: 66)
                     .background(
                         LinearGradient(
-                            colors: [KLTheme.brandOrange, Color(red: 0.95, green: 0.32, blue: 0.05)],
+                            colors: [KLTheme.brandOrange, Color(red: 0.0, green: 0.443, blue: 0.89)],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
                     .clipShape(Circle())
-                    .shadow(color: KLTheme.brandOrange.opacity(0.4), radius: 10, x: 0, y: 3)
+                    .overlay(Circle().stroke(Color.white.opacity(0.32), lineWidth: 1.2))
+                    .shadow(color: KLTheme.brandOrange.opacity(0.55), radius: 14, x: 0, y: 4)
             }
             .buttonStyle(.plain)
 
@@ -645,15 +783,14 @@ struct HLSPlayerView: View {
             Button {
                 performQuickSeek(seconds: 10, side: .trailing)
             } label: {
-                Image("fp_player_forward_10")
-                    .resizable()
-                    .renderingMode(.template)
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 25, height: 25)
+                Image(systemName: "goforward.10")
+                    .font(.system(size: 22, weight: .bold))
                     .foregroundColor(.white)
-                    .frame(width: 46, height: 46)
-                    .background(Color.black.opacity(0.55))
+                    .frame(width: 48, height: 48)
+                    .background(.ultraThinMaterial)
+                    .background(Color.black.opacity(0.40))
                     .clipShape(Circle())
+                    .overlay(Circle().stroke(Color.white.opacity(0.20), lineWidth: 0.8))
             }
             .buttonStyle(.plain)
 
@@ -669,8 +806,10 @@ struct HLSPlayerView: View {
                         .font(.system(size: 19, weight: .bold))
                         .foregroundColor(internalEpIndex + 1 < allAvailableEpisodes.count ? .white : Color.white.opacity(0.25))
                         .frame(width: 44, height: 44)
-                        .background(Color.black.opacity(0.55))
+                        .background(.ultraThinMaterial)
+                        .background(Color.black.opacity(0.40))
                         .clipShape(Circle())
+                        .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 0.8))
                 }
                 .buttonStyle(.plain)
                 .disabled(internalEpIndex + 1 >= allAvailableEpisodes.count)
@@ -678,43 +817,95 @@ struct HLSPlayerView: View {
         }
     }
 
-    // MARK: - Bottom Bar View
+    // MARK: - Bottom Bar View (Apple Cinema Scrubber & Glass Controls)
     private var bottomBarView: some View {
-        VStack(spacing: 10) {
-            // VOD Progress Timeline (Only when duration > 0 and not live)
+        VStack(spacing: 8) {
+            // VOD Progress Timeline with Loaded Buffer Indicator
             if !isLiveStream && duration > 0 && duration.isFinite {
                 let safeDuration = max(1.0, duration)
                 let safeCurrent = min(max(0, currentTime), safeDuration)
                 let safeValue = isDraggingSlider ? min(max(0, sliderValue), safeDuration) : safeCurrent
-                VStack(spacing: 4) {
-                    Slider(
-                        value: Binding(
-                            get: { safeValue },
-                            set: { newValue in
-                                isDraggingSlider = true
-                                sliderValue = min(max(0, newValue), safeDuration)
+                let playedRatio = CGFloat(max(0.0, min(1.0, safeValue / safeDuration)))
+                let bufferRatio = CGFloat(max(0.0, min(1.0, max(bufferedTime, safeCurrent) / safeDuration)))
+
+                VStack(spacing: 6) {
+                    GeometryReader { scrubGeo in
+                        let trackWidth = scrubGeo.size.width
+                        ZStack(alignment: .leading) {
+                            // 1. Base Dark Track
+                            Capsule()
+                                .fill(Color.white.opacity(0.18))
+                                .frame(height: isDraggingSlider ? 6 : 4)
+
+                            // 2. Buffered Time Range Track (Loaded HLS Chunks)
+                            Capsule()
+                                .fill(Color.white.opacity(0.38))
+                                .frame(width: max(0, trackWidth * bufferRatio), height: isDraggingSlider ? 6 : 4)
+
+                            // 3. Played Track with Vibrant Apple Gradient
+                            Capsule()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [KLTheme.brandOrange, KLTheme.fptOrange],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .frame(width: max(0, trackWidth * playedRatio), height: isDraggingSlider ? 6 : 4)
+
+                            // 4. Apple Tactile Scrubber Thumb Knob
+                            Circle()
+                                .fill(Color.white)
+                                .frame(width: isDraggingSlider ? 16 : 12, height: isDraggingSlider ? 16 : 12)
+                                .shadow(color: Color.black.opacity(0.5), radius: 4, x: 0, y: 1)
+                                .offset(x: max(0, min(trackWidth - (isDraggingSlider ? 16 : 12), trackWidth * playedRatio - (isDraggingSlider ? 8 : 6))))
+                                .animation(.spring(response: 0.18, dampingFraction: 0.8), value: isDraggingSlider)
+
+                            // 5. Floating Glass Time Bubble when dragging
+                            if isDraggingSlider {
+                                Text("\(formatTime(safeValue)) (-\(formatTime(max(0, safeDuration - safeValue))))")
+                                    .font(.system(size: 11, weight: .black, design: .monospaced))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(.ultraThinMaterial)
+                                    .background(Color.black.opacity(0.65))
+                                    .clipShape(Capsule())
+                                    .overlay(Capsule().stroke(Color.white.opacity(0.22), lineWidth: 0.6))
+                                    .shadow(color: Color.black.opacity(0.4), radius: 6)
+                                    .offset(x: max(0, min(trackWidth - 95, trackWidth * playedRatio - 47)), y: -28)
                             }
-                        ),
-                        in: 0...safeDuration,
-                        onEditingChanged: { editing in
-                            isDraggingSlider = editing
-                            if !editing {
-                                seekToTime(sliderValue)
-                            }
-                            rescheduleAutoHide()
                         }
-                    )
-                    .tint(KLTheme.appleActionBlue)
+                        .frame(height: 24)
+                        .contentShape(Rectangle())
+                        .gesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { g in
+                                    isDraggingSlider = true
+                                    let fraction = max(0.0, min(1.0, g.location.x / trackWidth))
+                                    sliderValue = safeDuration * Double(fraction)
+                                    rescheduleAutoHide()
+                                }
+                                .onEnded { g in
+                                    let fraction = max(0.0, min(1.0, g.location.x / trackWidth))
+                                    let targetSec = safeDuration * Double(fraction)
+                                    seekToTime(targetSec)
+                                    isDraggingSlider = false
+                                    rescheduleAutoHide()
+                                }
+                        )
+                    }
+                    .frame(height: 24)
 
                     HStack {
                         Text(formatTime(safeValue))
-                            .font(.system(size: 11, weight: .medium, design: .monospaced))
+                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
                             .foregroundColor(KLTheme.textSecondary)
 
                         Spacer()
 
                         Text("-" + formatTime(max(0, safeDuration - safeValue)))
-                            .font(.system(size: 11, weight: .medium, design: .monospaced))
+                            .font(.system(size: 11, weight: .semibold, design: .monospaced))
                             .foregroundColor(KLTheme.textMuted)
                     }
                 }
@@ -734,12 +925,12 @@ struct HLSPlayerView: View {
                     .padding(.horizontal, 9)
                     .padding(.vertical, 4.5)
                     .background(KLTheme.liveRed.opacity(0.15))
-                    .cornerRadius(6)
+                    .clipShape(Capsule())
                 }
 
                 Spacer()
 
-                // FPT Play VepisodePlayerControlStackview - Episode Drawer Button
+                // Episode Drawer Button
                 if allAvailableEpisodes.count > 1 {
                     Button {
                         KLHaptics.light()
@@ -756,10 +947,12 @@ struct HLSPlayerView: View {
                                 .font(.system(size: 10, weight: .heavy, design: .rounded))
                         }
                         .foregroundColor(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
-                        .background(Color.white.opacity(0.16))
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 5.5)
+                        .background(.ultraThinMaterial)
+                        .background(Color.black.opacity(0.40))
                         .cornerRadius(7)
+                        .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.white.opacity(0.18), lineWidth: 0.8))
                     }
                     .buttonStyle(.plain)
                 }
@@ -781,10 +974,12 @@ struct HLSPlayerView: View {
                                 .font(.system(size: 10, weight: .heavy, design: .rounded))
                         }
                         .foregroundColor(playbackRate != 1.0 ? KLTheme.fptOrange : .white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
-                        .background(Color.white.opacity(0.16))
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 5.5)
+                        .background(.ultraThinMaterial)
+                        .background(Color.black.opacity(0.40))
                         .cornerRadius(7)
+                        .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.white.opacity(0.18), lineWidth: 0.8))
                     }
                     .buttonStyle(.plain)
                 }
@@ -805,9 +1000,11 @@ struct HLSPlayerView: View {
                     }
                     .foregroundColor(.white)
                     .padding(.horizontal, 9)
-                    .padding(.vertical, 5)
-                    .background(Color.white.opacity(0.16))
+                    .padding(.vertical, 5.5)
+                    .background(.ultraThinMaterial)
+                    .background(Color.black.opacity(0.40))
                     .cornerRadius(7)
+                    .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.white.opacity(0.18), lineWidth: 0.8))
                 }
                 .buttonStyle(.plain)
 
@@ -822,8 +1019,10 @@ struct HLSPlayerView: View {
                         .font(.system(size: 13, weight: .bold))
                         .foregroundColor(isMuted ? KLTheme.liveRed : .white)
                         .frame(width: 34, height: 34)
-                        .background(Color.white.opacity(0.16))
+                        .background(.ultraThinMaterial)
+                        .background(Color.black.opacity(0.35))
                         .clipShape(Circle())
+                        .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 0.8))
                 }
                 .buttonStyle(.plain)
 
@@ -837,8 +1036,10 @@ struct HLSPlayerView: View {
                             .font(.system(size: 13, weight: .bold))
                             .foregroundColor(.white)
                             .frame(width: 34, height: 34)
-                            .background(Color.white.opacity(0.16))
+                            .background(.ultraThinMaterial)
+                            .background(Color.black.opacity(0.35))
                             .clipShape(Circle())
+                            .overlay(Circle().stroke(Color.white.opacity(0.18), lineWidth: 0.8))
                     }
                     .buttonStyle(.plain)
                 }
@@ -857,6 +1058,63 @@ struct HLSPlayerView: View {
             try session.setActive(true)
         } catch {
             // Ignore simulator audio configuration errors
+        }
+
+        // Auto pause on headphone disconnection (AirPods / Lightning / Bluetooth)
+        if routeChangeObserverToken == nil {
+            routeChangeObserverToken = NotificationCenter.default.addObserver(
+                forName: AVAudioSession.routeChangeNotification,
+                object: nil,
+                queue: .main
+            ) { [weak player] notif in
+                guard let info = notif.userInfo,
+                      let reasonValue = info[AVAudioSessionRouteChangeReasonKey] as? UInt,
+                      let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else { return }
+                if reason == .oldDeviceUnavailable {
+                    player?.pause()
+                    self.isPlaying = false
+                    self.showControlsPermanently()
+                }
+            }
+        }
+
+        // Auto pause on incoming phone calls or alarms
+        if interruptionObserverToken == nil {
+            interruptionObserverToken = NotificationCenter.default.addObserver(
+                forName: AVAudioSession.interruptionNotification,
+                object: nil,
+                queue: .main
+            ) { [weak player] notif in
+                guard let info = notif.userInfo,
+                      let typeValue = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+                      let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
+                if type == .began {
+                    player?.pause()
+                    self.isPlaying = false
+                } else if type == .ended {
+                    if let optValue = info[AVAudioSessionInterruptionOptionKey] as? UInt,
+                       AVAudioSession.InterruptionOptions(rawValue: optValue).contains(.shouldResume) {
+                        player?.play()
+                        self.isPlaying = true
+                    }
+                }
+            }
+        }
+    }
+
+    private func setPreferredQuality(_ preset: String) {
+        selectedQualityPreset = preset
+        KLHaptics.selection()
+        guard let item = player?.currentItem else { return }
+        switch preset {
+        case "1080p":
+            item.preferredPeakBitRate = 8_000_000
+        case "720p":
+            item.preferredPeakBitRate = 3_500_000
+        case "480p":
+            item.preferredPeakBitRate = 1_200_000
+        default:
+            item.preferredPeakBitRate = 0 // Auto adaptive bitrate
         }
     }
 
@@ -1103,6 +1361,16 @@ struct HLSPlayerView: View {
                 self.currentTime = sec
                 self.isLoadingStream = false
             }
+
+            // Sample loaded/buffered time ranges for smooth progress visualization
+            if let timeRange = currentItem.loadedTimeRanges.first?.timeRangeValue {
+                let bStart = CMTimeGetSeconds(timeRange.start)
+                let bDur = CMTimeGetSeconds(timeRange.duration)
+                let bEnd = bStart + bDur
+                if !bEnd.isNaN && bEnd > 0 {
+                    self.bufferedTime = bEnd
+                }
+            }
             if !dur.isNaN && dur > 0 && !dur.isInfinite {
                 self.duration = dur
                 self.isLiveStream = false
@@ -1344,6 +1612,14 @@ struct HLSPlayerView: View {
         if let failToken = failedObserverToken {
             NotificationCenter.default.removeObserver(failToken)
             failedObserverToken = nil
+        }
+        if let token = interruptionObserverToken {
+            NotificationCenter.default.removeObserver(token)
+            interruptionObserverToken = nil
+        }
+        if let token = routeChangeObserverToken {
+            NotificationCenter.default.removeObserver(token)
+            routeChangeObserverToken = nil
         }
         itemStatusObserver?.invalidate()
         itemStatusObserver = nil

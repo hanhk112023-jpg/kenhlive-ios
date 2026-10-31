@@ -205,14 +205,13 @@ struct HomeHubView: View {
                     HStack(alignment: .center, spacing: 12) {
                         // Team A
                         HStack(spacing: 8) {
-                            AsyncImage(url: URL(string: logoA)) { phase in
-                                if let img = phase.image {
-                                    img.resizable().aspectRatio(contentMode: .fit)
-                                } else {
-                                    Image(systemName: "shield.fill").foregroundColor(KLTheme.textMuted)
-                                }
+                            if !logoA.isEmpty {
+                                KLAsyncImage(url: logoA, contentMode: .fit, isLogo: true)
+                                    .frame(width: 38, height: 38)
+                            } else {
+                                Image(systemName: "shield.fill").foregroundColor(KLTheme.textMuted)
+                                    .frame(width: 38, height: 38)
                             }
-                            .frame(width: 38, height: 38)
 
                             Text(teamA)
                                 .font(.system(size: 13.5, weight: .bold))
@@ -249,14 +248,13 @@ struct HomeHubView: View {
                                 .foregroundColor(.white)
                                 .lineLimit(1)
 
-                            AsyncImage(url: URL(string: logoB)) { phase in
-                                if let img = phase.image {
-                                    img.resizable().aspectRatio(contentMode: .fit)
-                                } else {
-                                    Image(systemName: "shield.fill").foregroundColor(KLTheme.textMuted)
-                                }
+                            if !logoB.isEmpty {
+                                KLAsyncImage(url: logoB, contentMode: .fit, isLogo: true)
+                                    .frame(width: 38, height: 38)
+                            } else {
+                                Image(systemName: "shield.fill").foregroundColor(KLTheme.textMuted)
+                                    .frame(width: 38, height: 38)
                             }
-                            .frame(width: 38, height: 38)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -317,16 +315,10 @@ struct HomeHubView: View {
                         } label: {
                             HStack(spacing: 10) {
                                 // Poster Thumbnail
-                                AsyncImage(url: URL(string: item.posterUrl)) { phase in
-                                    if let img = phase.image {
-                                        img.resizable().aspectRatio(contentMode: .fill)
-                                    } else {
-                                        Color.black.opacity(0.3)
-                                    }
-                                }
-                                .frame(width: 50, height: 70)
-                                .cornerRadius(8)
-                                .clipped()
+                                KLAsyncImage(url: item.posterUrl, contentMode: .fill)
+                                    .frame(width: 50, height: 70)
+                                    .cornerRadius(8)
+                                    .clipped()
 
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(item.filmName)
@@ -476,11 +468,13 @@ struct HomeHubView: View {
                 HStack(spacing: 10) {
                     // Team A
                     VStack(spacing: 4) {
-                        AsyncImage(url: URL(string: logoA)) { phase in
-                            if let img = phase.image { img.resizable().aspectRatio(contentMode: .fit) }
-                            else { Image(systemName: "shield.fill").foregroundColor(KLTheme.textMuted) }
+                        if !logoA.isEmpty {
+                            KLAsyncImage(url: logoA, contentMode: .fit, isLogo: true)
+                                .frame(width: 28, height: 28)
+                        } else {
+                            Image(systemName: "shield.fill").foregroundColor(KLTheme.textMuted)
+                                .frame(width: 28, height: 28)
                         }
-                        .frame(width: 28, height: 28)
 
                         Text(teamA)
                             .font(.system(size: 11, weight: .semibold))
@@ -504,11 +498,13 @@ struct HomeHubView: View {
 
                     // Team B
                     VStack(spacing: 4) {
-                        AsyncImage(url: URL(string: logoB)) { phase in
-                            if let img = phase.image { img.resizable().aspectRatio(contentMode: .fit) }
-                            else { Image(systemName: "shield.fill").foregroundColor(KLTheme.textMuted) }
+                        if !logoB.isEmpty {
+                            KLAsyncImage(url: logoB, contentMode: .fit, isLogo: true)
+                                .frame(width: 28, height: 28)
+                        } else {
+                            Image(systemName: "shield.fill").foregroundColor(KLTheme.textMuted)
+                                .frame(width: 28, height: 28)
                         }
-                        .frame(width: 28, height: 28)
 
                         Text(teamB)
                             .font(.system(size: 11, weight: .semibold))
@@ -554,13 +550,10 @@ struct HomeHubView: View {
                         } label: {
                             VStack(alignment: .leading, spacing: 6) {
                                 ZStack(alignment: .topTrailing) {
-                                    AsyncImage(url: URL(string: film.posterUrl.isEmpty ? film.thumbUrl : film.posterUrl)) { phase in
-                                        if let img = phase.image {
-                                            img.resizable().aspectRatio(contentMode: .fill)
-                                        } else {
-                                            Color.black.opacity(0.4)
-                                        }
-                                    }
+                                    KLAsyncImage(
+                                        url: film.posterUrl.isEmpty ? film.thumbUrl : film.posterUrl,
+                                        contentMode: .fill
+                                    )
                                     .frame(width: 108, height: 156)
                                     .cornerRadius(10)
                                     .clipped()

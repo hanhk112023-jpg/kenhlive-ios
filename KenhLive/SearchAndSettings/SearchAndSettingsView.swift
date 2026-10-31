@@ -198,13 +198,10 @@ struct SearchAndSettingsView: View {
                                 selectedFilm = film
                             } label: {
                                 VStack(alignment: .leading, spacing: 5) {
-                                    AsyncImage(url: URL(string: film.posterUrl.isEmpty ? film.thumbUrl : film.posterUrl)) { phase in
-                                        if let img = phase.image {
-                                            img.resizable().aspectRatio(contentMode: .fill)
-                                        } else {
-                                            Color.black.opacity(0.3)
-                                        }
-                                    }
+                                    KLAsyncImage(
+                                        url: film.posterUrl.isEmpty ? film.thumbUrl : film.posterUrl,
+                                        contentMode: .fill
+                                    )
                                     .frame(maxWidth: .infinity)
                                     .frame(height: 145)
                                     .cornerRadius(8)
