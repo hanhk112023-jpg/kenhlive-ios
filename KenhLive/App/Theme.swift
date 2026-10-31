@@ -624,9 +624,19 @@ actor KLImageDownloader {
                 if maxDim > 640 {
                     let scale = 640.0 / maxDim
                     let targetSize = CGSize(width: rawImage.size.width * scale, height: rawImage.size.height * scale)
-                    displayImage = await rawImage.byPreparingThumbnail(ofSize: targetSize) ?? (await rawImage.byPreparingForDisplay() ?? rawImage)
+                    if let thumb = await rawImage.byPreparingThumbnail(ofSize: targetSize) {
+                        displayImage = thumb
+                    } else if let disp = await rawImage.byPreparingForDisplay() {
+                        displayImage = disp
+                    } else {
+                        displayImage = rawImage
+                    }
                 } else {
-                    displayImage = await rawImage.byPreparingForDisplay() ?? rawImage
+                    if let disp = await rawImage.byPreparingForDisplay() {
+                        displayImage = disp
+                    } else {
+                        displayImage = rawImage
+                    }
                 }
 
                 KLImageCache.shared.set(displayImage, for: urlString)
